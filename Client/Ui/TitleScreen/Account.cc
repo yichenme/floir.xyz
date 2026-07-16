@@ -15,12 +15,12 @@ using namespace Ui;
 
 static Element *make_logged_in_view() {
     return new Ui::VContainer({
-        new Ui::StaticText(22, "Account"),
-        new Ui::DynamicText(16, [](){
+        new Ui::StaticText(18, "Account"),
+        new Ui::DynamicText(13, [](){
             return "Logged in as: " + Account::logged_in_user;
         }, { .fill = 0xffffffff }),
         new Ui::Button(140, 36,
-            new Ui::StaticText(18, "Log out"),
+            new Ui::StaticText(15, "Log out"),
             [](Element *, uint8_t e){ if (e == Ui::kClick) Account::request_logout(); },
             nullptr,
             { .fill = 0xffdb5a5a, .line_width = 5, .round_radius = 3 }
@@ -30,10 +30,10 @@ static Element *make_logged_in_view() {
 
 static Element *make_logged_out_view() {
     return new Ui::VContainer({
-        new Ui::StaticText(22, "Account"),
+        new Ui::StaticText(18, "Account"),
         new Ui::HContainer({
             new Ui::Button(90, 32,
-                new Ui::StaticText(16, "Login"),
+                new Ui::StaticText(13, "Login"),
                 [](Element *, uint8_t e){ if (e == Ui::kClick) {
                     Account::register_mode = false;
                     Account::error = "";
@@ -42,7 +42,7 @@ static Element *make_logged_out_view() {
                 { .fill = 0xff5a9fdb, .line_width = 4, .round_radius = 3 }
             ),
             new Ui::Button(90, 32,
-                new Ui::StaticText(16, "Register"),
+                new Ui::StaticText(13, "Register"),
                 [](Element *, uint8_t e){ if (e == Ui::kClick) {
                     Account::register_mode = true;
                     Account::error = "";
@@ -70,7 +70,7 @@ static Element *make_logged_out_view() {
             { .no_animation = 1 }
         ),
         new Ui::Button(140, 36,
-            new Ui::StaticText(18, "Submit"),
+            new Ui::StaticText(15, "Submit"),
             [](Element *, uint8_t e){ if (e == Ui::kClick) {
                 if (Account::register_mode) Account::request_register();
                 else Account::request_login();
@@ -78,7 +78,7 @@ static Element *make_logged_out_view() {
             nullptr,
             { .fill = 0xff1dd129, .line_width = 5, .round_radius = 3 }
         ),
-        new Ui::DynamicText(14, [](){ return Account::error; }, { .fill = 0xffff5555 })
+        new Ui::DynamicText(12, [](){ return Account::error; }, { .fill = 0xffff5555 })
     }, 12, 10, { .h_justify = Style::Left, .no_animation = 1 });
 }
 

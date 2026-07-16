@@ -52,49 +52,16 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
     // out along the shallowest axis so it can escape.
     if (terrain_collide) {
         float const r = ent.get_radius();
-        float const cs = Tilemap::COLL_CELL;
-        // Resolve a point out of every solid cell its radius overlaps.
-        auto resolve = [&](float x, float y) -> Vector {
-            for (uint32_t pass = 0; pass < 2; ++pass) {
-                int32_t c0 = (int32_t)std::floor((x - r) / cs);
-                int32_t c1 = (int32_t)std::floor((x + r) / cs);
-                int32_t r0 = (int32_t)std::floor((y - r) / cs);
-                int32_t r1 = (int32_t)std::floor((y + r) / cs);
-                for (int32_t rr = r0; rr <= r1; ++rr)
-                for (int32_t cc = c0; cc <= c1; ++cc) {
-                    if (!Tilemap::solid_at(cc * cs + 1, rr * cs + 1)) continue;
-                    float const cellL = cc * cs, cellT = rr * cs;
-                    float const cellR = cellL + cs, cellB = cellT + cs;
-                    float const nearX = fclamp(x, cellL, cellR);
-                    float const nearY = fclamp(y, cellT, cellB);
-                    float dx = x - nearX, dy = y - nearY;
-                    float d2 = dx * dx + dy * dy;
-                    if (d2 >= r * r) continue;
-                    if (d2 > 0.0001f) {
-                        float d = std::sqrt(d2); float push = r - d;
-                        x += dx / d * push; y += dy / d * push;
-                    } else {
-                        float const dl = x - cellL, dr = cellR - x;
-                        float const dtp = y - cellT, db = cellB - y;
-                        float const m = std::min(std::min(dl, dr), std::min(dtp, db));
-                        if (m == dl) x = cellL - r; else if (m == dr) x = cellR + r;
-                        else if (m == dtp) y = cellT - r; else y = cellB + r;
-                    }
-                }
-            }
-            return Vector(x, y);
-        };
-        // Sub-step from the pre-move position so a big knockback can't tunnel
-        // through a thin wall: advance in <=half-cell hops, resolving each.
+        // Sub-step from the pre-move position so a big move/knockback can't
+        // tunnel through a thin wall; resolve exactly against tile polygons.
         float tx = ent.get_x(), ty = ent.get_y();
         float dist = std::hypot(tx - prev_x, ty - prev_y);
-        int steps = std::max(1, (int)std::ceil(dist / (cs * 0.5f)));
+        int steps = std::max(1, (int)std::ceil(dist / 50.0f));
         float cx = prev_x, cy = prev_y;
         for (int s = 1; s <= steps; ++s) {
-            float sx = prev_x + (tx - prev_x) * s / steps;
-            float sy = prev_y + (ty - prev_y) * s / steps;
-            Vector rv = resolve(sx, sy);
-            cx = rv.x; cy = rv.y;
+            cx = prev_x + (tx - prev_x) * s / steps;
+            cy = prev_y + (ty - prev_y) * s / steps;
+            Tilemap::push_circle(cx, cy, r);
         }
         ent.set_x(cx);
         ent.set_y(cy);

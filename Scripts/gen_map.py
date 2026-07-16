@@ -35,7 +35,7 @@ GID_TO_SVG = {
     112: 'scliff_c_0.svg', 113: 'scliff_l_0.svg', 114: 'scliff_tl_0.svg', 115: 'scliff_tli_0.svg',
     # transitions (biome-boundary edges)
     46: 'desert_r_0.svg', 70: 'desert_t_0.svg', 87: 'grass2_t_0.svg',
-    48: 'grass2_b_0.svg', 47: 'desert_b_0.svg',
+    48: 'desert_b_0.svg', 47: 'desert_b_0.svg',
 }
 
 # Draw order must match the .tmj (bottom -> top): transitions sit just above bg,
@@ -191,12 +191,15 @@ def _arc_points(x1, y1, rx, ry, phi_deg, large, sweep, x2, y2):
     return out
 
 
-def _path_points(d):
+def _path_subpaths(d):
     # Char-scanning SVG path parser (handles packed arc flags). Curves & arcs
-    # are sampled into a polygon outline.
+    # are sampled into polygon outlines. Returns a list of subpaths (each `M`
+    # starts a new one) so composite fills aren't stitched into a single
+    # self-intersecting ring.
     n = len(d)
     i = 0
     pts = []
+    subpaths = []
     cx = cy = sx = sy = 0.0
     cmd = None
     prev_c2 = None
@@ -246,6 +249,9 @@ def _path_points(d):
             cmd = d[i]; i += 1
         rel = cmd.islower(); c = cmd.upper()
         if c == 'M':
+            if len(pts) >= 2:
+                subpaths.append(pts)
+            pts = []
             x = num(); y = num()
             if rel: x += cx; y += cy
             cx, cy = x, y; sx, sy = x, y; pts.append((cx, cy)); cmd = 'l' if rel else 'L'
@@ -294,7 +300,17 @@ def _path_points(d):
         else:
             i += 1
         prev_c2 = None
-    return pts
+    if len(pts) >= 2:
+        subpaths.append(pts)
+    return subpaths
+
+
+def _path_points(d):
+    # Backward-compatible flat vertex list (all subpaths concatenated).
+    out = []
+    for sp in _path_subpaths(d):
+        out.extend(sp)
+    return out
 
 
 _MASK_CACHE = {}
@@ -360,70 +376,135 @@ def _tile_mask(svg_name):
     return mask
 
 
-def _flip_mask(mask, g):
-    m = mask
-    if g & FLIP_D_B:
-        m = [[m[c][r] for c in range(MASK_RES)] for r in range(MASK_RES)]  # transpose
-    if g & FLIP_H_B:
-        m = [list(reversed(r)) for r in m]
-    if g & FLIP_V_B:
-        m = list(reversed(m))
-    return m
+def _poly_area(poly):
+    a = 0.0
+    for i in range(len(poly)):
+        x1, y1 = poly[i]; x2, y2 = poly[(i + 1) % len(poly)]
+        a += x1 * y2 - x2 * y1
+    return abs(a) / 2
+
+
+def _tile_polys(svg_name):
+    # Largest opaque-fill shape of a tile as a polygon (verts in 0..256).
+    txt = open(os.path.join(TILES, svg_name)).read()
+
+    def attr(el, name):
+        m = re.search(name + r'="([^"]*)"', el)
+        return m.group(1) if m else None
+
+    polys = []
+    for el in re.findall(r'<(?:rect|path|polygon|polyline)\b[^>]*?/?>', txt):
+        if not re.search(r'fill="#[0-9a-fA-F]{3,8}"', el):
+            continue
+        try:
+            if el.startswith('<rect'):
+                x = float(attr(el, 'x') or 0); y = float(attr(el, 'y') or 0)
+                w = float(attr(el, 'width') or 0); h = float(attr(el, 'height') or 0)
+                if w > 0 and h > 0:
+                    polys.append([(x, y), (x + w, y), (x + w, y + h), (x, y + h)])
+            elif el.startswith('<path'):
+                d = attr(el, 'd')
+                if d:
+                    for p in _path_subpaths(d):
+                        if len(p) >= 3:
+                            polys.append(p)
+            else:
+                pts = attr(el, 'points')
+                if pts:
+                    n = [float(v) for v in re.findall(r'-?\d*\.?\d+', pts)]
+                    p = [(n[k], n[k + 1]) for k in range(0, len(n) - 1, 2)]
+                    if len(p) >= 3:
+                        polys.append(p)
+        except Exception:
+            pass
+    if not polys:
+        return [(0, 0), (256, 0), (256, 256), (0, 256)]
+    return max(polys, key=_poly_area)
+
+
+def _flip_poly(poly, g):
+    out = []
+    for x, y in poly:
+        if g & FLIP_D_B:
+            x, y = y, x
+        if g & FLIP_H_B:
+            x = 256 - x
+        if g & FLIP_V_B:
+            y = 256 - y
+        out.append((x, y))
+    return out
 
 
 def write_tilemap_header(layers, W, H):
     def present(name, i):
         return (layers.get(name, [0] * (W * H))[i] & 0x1FFFFFFF) != 0
 
+    FULL = [(0, 0), (500, 0), (500, 500), (0, 500)]   # void / fallback cell
     terrain = []
-    for i in range(W * H):
-        t = 0  # grass / walkable default
-        for name in BLOCK_LAYERS:
-            if present(name, i):
-                t = LAYER_BLOCK_ID[name]
-                break
-        else:
-            if not present('bg', i):
-                t = 15  # void (outside arena)
-        terrain.append(t)
+    polys = []            # list of vert-lists in 0..500
+    unique = {}           # rounded-tuple -> poly index (1-based)
+    cell_poly = [0] * (W * H)
 
-    # Per-cell collision mask: each blocking cell references a deduped
-    # MASK_RES^2 shape mask (flip already baked in). cell_mask[i] == 0 means
-    # walkable. solid_at() samples the referenced mask, giving collision at the
-    # tile-asset outline (not the grid).
-    unique = {}          # flat-tuple -> index (1-based)
-    masks = []           # list of flat lists
-    cell_mask = [0] * (W * H)
+    def add_poly(p):
+        key = tuple((round(x, 1), round(y, 1)) for x, y in p)
+        if key not in unique:
+            unique[key] = len(polys) + 1
+            polys.append(p)
+        return unique[key]
+
     for r in range(H):
         for c in range(W):
             i = r * W + c
+            t = 0
+            for name in BLOCK_LAYERS:
+                if present(name, i):
+                    t = LAYER_BLOCK_ID[name]
+                    break
+            else:
+                if not present('bg', i):
+                    t = 15  # void: outside the map, must block
+            terrain.append(t)
+
+            if t == 15:
+                cell_poly[i] = add_poly(FULL)
+                continue
             for name in BLOCK_LAYERS:
                 g = layers.get(name, [0] * (W * H))[i]
                 if not (g & 0x1FFFFFFF):
                     continue
                 svg = GID_TO_SVG.get(g & 0x1FFFFFFF, LAYER_FALLBACK.get(name))
                 if not svg or not os.path.exists(os.path.join(TILES, svg)):
-                    flat = tuple([1] * (MASK_RES * MASK_RES))
+                    p = FULL
                 else:
-                    m = _flip_mask(_tile_mask(svg), g)
-                    flat = tuple(v for row in m for v in row)
-                if flat not in unique:
-                    unique[flat] = len(masks) + 1
-                    masks.append(flat)
-                cell_mask[i] = unique[flat]
+                    p = [(x * 500 / 256, y * 500 / 256)
+                         for x, y in _flip_poly(_tile_polys(svg), g)]
+                cell_poly[i] = add_poly(p)
                 break
 
+    # flatten polygon vertices
+    verts = []
+    starts = []
+    lens = []
+    for p in polys:
+        starts.append(len(verts) // 2)   # vertex index; C indexes POLY_VERTS[2*(s+i)]
+        lens.append(len(p))
+        for x, y in p:
+            verts.append(x); verts.append(y)
+
     lines = [
-        '#pragma once', '', '#include <cstdint>', '',
+        '#pragma once', '', '#include <cstdint>', '', '#include <cmath>', '',
         '// Auto-generated by Scripts/gen_map.py.',
-        '//  - TERRAIN: coarse per-cell type, used for the minimap colours.',
-        '//  - COLLISION: fine sub-cell (100u) solid mask rasterized from each',
-        '//    blocking tile\'s actual fill shape, so the body collides with the',
-        '//    visible asset outline, not the whole grid cell.', '',
+        '//  - TERRAIN: coarse per-cell type (minimap colours).',
+        '//  - CELL_POLY/POLY_*: each blocking cell references its tile\'s fill',
+        '//    polygon (flip baked in, verts in 0..500 cell-local). Collision is',
+        '//    exact point/circle-in-polygon, so precision is ~1 world unit and',
+        '//    follows the visible asset outline. Void cells block the outside.', '',
         'namespace Tilemap {',
         f'    inline constexpr uint32_t GRID_W = {W};',
         f'    inline constexpr uint32_t GRID_H = {H};',
-        '    inline constexpr float    CELL_SIZE = 500;', '',
+        '    inline constexpr float    CELL_SIZE = 500;',
+        '    inline constexpr float    COLL_CELL = 4;   // minimap sampling step hint',
+        '',
         '    namespace TerrainID {',
         '        enum : uint8_t {',
         '            kGrass=0, kDirt=1, kBush=2, kWater=3, kJungle=4,',
@@ -433,79 +514,96 @@ def write_tilemap_header(layers, W, H):
     ]
     for r in range(H):
         lines.append('        ' + ','.join(str(v) for v in terrain[r * W:(r + 1) * W]) + ',')
-    lines += [
-        '    };', '',
-        f'    inline constexpr uint32_t MASK_RES = {MASK_RES};',
-        f'    inline constexpr uint32_t NUM_MASKS = {len(masks)};',
-        '    // Deduped tile-shape masks (1 = solid). Index 0 is walkable (no mask).',
-        '    inline constexpr uint8_t TILE_MASKS[NUM_MASKS][MASK_RES * MASK_RES] = {',
+    lines += ['    };', '',
+        f'    inline constexpr uint32_t NUM_POLYS = {len(polys)};',
+        '    inline constexpr float POLY_VERTS[] = {',
     ]
-    for flat in masks:
-        lines.append('        {' + ','.join(str(v) for v in flat) + '},')
-    lines += [
-        '    };', '',
-        '    inline constexpr uint8_t CELL_MASK[GRID_W * GRID_H] = {',
+    # chunk verts for readability
+    for k in range(0, len(verts), 16):
+        lines.append('        ' + ','.join('%.1ff' % v for v in verts[k:k + 16]) + ',')
+    lines += ['    };', '',
+        '    inline constexpr uint32_t POLY_START[NUM_POLYS] = {' + ','.join(str(v) for v in starts) + '};',
+        '    inline constexpr uint32_t POLY_LEN[NUM_POLYS] = {' + ','.join(str(v) for v in lens) + '};', '',
+        '    inline constexpr uint16_t CELL_POLY[GRID_W * GRID_H] = {',
     ]
     for r in range(H):
-        lines.append('        ' + ','.join(str(v) for v in cell_mask[r * W:(r + 1) * W]) + ',')
-    lines += [
-        '    };', '',
+        lines.append('        ' + ','.join(str(v) for v in cell_poly[r * W:(r + 1) * W]) + ',')
+    lines += ['    };', '',
         '    inline uint8_t terrain_at(float x, float y) {',
         '        if (x < 0 || y < 0) return TerrainID::kVoid;',
-        '        uint32_t c = (uint32_t)(x / CELL_SIZE);',
-        '        uint32_t r = (uint32_t)(y / CELL_SIZE);',
-        '        if (c >= GRID_W || r >= GRID_H) return TerrainID::kVoid;',
-        '        return TERRAIN[r * GRID_W + c];',
+        '        uint32_t c=(uint32_t)(x/CELL_SIZE), r=(uint32_t)(y/CELL_SIZE);',
+        '        if (c>=GRID_W || r>=GRID_H) return TerrainID::kVoid;',
+        '        return TERRAIN[r*GRID_W+c];',
         '    }', '',
         '    inline bool blocks_movement(uint8_t t) {',
-        '        switch (t) {',
-        '            case TerrainID::kDirt:',
-        '            case TerrainID::kWater:',
-        '            case TerrainID::kJungle:',
-        '            case TerrainID::kBush:',
-        '            case TerrainID::kCliff:',
-        '            case TerrainID::kCastle:',
-        '                return true;',
-        '            default:',
-        '                return false;',
-        '        }',
+        '        switch (t) { case TerrainID::kDirt: case TerrainID::kWater:',
+        '            case TerrainID::kJungle: case TerrainID::kBush: case TerrainID::kCliff:',
+        '            case TerrainID::kCastle: case TerrainID::kVoid: return true; default: return false; }',
         '    }', '',
-        '    // True when (x,y) lands on the solid part of a blocking tile asset',
-        '    // (its actual outline), sampled at MASK_RES within the cell.',
+        '    // point-in-polygon for local coords (verts POLY_START[p]..+POLY_LEN[p]).',
+        '    inline bool _in_poly(float px, float py, uint32_t p) {',
+        '        uint32_t s=POLY_START[p], n=POLY_LEN[p]; bool in=false;',
+        '        for (uint32_t i=0,j=n-1;i<n;j=i++) {',
+        '            float xi=POLY_VERTS[2*(s+i)], yi=POLY_VERTS[2*(s+i)+1];',
+        '            float xj=POLY_VERTS[2*(s+j)], yj=POLY_VERTS[2*(s+j)+1];',
+        '            if (((yi>py)!=(yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi)) in=!in;',
+        '        }',
+        '        return in;',
+        '    }', '',
         '    inline bool solid_at(float x, float y) {',
-        '        if (x < 0 || y < 0) return false;',
-        '        uint32_t c = (uint32_t)(x / CELL_SIZE);',
-        '        uint32_t r = (uint32_t)(y / CELL_SIZE);',
-        '        if (c >= GRID_W || r >= GRID_H) return false;',
-        '        uint8_t mi = CELL_MASK[r * GRID_W + c];',
-        '        if (mi == 0) return false;',
-        '        float lx = (x - c * CELL_SIZE) / CELL_SIZE;',
-        '        float ly = (y - r * CELL_SIZE) / CELL_SIZE;',
-        '        uint32_t mx = (uint32_t)(lx * MASK_RES); if (mx >= MASK_RES) mx = MASK_RES - 1;',
-        '        uint32_t my = (uint32_t)(ly * MASK_RES); if (my >= MASK_RES) my = MASK_RES - 1;',
-        '        return TILE_MASKS[mi - 1][my * MASK_RES + mx] != 0;',
+        '        if (x<0||y<0) return false;',
+        '        uint32_t c=(uint32_t)(x/CELL_SIZE), r=(uint32_t)(y/CELL_SIZE);',
+        '        if (c>=GRID_W||r>=GRID_H) return false;',
+        '        uint16_t pi=CELL_POLY[r*GRID_W+c]; if(!pi) return false;',
+        '        return _in_poly(x-c*CELL_SIZE, y-r*CELL_SIZE, pi-1);',
+        '    }', '',
+        '    inline bool solid_circle(float x, float y, float rad) {',
+        '        if (solid_at(x,y)) return true;',
+        '        float d=rad*0.70710678f;',
+        '        return solid_at(x+rad,y)||solid_at(x-rad,y)||solid_at(x,y+rad)||solid_at(x,y-rad)',
+        '            ||solid_at(x+d,y+d)||solid_at(x+d,y-d)||solid_at(x-d,y+d)||solid_at(x-d,y-d);',
+        '    }', '',
+        '    inline void _closest_seg(float px,float py,float ax,float ay,float bx,float by,float&ox,float&oy){',
+        '        float dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy;',
+        '        float t=l2>0?((px-ax)*dx+(py-ay)*dy)/l2:0; if(t<0)t=0; else if(t>1)t=1;',
+        '        ox=ax+t*dx; oy=ay+t*dy;',
+        '    }', '',
+        '    // Push a circle of radius rad out of every cell polygon it overlaps.',
+        '    inline void push_circle(float &x, float &y, float rad) {',
+        '        for (int pass=0; pass<3; ++pass) {',
+        '            int c0=(int)std::floor((x-rad)/CELL_SIZE), c1=(int)std::floor((x+rad)/CELL_SIZE);',
+        '            int r0=(int)std::floor((y-rad)/CELL_SIZE), r1=(int)std::floor((y+rad)/CELL_SIZE);',
+        '            for (int rr=r0; rr<=r1; ++rr) for (int cc=c0; cc<=c1; ++cc) {',
+        '                if (cc<0||rr<0||cc>=(int)GRID_W||rr>=(int)GRID_H) continue;',
+        '                uint16_t pi=CELL_POLY[rr*GRID_W+cc]; if(!pi) continue; --pi;',
+        '                float lx=x-cc*CELL_SIZE, ly=y-rr*CELL_SIZE;',
+        '                uint32_t s=POLY_START[pi], n=POLY_LEN[pi];',
+        '                float bestd2=1e18f, bx=0, by=0;',
+        '                for (uint32_t i=0,j=n-1;i<n;j=i++) {',
+        '                    float ox,oy; _closest_seg(lx,ly, POLY_VERTS[2*(s+j)],POLY_VERTS[2*(s+j)+1],',
+        '                        POLY_VERTS[2*(s+i)],POLY_VERTS[2*(s+i)+1], ox,oy);',
+        '                    float ddx=lx-ox, ddy=ly-oy, d2=ddx*ddx+ddy*ddy;',
+        '                    if (d2<bestd2){bestd2=d2;bx=ox;by=oy;}',
+        '                }',
+        '                float bd=std::sqrt(bestd2);',
+        '                bool inside=_in_poly(lx,ly,pi);',
+        '                if (inside) {',
+        '                    float ux=bx-lx, uy=by-ly, ul=std::sqrt(ux*ux+uy*uy);',
+        '                    if (ul>0.001f){ lx=bx+ux/ul*rad; ly=by+uy/ul*rad; }',
+        '                } else if (bd<rad && bd>0.001f) {',
+        '                    lx=bx+(lx-bx)/bd*rad; ly=by+(ly-by)/bd*rad;',
+        '                } else continue;',
+        '                x=cc*CELL_SIZE+lx; y=rr*CELL_SIZE+ly;',
+        '            }',
+        '        }',
         '    }',
-        '',
-        '    // Radius-aware test: true if a body of radius r at (x,y) would touch',
-        '    // any solid asset. Used to keep spawns off walls/water entirely.',
-        '    inline bool solid_circle(float x, float y, float r) {',
-        '        if (solid_at(x, y)) return true;',
-        '        float const d = r * 0.70710678f;',
-        '        return solid_at(x + r, y) || solid_at(x - r, y) ||',
-        '               solid_at(x, y + r) || solid_at(x, y - r) ||',
-        '               solid_at(x + d, y + d) || solid_at(x + d, y - d) ||',
-        '               solid_at(x - d, y + d) || solid_at(x - d, y - d);',
-        '    }',
-        '',
-        '    // Effective collision-cell size, used to step the resolver.',
-        '    inline constexpr float COLL_CELL = CELL_SIZE / MASK_RES;',
         '}', '',
     ]
     out = os.path.join(ROOT, 'Shared/Tilemap.hh')
     open(out, 'w').write('\n'.join(lines))
     from collections import Counter
     print('Tilemap.hh terrain dist:', dict(Counter(terrain)))
-    print(f'collision masks: {len(masks)} unique, {sum(1 for v in cell_mask if v)} blocking cells')
+    print(f'collision: {len(polys)} unique polys, {sum(1 for v in cell_poly if v)} blocking cells, {len(verts)//2} verts')
 
 
 if __name__ == '__main__':
