@@ -1,5 +1,6 @@
 #include <Server/Client.hh>
 
+#include <Server/Account/Auth.hh>
 #include <Server/Game.hh>
 #include <Server/PetalTracker.hh>
 #include <Server/Server.hh>
@@ -14,6 +15,10 @@
 #include <iostream>
 
 constexpr std::array<uint32_t, RarityID::kNumRarities> RARITY_TO_XP = { 2, 10, 50, 200, 1000, 5000, 0 };
+// Wire-safety caps for auth packet strings; AccountValidation.hh enforces the
+// tighter, business-level bounds once the bytes are actually read.
+constexpr uint32_t MAX_AUTH_FIELD_LENGTH = 32;
+constexpr uint32_t MAX_SESSION_KEY_LENGTH = 64;
 
 Client::Client() : game(nullptr) {}
 
@@ -97,7 +102,32 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             player.input = reader.read<uint8_t>();
             break;
         }
+        case Serverbound::kRegister: {
+            if (client->check_invalid(
+                validator.validate_string(MAX_AUTH_FIELD_LENGTH) &&
+                validator.validate_string(MAX_AUTH_FIELD_LENGTH)
+            )) return;
+            Auth::handle_register(client, reader);
+            break;
+        }
+        case Serverbound::kLogin: {
+            if (client->check_invalid(
+                validator.validate_string(MAX_AUTH_FIELD_LENGTH) &&
+                validator.validate_string(MAX_AUTH_FIELD_LENGTH)
+            )) return;
+            Auth::handle_login(client, reader);
+            break;
+        }
+        case Serverbound::kSessionRestore: {
+            if (client->check_invalid(
+                validator.validate_string(MAX_AUTH_FIELD_LENGTH) &&
+                validator.validate_string(MAX_SESSION_KEY_LENGTH)
+            )) return;
+            Auth::handle_session_restore(client, reader);
+            break;
+        }
         case Serverbound::kClientSpawn: {
+            if (!client->logged_in) break;
             if (client->alive()) break;
             //check string length
             std::string name;

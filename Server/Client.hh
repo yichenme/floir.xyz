@@ -25,6 +25,9 @@ public:
     WebSocket *ws;
     uint8_t verified = 0;
     uint8_t seen_arena = 0;
+    std::string username;
+    std::string session_key;
+    uint8_t logged_in = 0;
     Client();
     void init();
     void remove();
