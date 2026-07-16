@@ -221,22 +221,17 @@ void Game::render_game() {
         render_name(renderer, ent);
     });
 
-    // G: overlay every visible petal's hitbox (radius circle in its rarity
-    // colour at 75% transparency) with the rarity name beneath it.
+    // G: overlay every visible petal's hitbox as a plain radius circle filled
+    // in its rarity colour at 25% transparency -- no outline, no label.
     if (Game::show_hitboxes) {
         simulation.for_each<kPetal>([](Simulation *sim, Entity const &ent){
-            uint8_t rarity = PETAL_DATA[ent.get_petal_id()].rarity;
-            uint32_t rcol = RARITY_COLORS[rarity];
+            uint32_t rcol = RARITY_COLORS[PETAL_DATA[ent.get_petal_id()].rarity];
             RenderContext context(&renderer);
             renderer.translate(ent.get_x(), ent.get_y());
-            float r = ent.get_radius();
-            renderer.set_fill(rcol | 0xff000000);   // solid rarity colour, fills the whole hitbox
+            renderer.set_fill((rcol & 0x00ffffff) | 0xc0000000);   // rarity colour, 25% transparent
             renderer.begin_path();
-            renderer.arc(0, 0, r);
+            renderer.arc(0, 0, ent.get_radius());
             renderer.fill();
-            renderer.translate(0, r + 10);
-            renderer.draw_text(RARITY_NAMES[rarity],
-                { .fill = rcol, .stroke = 0xff000000, .size = 13, .stroke_scale = 0.2f });
         });
     }
 }
