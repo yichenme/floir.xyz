@@ -52,6 +52,7 @@ namespace Game {
     uint8_t loadout_count = 5;
     uint8_t simulation_ready = 0;
     uint8_t on_game_screen = 0;
+    uint8_t leaving = 0;
     uint8_t show_debug = 0;
 }
 
@@ -101,9 +102,6 @@ void Game::init() {
     );
     game_ui_window.add_child(
         Ui::make_minimap()
-    );
-    game_ui_window.add_child(
-        Ui::make_leave_button()
     );
     game_ui_window.add_child(
         Ui::make_loadout_backgrounds()
@@ -162,6 +160,7 @@ void Game::init() {
 void Game::reset() {
     simulation_ready = 0;
     on_game_screen = 0;
+    leaving = 0;
     score = 0;
     overlevel_timer = 0;
     slot_indicator_opacity = 0;
@@ -222,7 +221,7 @@ void Game::tick(double time) {
     double a = Ui::window_width / 1920;
     double b = Ui::window_height / 1080;
     Ui::scale = std::max(a, b);
-    if (alive()) {
+    if (alive() && !leaving) {
         on_game_screen = 1;
         player_id = simulation.get_ent(camera_id).get_player();
         Entity const &player = simulation.get_ent(player_id);

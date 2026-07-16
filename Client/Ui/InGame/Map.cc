@@ -116,26 +116,6 @@ void Minimap::on_render(Renderer &ctx) {
     }
 }
 
-Element *Ui::make_leave_button() {
-    // Red X to leave the game, bottom-right just left of the minimap.
-    Element *elt = new Ui::Button(40, 40,
-        new Ui::StaticText(24, "X"),
-        [](Element *, uint8_t e){ if (e == Ui::kClick) Game::on_game_screen = 0; },
-        nullptr,
-        {
-            .fill = 0xffdb5a5a,
-            .line_width = 4,
-            .round_radius = 4,
-            .should_render = [](){ return Game::should_render_game_ui(); },
-            .h_justify = Style::Right,
-            .v_justify = Style::Bottom
-        }
-    );
-    elt->x = -(112 + 20);   // left of the 112px minimap (10px inset each)
-    elt->y = -10;
-    return elt;
-}
-
 Element *Ui::make_minimap() {
     // Bottom-right, 10px inset from both edges. No panel, no border.
     Minimap *elt = new Ui::Minimap(112);

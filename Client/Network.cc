@@ -77,7 +77,6 @@ void Game::send_inputs() {
 }
 
 void Game::spawn_in() {
-    if (Game::alive()) return;
     if (!Account::logged_in()) {
         Ui::panel_open = Ui::Panel::kAccount;
         Account::error = "Register or log in to play";
@@ -91,6 +90,13 @@ void Game::spawn_in() {
             if (pg->x < 10)
                 pg->x = 10;
         }
+        return;
+    }
+    // Coming back from Leave while the flower is still alive: just resume the
+    // game view (the reverse-spawn animation plays forward again).
+    Game::leaving = 0;
+    if (Game::alive()) {
+        Game::on_game_screen = 1;
         return;
     }
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));

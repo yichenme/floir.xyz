@@ -118,14 +118,18 @@ def main():
                     continue
                 sid = f't_{svg.replace(".","_")}'
                 x, y = c * CELL, r * CELL
-                # Bleed each tile outward by BLEED px so neighbours overlap and the
-                # browser's anti-aliased tile edges leave no hairline seam between
-                # cells (the "white gap lines"). Opaque ground tiles just cover each
-                # other; shaped tiles grow imperceptibly (< a few world units).
-                sz = CELL + 2 * BLEED
+                # Bleed ONLY the base ground layer outward by BLEED px so the
+                # ground has no hairline seam ("white gap lines"). The overlay
+                # layers (water/bush/cliff/dirt/castle/transitions) are placed at
+                # exact size: bleeding them made their shadows overlap and pushed
+                # their visible edge past the collision polygon (players could
+                # stand on the overhang). The bled ground beneath still fills any
+                # gap between overlay tiles.
+                bleed = BLEED if name == 'bg' else 0.0
+                sz = CELL + 2 * bleed
                 h_, v_, dg = bool(g & FLIP_H), bool(g & FLIP_V), bool(g & FLIP_D)
                 if not (h_ or v_ or dg):
-                    out.append(f'<use href="#{sid}" x="{x-BLEED}" y="{y-BLEED}" width="{sz}" height="{sz}"/>')
+                    out.append(f'<use href="#{sid}" x="{x-bleed}" y="{y-bleed}" width="{sz}" height="{sz}"/>')
                 else:
                     a, b, cc, dd = flip_matrix(h_, v_, dg)
                     cx, cy = x + CELL / 2, y + CELL / 2

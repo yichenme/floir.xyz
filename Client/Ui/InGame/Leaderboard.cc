@@ -1,6 +1,9 @@
 #include <Client/Ui/InGame/GameInfo.hh>
 
+#include <Client/Ui/Button.hh>
 #include <Client/Ui/Container.hh>
+#include <Client/Ui/Extern.hh>
+#include <Client/Ui/StaticText.hh>
 
 #include <Client/Game.hh>
 
@@ -69,16 +72,32 @@ Element *Ui::make_leaderboard() {
         new Ui::VContainer(
             Ui::make_range(0, LEADERBOARD_SIZE, [](uint32_t i){ return (Element *) (new Ui::LeaderboardSlot(i)); })
         , 10, 4, {})
-    }, 0, 0, { 
+    }, 0, 0, {
         .fill = 0xff555555,
         .line_width = 6,
         .round_radius = 7,
-        .should_render = [](){ return Game::should_render_game_ui(); },
         .no_polling = 1
     });
-    leaderboard->style.h_justify = Style::Right;
-    leaderboard->style.v_justify = Style::Top;
-    leaderboard->x = -20;
-    leaderboard->y = 20;
-    return leaderboard;
+
+    // Leave button below the leaderboard, styled like the title-screen buttons.
+    // Clicking it drops out of the game view; the spawn transition plays in
+    // reverse back to the title screen (see Game::leaving).
+    Element *leave = new Ui::Button(LEADERBOARD_WIDTH + 20, 42,
+        new Ui::StaticText(18, "Leave"),
+        [](Element *, uint8_t e){ if (e == Ui::kClick) {
+            Game::leaving = 1;
+            Game::on_game_screen = 0;
+        } },
+        nullptr,
+        { .fill = 0xff5a9fdb, .line_width = 5, .round_radius = 3 }
+    );
+
+    Element *wrap = new Ui::VContainer({ leaderboard, leave }, 0, 10, {
+        .should_render = [](){ return Game::should_render_game_ui(); },
+        .h_justify = Style::Right,
+        .v_justify = Style::Top
+    });
+    wrap->x = -20;
+    wrap->y = 20;
+    return wrap;
 }

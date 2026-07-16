@@ -49,6 +49,9 @@ namespace Game {
     extern uint8_t loadout_count;
     extern uint8_t simulation_ready;
     extern uint8_t on_game_screen;
+    // Set when the player clicks Leave: suppresses the on_game_screen=1 reset so
+    // the spawn transition plays in reverse back to the title screen.
+    extern uint8_t leaving;
     extern uint8_t show_debug;
     
     void init();
