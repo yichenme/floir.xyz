@@ -152,9 +152,23 @@ int setup_inputs() {
 void main_loop() {
     EM_ASM({
         let lastFrame = -1e9;
+        // Switching quality changes renderScale, so the canvas resizes and every
+        // UI element must be re-laid-out at the new resolution. Cover that reflow
+        // with a brief "Loading" overlay so the user doesn't see the jump.
+        let lastHq = _get_high_quality();
+        let hideOverlayAt = 0;
+        const qOverlay = document.createElement('div');
+        qOverlay.style.cssText = 'position:absolute;inset:0;background:#000;color:#fff;font:bold 48pt sans-serif;display:none;align-items:center;justify-content:center;z-index:10;';
+        qOverlay.textContent = 'Loading';
+        document.body.appendChild(qOverlay);
         function loop(time)
         {
             const hq = _get_high_quality();
+            if (hq !== lastHq) {
+                lastHq = hq;
+                qOverlay.style.display = 'flex';
+                hideOverlayAt = time + 450;
+            }
             // High quality: full res + 60fps. Low: half res + 30fps.
             const minDelta = hq ? 0 : (1000 / 30) - 1;
             if (time - lastFrame >= minDelta) {
@@ -166,6 +180,11 @@ void main_loop() {
                 Module.canvas.width = w;
                 Module.canvas.height = h;
                 _loop(time, w, h);
+            }
+            // Reveal the re-laid-out frame once a couple of frames have rendered.
+            if (hideOverlayAt && time >= hideOverlayAt) {
+                qOverlay.style.display = 'none';
+                hideOverlayAt = 0;
             }
             requestAnimationFrame(loop);
         };

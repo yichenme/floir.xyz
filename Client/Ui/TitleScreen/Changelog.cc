@@ -32,6 +32,18 @@ static Element *make_entries(std::initializer_list<std::string const> contents) 
 
 static Element *make_changelog_contents() {
     Element *elt = new Ui::VContainer({
+        make_date("July 16th 2026"),
+        make_entries({
+            "Brand new hand-crafted biome map with exact terrain collision",
+            "Walls, water, cliffs, dirt, bushes and castle now block you precisely",
+            "Added Ultra, Super and Unique rarities (9 tiers total)",
+            "Score is now XP; the leaderboard ranks by level",
+            "New minimap with zoom, a player HUD bar and a redesigned death screen",
+            "Settings: High Quality and Show Grid toggles",
+            "Inventory: drag a single petal, smoother stacking animations",
+            "Fixed logging out then back in, and lots of other bugfixes"
+        }),
+        make_divider(),
         make_date("October 20th 2025"),
         make_entries({
             "Added 1 new petal",

@@ -121,7 +121,7 @@ void Game::render_game() {
                 std::snprintf(coord, sizeof(coord), "%02d,%02d", c, r);
                 RenderContext lctx(&renderer);
                 renderer.translate((c + 0.5f) * Tilemap::CELL_SIZE, (r + 0.5f) * Tilemap::CELL_SIZE);
-                renderer.draw_text(coord, { .fill = 0x60ffffff, .stroke = 0x60000000, .size = 60, .stroke_scale = 0.12f });
+                renderer.draw_text(coord, { .fill = 0xffffffff, .stroke = 0xff000000, .size = 60, .stroke_scale = 0.12f });
             }
         }
     }

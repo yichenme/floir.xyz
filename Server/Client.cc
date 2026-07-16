@@ -124,6 +124,10 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             Auth::handle_session_restore(client, reader);
             break;
         }
+        case Serverbound::kLogout: {
+            Auth::handle_logout(client);
+            break;
+        }
         case Serverbound::kClientSpawn: {
             if (!client->logged_in) break;
             if (client->alive()) break;

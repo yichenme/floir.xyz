@@ -99,6 +99,11 @@ void Account::request_session_restore() {
 }
 
 void Account::request_logout() {
+    // Tell the server to drop this connection's login, otherwise client->logged_in
+    // stays set and handle_login early-returns until the socket is remade (refresh).
+    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
+    writer.write<uint8_t>(Serverbound::kLogout);
+    Game::socket.send(writer.packet, writer.at - writer.packet);
     logged_in_user = "";
     session_key = "";
     status = "";

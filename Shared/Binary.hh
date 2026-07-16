@@ -30,7 +30,8 @@ enum Serverbound {
     kInventorySwap,
     kRegister,
     kLogin,
-    kSessionRestore
+    kSessionRestore,
+    kLogout
 };
 
 enum CloseReason {

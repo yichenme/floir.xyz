@@ -63,6 +63,15 @@ void handle_session_restore(Client *client, Reader &reader) {
     on_authenticated(client, user, session_key);
 }
 
+void handle_logout(Client *client) {
+    // Clear this connection's login so the account can log in again on the same
+    // socket without a page refresh. No response packet: the client already
+    // cleared its own state before sending this.
+    client->logged_in = 0;
+    client->username = "";
+    client->session_key = "";
+}
+
 void send_auth_response(Client *client, uint8_t ok, std::string const &payload) {
     Writer writer(Server::OUTGOING_PACKET);
     writer.write<uint8_t>(Clientbound::kAuthResponse);
