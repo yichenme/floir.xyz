@@ -13,6 +13,7 @@
 #include <Shared/Tilemap.hh>
 
 #include <cmath>
+#include <cstdio>
 
 void _apply_damage_filter(Renderer &ctx, Entity const &ent) {
     ctx.set_global_alpha(1 - ent.deletion_animation);
@@ -81,6 +82,26 @@ void Game::render_game() {
                     cur = t;
                     start = c;
                 }
+            }
+        }
+
+        // Per-cell grid labels: "col,row" on top, terrain id below. Debug aid
+        // for identifying which cell needs a different terrain assignment.
+        for (int32_t r = r0; r < r1; ++r) {
+            for (int32_t c = c0; c < c1; ++c) {
+                uint8_t t = Tilemap::TERRAIN[r * Tilemap::GRID_W + c];
+                if (t == Tilemap::TerrainID::kVoid) continue;
+                float cx = (c + 0.5f) * Tilemap::CELL_SIZE;
+                float cy = (r + 0.5f) * Tilemap::CELL_SIZE;
+                char coord[16];
+                char terrain_s[8];
+                std::snprintf(coord, sizeof(coord), "%d,%d", c, r);
+                std::snprintf(terrain_s, sizeof(terrain_s), "T%u", (unsigned) t);
+                RenderContext lctx(&renderer);
+                renderer.translate(cx, cy - 50);
+                renderer.draw_text(coord, { .fill = 0xffffffff, .stroke = 0xff000000, .size = 90, .stroke_scale = 0.15f });
+                renderer.translate(0, 110);
+                renderer.draw_text(terrain_s, { .fill = 0xffffffff, .stroke = 0xff000000, .size = 70, .stroke_scale = 0.15f });
             }
         }
 
