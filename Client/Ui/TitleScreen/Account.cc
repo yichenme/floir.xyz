@@ -91,14 +91,12 @@ Element *Ui::make_account_panel() {
             .fill = 0xff5a9fdb,
             .line_width = 7,
             .round_radius = 3,
-            .animate = [](Element *elt, Renderer &ctx){
-                ctx.translate(0, (1 - elt->animation) * 2 * elt->height);
-            },
             .should_render = [](){
                 return Ui::panel_open == Panel::kAccount && Game::should_render_title_ui();
             },
             .h_justify = Style::Left,
-            .v_justify = Style::Bottom
+            .v_justify = Style::Bottom,
+            .no_animation = 1
         }
     );
     Ui::Panel::account = elt;

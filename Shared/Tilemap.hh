@@ -3,6 +3,8 @@
 #include <cstdint>
 
 // Auto-generated from main.tmj. 50x51 grid of terrain type ids.
+// Terrain id -> SVG asset mapping (built incrementally from user; no tileset.tsj):
+//   T2 -> tiles/bush_c_0.svg
 
 namespace Tilemap {
     inline constexpr uint32_t GRID_W = 50;
@@ -11,13 +13,13 @@ namespace Tilemap {
 
     namespace TerrainID {
         enum : uint8_t {
-            kGrass=0, kDirt=1, kSand=2, kWater=3, kJungle=4,
+            kGrass=0, kDirt=1, kBush=2, kWater=3, kJungle=4,
             kCliff=5, kCastle=6, kStone=7, kVoid=15,
         };
     }
 
     inline constexpr uint32_t COLORS[16] = {
-        0xff58c05c, 0xff8a5a3c, 0xffe6c98a, 0xff5ab8e8, 0xff3a8f4a,
+        0xff58c05c, 0xff8a5a3c, 0xff3a8f4a, 0xff5ab8e8, 0xff3a8f4a,
         0xffb99a6b, 0xff9b9b9b, 0xff707070, 0, 0, 0, 0, 0, 0, 0,
         0xff5c3a2a,
     };

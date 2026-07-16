@@ -48,57 +48,34 @@ Element *Ui::make_title_input_box() {
             } }),
             [](){ return Game::socket.ready; }
         ),
-        new Ui::Element(0,20),
-        new Ui::StaticText(16, "open-source florr.io pvp clone"),
     }, 0, 0, { .animate = [](Element *elt, Renderer &ctx){}, .should_render = [](){ return Game::should_render_title_ui(); } });
     return title;
 }
 
 Element *Ui::make_title_info_box() {
-    Element *elt = new Ui::Choose(
-        new Ui::Choose(
-            new Ui::VContainer({
-                new Ui::StaticText(35, "How to play"),
-                new Ui::Element(0,5),
-                new Ui::StaticText(16, "Use mouse to move"),
-                new Ui::StaticText(16, "Left click to attack"),
-                new Ui::StaticText(16, "Right click to defend")
-            }, 0, 5, { .no_animation = 1 }),
-            new Ui::VContainer({
-                new Ui::StaticText(35, "How to play"),
-                new Ui::Element(0,5),
-                new Ui::StaticText(16, "Use WASD or arrow keys to move"),
-                new Ui::StaticText(16, "SPACE to attack"),
-                new Ui::StaticText(16, "SHIFT to defend")
-            }, 0, 5, { .no_animation = 1 }),
-            [](){
-                return Input::keyboard_movement;
-            }, { .no_polling = 1 }
-        ),
-        new Ui::VContainer({
-            new Ui::HContainer({
-                new Ui::DynamicText(16, [](){
-                    return std::format("You will respawn at level {}", Game::respawn_level);
-                }, { .fill = 0xffffffff, .no_animation = 1 }),
-                new Ui::StaticText(16, " with:", {
-                    .fill = 0xffffffff,
-                    .should_render = [](){
-                        if (!Game::simulation.ent_exists(Game::camera_id)) return false;
-                        return Game::simulation.get_ent(Game::camera_id).get_inventory(0) > PetalID::kBasic;
-                    }
-                })
-            }, 0, 0),
-            new Ui::HContainer(
-                Ui::make_range(0, MAX_SLOT_COUNT, [](uint32_t i){ return (Element *) (new Ui::TitlePetalSlot(i)); })
-            , 0, 10),
-            new Ui::HContainer({
-                Ui::make_range(MAX_SLOT_COUNT, 2*MAX_SLOT_COUNT, [](uint32_t i){ return (Element *) (new Ui::TitlePetalSlot(i)); })
-            }, 0, 10)
-        }, 0, 10, { .no_animation = 1 }),
-        [](){
-            return Game::respawn_level > 1 ? 1 : 0;
-        }
-    );
+    Element *elt = new Ui::VContainer({
+        new Ui::HContainer({
+            new Ui::DynamicText(16, [](){
+                return std::format("You will respawn at level {}", Game::respawn_level);
+            }, { .fill = 0xffffffff, .no_animation = 1 }),
+            new Ui::StaticText(16, " with:", {
+                .fill = 0xffffffff,
+                .should_render = [](){
+                    if (!Game::simulation.ent_exists(Game::camera_id)) return false;
+                    return Game::simulation.get_ent(Game::camera_id).get_inventory(0) > PetalID::kBasic;
+                }
+            })
+        }, 0, 0),
+        new Ui::HContainer(
+            Ui::make_range(0, MAX_SLOT_COUNT, [](uint32_t i){ return (Element *) (new Ui::TitlePetalSlot(i)); })
+        , 0, 10),
+        new Ui::HContainer({
+            Ui::make_range(MAX_SLOT_COUNT, 2*MAX_SLOT_COUNT, [](uint32_t i){ return (Element *) (new Ui::TitlePetalSlot(i)); })
+        }, 0, 10)
+    }, 0, 10, {
+        .should_render = [](){ return Game::respawn_level > 1; },
+        .no_animation = 1
+    });
     elt->style.animate = [](Element *elt, Renderer &ctx) {
         elt->x = 0;
         elt->y = 270;
