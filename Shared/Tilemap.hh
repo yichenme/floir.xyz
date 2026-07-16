@@ -656,11 +656,16 @@ namespace Tilemap {
         ox=ax+t*dx; oy=ay+t*dy;
     }
 
-    // Push a circle of radius rad out of every cell polygon it overlaps.
+    // Push a circle of radius rad out of the tile polygons it overlaps.
+    // Each pass resolves only the SINGLE deepest penetration among all
+    // overlapped cells, so the result is independent of cell iteration
+    // order -- this stops the frame-to-frame oscillation that made a body
+    // wedged into a concave wall corner jitter.
     inline void push_circle(float &x, float &y, float rad) {
-        for (int pass=0; pass<3; ++pass) {
+        for (int pass=0; pass<8; ++pass) {
             int c0=(int)std::floor((x-rad)/CELL_SIZE), c1=(int)std::floor((x+rad)/CELL_SIZE);
             int r0=(int)std::floor((y-rad)/CELL_SIZE), r1=(int)std::floor((y+rad)/CELL_SIZE);
+            float best_pen=0.f, tgtx=x, tgty=y; bool found=false;
             for (int rr=r0; rr<=r1; ++rr) for (int cc=c0; cc<=c1; ++cc) {
                 if (cc<0||rr<0||cc>=(int)GRID_W||rr>=(int)GRID_H) continue;
                 uint16_t pi=CELL_POLY[rr*GRID_W+cc]; if(!pi) continue; --pi;
@@ -675,14 +680,18 @@ namespace Tilemap {
                 }
                 float bd=std::sqrt(bestd2);
                 bool inside=_in_poly(lx,ly,pi);
+                float nlx, nly, pen;
                 if (inside) {
                     float ux=bx-lx, uy=by-ly, ul=std::sqrt(ux*ux+uy*uy);
-                    if (ul>0.001f){ lx=bx+ux/ul*rad; ly=by+uy/ul*rad; }
+                    if (ul<=0.001f) continue;
+                    nlx=bx+ux/ul*rad; nly=by+uy/ul*rad; pen=ul+rad;
                 } else if (bd<rad && bd>0.001f) {
-                    lx=bx+(lx-bx)/bd*rad; ly=by+(ly-by)/bd*rad;
+                    nlx=bx+(lx-bx)/bd*rad; nly=by+(ly-by)/bd*rad; pen=rad-bd;
                 } else continue;
-                x=cc*CELL_SIZE+lx; y=rr*CELL_SIZE+ly;
+                if (pen>best_pen){ best_pen=pen; tgtx=cc*CELL_SIZE+nlx; tgty=rr*CELL_SIZE+nly; found=true; }
             }
+            if (!found) break;
+            x=tgtx; y=tgty;
         }
     }
 }

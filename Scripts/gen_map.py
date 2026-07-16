@@ -49,6 +49,10 @@ LAYER_FALLBACK = {
 # 64px/cell gives the composite a 3200x3264 native raster (vs 1600) so tiles
 # stay crisp when the client upscales the backdrop across the 25k world.
 CELL = 64
+# Per-tile outward bleed (native SVG px) so neighbouring tiles overlap and no
+# anti-aliased seam ("white gap line") shows between cells after the client
+# upscales the backdrop.
+BLEED = 0.75
 FLIP_H, FLIP_V, FLIP_D = 0x80000000, 0x40000000, 0x20000000
 
 
@@ -114,15 +118,20 @@ def main():
                     continue
                 sid = f't_{svg.replace(".","_")}'
                 x, y = c * CELL, r * CELL
+                # Bleed each tile outward by BLEED px so neighbours overlap and the
+                # browser's anti-aliased tile edges leave no hairline seam between
+                # cells (the "white gap lines"). Opaque ground tiles just cover each
+                # other; shaped tiles grow imperceptibly (< a few world units).
+                sz = CELL + 2 * BLEED
                 h_, v_, dg = bool(g & FLIP_H), bool(g & FLIP_V), bool(g & FLIP_D)
                 if not (h_ or v_ or dg):
-                    out.append(f'<use href="#{sid}" x="{x}" y="{y}" width="{CELL}" height="{CELL}"/>')
+                    out.append(f'<use href="#{sid}" x="{x-BLEED}" y="{y-BLEED}" width="{sz}" height="{sz}"/>')
                 else:
                     a, b, cc, dd = flip_matrix(h_, v_, dg)
                     cx, cy = x + CELL / 2, y + CELL / 2
                     out.append(f'<g transform="translate({cx} {cy}) matrix({a} {b} {cc} {dd} 0 0) '
-                               f'translate({-CELL/2} {-CELL/2})"><use href="#{sid}" '
-                               f'width="{CELL}" height="{CELL}"/></g>')
+                               f'translate({-sz/2} {-sz/2})"><use href="#{sid}" '
+                               f'width="{sz}" height="{sz}"/></g>')
                 placements += 1
     out.append('</svg>')
     svg = '\n'.join(out)
@@ -568,11 +577,16 @@ def write_tilemap_header(layers, W, H):
         '        float t=l2>0?((px-ax)*dx+(py-ay)*dy)/l2:0; if(t<0)t=0; else if(t>1)t=1;',
         '        ox=ax+t*dx; oy=ay+t*dy;',
         '    }', '',
-        '    // Push a circle of radius rad out of every cell polygon it overlaps.',
+        '    // Push a circle of radius rad out of the tile polygons it overlaps.',
+        '    // Each pass resolves only the SINGLE deepest penetration among all',
+        '    // overlapped cells, so the result is independent of cell iteration',
+        '    // order -- this stops the frame-to-frame oscillation that made a body',
+        '    // wedged into a concave wall corner jitter.',
         '    inline void push_circle(float &x, float &y, float rad) {',
-        '        for (int pass=0; pass<3; ++pass) {',
+        '        for (int pass=0; pass<8; ++pass) {',
         '            int c0=(int)std::floor((x-rad)/CELL_SIZE), c1=(int)std::floor((x+rad)/CELL_SIZE);',
         '            int r0=(int)std::floor((y-rad)/CELL_SIZE), r1=(int)std::floor((y+rad)/CELL_SIZE);',
+        '            float best_pen=0.f, tgtx=x, tgty=y; bool found=false;',
         '            for (int rr=r0; rr<=r1; ++rr) for (int cc=c0; cc<=c1; ++cc) {',
         '                if (cc<0||rr<0||cc>=(int)GRID_W||rr>=(int)GRID_H) continue;',
         '                uint16_t pi=CELL_POLY[rr*GRID_W+cc]; if(!pi) continue; --pi;',
@@ -587,14 +601,18 @@ def write_tilemap_header(layers, W, H):
         '                }',
         '                float bd=std::sqrt(bestd2);',
         '                bool inside=_in_poly(lx,ly,pi);',
+        '                float nlx, nly, pen;',
         '                if (inside) {',
         '                    float ux=bx-lx, uy=by-ly, ul=std::sqrt(ux*ux+uy*uy);',
-        '                    if (ul>0.001f){ lx=bx+ux/ul*rad; ly=by+uy/ul*rad; }',
+        '                    if (ul<=0.001f) continue;',
+        '                    nlx=bx+ux/ul*rad; nly=by+uy/ul*rad; pen=ul+rad;',
         '                } else if (bd<rad && bd>0.001f) {',
-        '                    lx=bx+(lx-bx)/bd*rad; ly=by+(ly-by)/bd*rad;',
+        '                    nlx=bx+(lx-bx)/bd*rad; nly=by+(ly-by)/bd*rad; pen=rad-bd;',
         '                } else continue;',
-        '                x=cc*CELL_SIZE+lx; y=rr*CELL_SIZE+ly;',
+        '                if (pen>best_pen){ best_pen=pen; tgtx=cc*CELL_SIZE+nlx; tgty=rr*CELL_SIZE+nly; found=true; }',
         '            }',
+        '            if (!found) break;',
+        '            x=tgtx; y=tgty;',
         '        }',
         '    }',
         '}', '',

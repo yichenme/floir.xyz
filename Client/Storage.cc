@@ -126,7 +126,10 @@ public:
     X(1, Game::seen_mobs) \
     X(2, Game::seen_petals) \
     X(3, Input::keyboard_movement) \
-    X(4, Input::movement_helper)
+    X(4, Input::movement_helper) \
+    X(5, Input::high_quality) \
+    X(6, Input::show_grid) \
+    X(7, Game::show_debug)
 
 #define X(ct, name) static auto checker_##ct = MutationObserver(name);
 STORED
@@ -161,6 +164,11 @@ void Storage::retrieve() {
             uint8_t opts = reader.read<uint8_t>();
             Input::movement_helper = BitMath::at(opts, 0);
             Input::keyboard_movement = BitMath::at(opts, 1);
+            // high_quality / show_grid default ON, so the stored bit is inverted
+            // (0 = default = on). Old saves without these bits keep the defaults.
+            Input::high_quality = !BitMath::at(opts, 2);
+            Input::show_grid = !BitMath::at(opts, 3);
+            Game::show_debug = BitMath::at(opts, 4);
         }
     }
     {
@@ -202,7 +210,11 @@ void Storage::set() {
     {
         Encoder writer(&StorageProtocol::buffer[0]);
         writer.write<uint8_t>(
-            Input::movement_helper | (Input::keyboard_movement << 1)
+            Input::movement_helper
+            | (Input::keyboard_movement << 1)
+            | ((!Input::high_quality) << 2)
+            | ((!Input::show_grid) << 3)
+            | (Game::show_debug << 4)
         );
         StorageProtocol::store("settings", writer.at - writer.base);
     }
