@@ -7,7 +7,7 @@ namespace DOM {
     void create_text_input(char const *, uint32_t, bool password = false, char const *placeholder = nullptr);
     void element_show(char const *);
     void element_hide(char const *);
-    void update_pos_and_dimension(char const *, float, float, float, float);
+    void update_pos_and_dimension(char const *, float, float, float, float, float font_scale = 1.0f);
     std::string retrieve_text(char const *, uint32_t);
     void update_text(char const *, std::string const &, uint32_t);
     void open_page(char const *);

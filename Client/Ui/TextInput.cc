@@ -9,8 +9,8 @@ static std::string _gen_nonce() {
     return "fjs" + std::to_string(static_cast<uint32_t>(frand() * 49263 + 672));
 }
 
-TextInput::TextInput(std::string &r, float w, float h, uint32_t m, Style s, bool password, char const *placeholder) :
-    Element(w, h, s), name(_gen_nonce()), ref(r), max(m) {
+TextInput::TextInput(std::string &r, float w, float h, uint32_t m, Style s, bool password, char const *placeholder, float fs) :
+    Element(w, h, s), name(_gen_nonce()), ref(r), max(m), font_scale(fs) {
     style.fill = 0xffeeeeee;
     style.stroke_hsv = 0;
     DOM::create_text_input(name.c_str(), max, password, placeholder);
@@ -21,7 +21,7 @@ void TextInput::on_render(Renderer &ctx) {
     DOM::element_show(name.c_str());
     float eff_w = ctx.context.transform_matrix[0] * width;
     float eff_h = ctx.context.transform_matrix[4] * height;
-    DOM::update_pos_and_dimension(name.c_str(), screen_x, screen_y, eff_w, eff_h);
+    DOM::update_pos_and_dimension(name.c_str(), screen_x, screen_y, eff_w, eff_h, font_scale);
     ref = DOM::retrieve_text(name.c_str(), max);
     DOM::update_text(name.c_str(), ref, max);
     Element::on_render(ctx);

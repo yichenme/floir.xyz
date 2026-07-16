@@ -15,70 +15,71 @@ using namespace Ui;
 
 static Element *make_logged_in_view() {
     return new Ui::VContainer({
-        new Ui::StaticText(13.5, "Account"),
-        new Ui::DynamicText(9.75, [](){
+        new Ui::StaticText(18, "Account"),
+        new Ui::DynamicText(13, [](){
             return "Logged in as: " + Account::logged_in_user;
         }, { .fill = 0xffffffff }),
         new Ui::Button(140, 36,
-            new Ui::StaticText(11.25, "Log out"),
+            new Ui::StaticText(15, "Log out"),
             [](Element *, uint8_t e){ if (e == Ui::kClick) Account::request_logout(); },
             nullptr,
-            { .fill = 0xffdb5a5a, .line_width = 3.75, .round_radius = 3 }
+            { .fill = 0xffdb5a5a, .line_width = 5, .round_radius = 3 }
         )
     }, 15, 10, { .h_justify = Style::Left, .no_animation = 1 });
 }
 
 static Element *make_logged_out_view() {
     return new Ui::VContainer({
-        new Ui::StaticText(13.5, "Account"),
+        new Ui::StaticText(18, "Account"),
         new Ui::HContainer({
             new Ui::Button(90, 32,
-                new Ui::StaticText(9.75, "Login"),
+                new Ui::StaticText(13, "Login"),
                 [](Element *, uint8_t e){ if (e == Ui::kClick) {
                     Account::register_mode = false;
                     Account::error = "";
                 } },
                 [](){ return !Account::register_mode; },
-                { .fill = 0xff5a9fdb, .line_width = 3, .round_radius = 3 }
+                { .fill = 0xff5a9fdb, .line_width = 4, .round_radius = 3 }
             ),
             new Ui::Button(90, 32,
-                new Ui::StaticText(9.75, "Register"),
+                new Ui::StaticText(13, "Register"),
                 [](Element *, uint8_t e){ if (e == Ui::kClick) {
                     Account::register_mode = true;
                     Account::error = "";
                 } },
                 [](){ return Account::register_mode; },
-                { .fill = 0xff5a9fdb, .line_width = 3, .round_radius = 3 }
+                { .fill = 0xff5a9fdb, .line_width = 4, .round_radius = 3 }
             )
         }, 0, 10),
+        // Reminder/placeholder text inside the fields at half size (font_scale 0.5).
         new Ui::TextInput(Account::username_field, 220, 36, 16, {
-            .line_width = 3,
+            .line_width = 4,
             .round_radius = 4
-        }, false, "Username"),
+        }, false, "Username", 0.5f),
         new Ui::TextInput(Account::password_field, 220, 36, 32, {
-            .line_width = 3,
+            .line_width = 4,
             .round_radius = 4
-        }, true, "Password"),
+        }, true, "Password", 0.5f),
         new Ui::Choose(
             new Ui::Element(0, 0, { .no_animation = 1 }),
             new Ui::TextInput(Account::confirm_field, 220, 36, 32, {
-                .line_width = 3,
+                .line_width = 4,
                 .round_radius = 4,
                 .no_animation = 1
-            }, true, "Confirm password"),
+            }, true, "Confirm password", 0.5f),
             [](){ return Account::register_mode; },
             { .no_animation = 1 }
         ),
         new Ui::Button(140, 36,
-            new Ui::StaticText(11.25, "Submit"),
+            new Ui::StaticText(15, "Submit"),
             [](Element *, uint8_t e){ if (e == Ui::kClick) {
                 if (Account::register_mode) Account::request_register();
                 else Account::request_login();
             } },
             nullptr,
-            { .fill = 0xff1dd129, .line_width = 3.75, .round_radius = 3 }
+            { .fill = 0xff1dd129, .line_width = 5, .round_radius = 3 }
         ),
-        new Ui::DynamicText(9, [](){ return Account::error; }, { .fill = 0xffff5555 })
+        new Ui::DynamicText(12, [](){ return Account::error; }, { .fill = 0xffff5555 })
     }, 12, 10, { .h_justify = Style::Left, .no_animation = 1 });
 }
 
@@ -89,7 +90,7 @@ Element *Ui::make_account_panel() {
         [](){ return Account::logged_in(); },
         {
             .fill = 0xff5a9fdb,
-            .line_width = 5.25,
+            .line_width = 7,
             .round_radius = 3,
             // Slide up/down on open/close (Choose::refactor guards the first-open
             // collapse so it doesn't glitch).

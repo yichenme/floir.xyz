@@ -50,7 +50,7 @@ void DOM::element_hide(char const *name)
     name);
 }
 
-void DOM::update_pos_and_dimension(char const *name, float x, float y, float w, float h)
+void DOM::update_pos_and_dimension(char const *name, float x, float y, float w, float h, float font_scale)
 {
     EM_ASM(
         {
@@ -64,9 +64,9 @@ void DOM::update_pos_and_dimension(char const *name, float x, float y, float w, 
             elem.style.top = ($2 - $4 / 2) / rs + "px";
             elem.style.width = ($3 / rs - 10) + "px";
             elem.style.height = $4 / rs + "px";
-            elem.style["font-size"] = $4 / rs * 0.66 + "px";
+            elem.style["font-size"] = $4 / rs * 0.66 * $5 + "px";
         },
-        name, x, y, w, h);
+        name, x, y, w, h, font_scale);
 }
 
 std::string DOM::retrieve_text(char const *name, uint32_t max_length) {

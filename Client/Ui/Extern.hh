@@ -28,6 +28,10 @@ namespace Ui {
     extern double lerp_amount;
     extern Element *focused;
     extern Element *pressed;
+    // The bottom-row "Account" button, so code that opens the account panel
+    // without going through the button (e.g. spawning without an account) can
+    // anchor the panel to it the same way the button does.
+    extern Element *account_button;
     extern uint8_t panel_open;
     extern uint8_t minimap_expanded;
     extern int32_t dragging_inventory_index;

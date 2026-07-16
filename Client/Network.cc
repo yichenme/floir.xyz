@@ -81,6 +81,16 @@ void Game::spawn_in() {
     if (!Account::logged_in()) {
         Ui::panel_open = Ui::Panel::kAccount;
         Account::error = "Register or log in to play";
+        // Position the panel over the Account button, same as clicking it would
+        // (spawn_in bypasses the button, which is what set the position before).
+        Ui::Element *pg = Ui::Panel::account;
+        Ui::Element *btn = Ui::account_button;
+        if (pg && btn) {
+            pg->x = btn->screen_x / Ui::scale - pg->get_target_width() / 2;
+            pg->y = -(btn->height + 20);
+            if (pg->x < 10)
+                pg->x = 10;
+        }
         return;
     }
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));

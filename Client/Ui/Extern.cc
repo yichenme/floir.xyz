@@ -18,6 +18,7 @@ namespace Ui {
     double lerp_amount = 0.05;
     Element *focused = nullptr;
     Element *pressed = nullptr;
+    Element *account_button = nullptr;
     uint8_t panel_open = Panel::kNone;
     uint8_t minimap_expanded = 0;
     int32_t dragging_inventory_index = -1;
