@@ -5,16 +5,6 @@
 #include <Shared/StaticData.hh>
 
 namespace Ui {
-    class StatPetalSlot final : public Element {
-    public:
-        uint8_t pos;
-        StatPetalSlot(uint8_t);
-
-        virtual void on_render(Renderer &) override;
-        virtual void refactor() override;
-
-        virtual void on_event(uint8_t) override;
-    };
 
     class DeadFlowerIcon final : public Element {
     public:

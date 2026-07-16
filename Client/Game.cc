@@ -37,6 +37,8 @@ namespace Game {
     double timestamp = 0;
 
     double score = 0;
+    uint32_t mobs_killed = 0;
+    uint32_t petals_collected = 0;
     float overlevel_timer = 0;
     float slot_indicator_opacity = 0;
     float transition_circle = 0;
@@ -229,6 +231,8 @@ void Game::tick(double time) {
             Game::seen_petals[cached_loadout[i]] = 1;
         }
         score = player.get_score();
+        mobs_killed = player.get_mobs_killed();
+        petals_collected = player.get_petals_collected();
         overlevel_timer = player.get_overlevel_timer();
     } else {
         player_id = NULL_ENTITY;

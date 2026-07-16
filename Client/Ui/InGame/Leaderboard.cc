@@ -40,9 +40,10 @@ void LeaderboardSlot::on_render(Renderer &ctx) {
     ctx.move_to(-(width-height)/2,0);
     ctx.line_to(-(width-height)/2+(width-height)*((float) ratio),0);
     ctx.stroke();
-    std::string format_string = std::format("{} - {}", 
+    // Ranked by score (monotonic with level); display the level.
+    std::string format_string = std::format("{} - Lvl {}",
         Game::simulation.arena_info.names[pos].size() == 0 ? "Unnamed" : Game::simulation.arena_info.names[pos],
-        format_score((float) Game::simulation.arena_info.scores[pos]));
+        score_to_level((uint32_t) Game::simulation.arena_info.scores[pos]));
     ctx.set_fill(0xffffffff);
     ctx.set_stroke(0xff222222);
     ctx.center_text_align();

@@ -31,6 +31,8 @@ namespace Game {
     extern double timestamp;
     
     extern double score;
+    extern uint32_t mobs_killed;
+    extern uint32_t petals_collected;
     extern float overlevel_timer;
     extern float slot_indicator_opacity;
     extern float transition_circle;

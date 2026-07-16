@@ -83,7 +83,9 @@ SINGLE(Drop, drop_rarity, uint8_t)
 #define FIELDS_Web
 
 #define FIELDS_Score \
-SINGLE(Score, score, uint32_t)
+SINGLE(Score, score, uint32_t) \
+SINGLE(Score, mobs_killed, uint32_t) \
+SINGLE(Score, petals_collected, uint32_t)
 
 #define FIELDS_Name \
 SINGLE(Name, name, std::string) \

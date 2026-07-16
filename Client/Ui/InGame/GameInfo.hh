@@ -6,6 +6,7 @@ namespace Ui {
     class LevelBar final : public Element {
     public:
         LerpFloat progress;
+        LerpFloat hp;
         uint32_t level;
         LevelBar();
         virtual void on_render(Renderer &) override;

@@ -45,8 +45,11 @@ static void _alloc_drops(Simulation *sim, std::vector<PetalID::T> &success_drops
 static void _add_score(Simulation *sim, EntityID const killer_id, Entity const &target) {
     if (!sim->ent_exists(killer_id)) return;
     Entity &killer = sim->get_ent(killer_id);
-    if (killer.has_component(kScore))
+    if (killer.has_component(kScore)) {
         killer.set_score(killer.get_score() + target.score_reward);
+        if (target.has_component(kMob))
+            killer.set_mobs_killed(killer.get_mobs_killed() + 1);
+    }
 }
 
 void entity_on_death(Simulation *sim, Entity const &ent) {

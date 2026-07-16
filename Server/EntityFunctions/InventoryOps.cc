@@ -92,6 +92,8 @@ void equip_to_loadout(Client *client, Entity &player, uint32_t inv_index, uint8_
 void pickup_drop(Simulation *sim, Client *client, Entity &player, Entity &drop) {
     PetalID::T const id = drop.get_drop_id();
     uint8_t const rarity = drop.get_drop_rarity();
+    if (player.has_component(kScore))
+        player.set_petals_collected(player.get_petals_collected() + 1);
     for (uint32_t i = 0; i < player.get_loadout_count() + MAX_SLOT_COUNT; ++i) {
         if (player.get_loadout_ids(i) != PetalID::kNone) continue;
         player.set_loadout_ids(i, id);
