@@ -11,6 +11,7 @@
 #include <Shared/Map.hh>
 #include <Shared/StaticData.hh>
 #include <Shared/Tilemap.hh>
+#include <Client/StaticData.hh>
 
 #include <cmath>
 #include <cstdio>
@@ -92,32 +93,54 @@ void Game::render_game() {
             renderer.fill_rect(def.left, def.top, def.right - def.left, def.bottom - def.top);
         }
 
-        renderer.set_stroke(alpha);
-        renderer.set_line_width(0.5);
-        float newLeftX = ceilf(leftX / 50) * 50;
-        float newTopY  = ceilf(topY  / 50) * 50;
-        renderer.begin_path();
-        for (; newLeftX < rightX; newLeftX += 50) {
-            renderer.move_to(newLeftX, topY);
-            renderer.line_to(newLeftX, bottomY);
+        if (Input::show_grid) {
+            // Fine grid (normal outline).
+            renderer.set_stroke(alpha);
+            renderer.set_line_width(0.5);
+            float gx = ceilf(leftX / 50) * 50;
+            float gy = ceilf(topY  / 50) * 50;
+            renderer.begin_path();
+            for (; gx < rightX; gx += 50) { renderer.move_to(gx, topY); renderer.line_to(gx, bottomY); }
+            for (; gy < bottomY; gy += 50) { renderer.move_to(leftX, gy); renderer.line_to(rightX, gy); }
+            renderer.stroke();
+            // Coordinate grid: cell boundaries at 2x the normal outline, labelled cc,rr.
+            renderer.set_line_width(1.0);
+            renderer.begin_path();
+            for (int32_t c = c0; c <= c1; ++c) {
+                renderer.move_to(c * Tilemap::CELL_SIZE, topY);
+                renderer.line_to(c * Tilemap::CELL_SIZE, bottomY);
+            }
+            for (int32_t r = r0; r <= r1; ++r) {
+                renderer.move_to(leftX, r * Tilemap::CELL_SIZE);
+                renderer.line_to(rightX, r * Tilemap::CELL_SIZE);
+            }
+            renderer.stroke();
+            for (int32_t r = r0; r < r1; ++r)
+            for (int32_t c = c0; c < c1; ++c) {
+                char coord[12];
+                std::snprintf(coord, sizeof(coord), "%02d,%02d", c, r);
+                RenderContext lctx(&renderer);
+                renderer.translate((c + 0.5f) * Tilemap::CELL_SIZE, (r + 0.5f) * Tilemap::CELL_SIZE);
+                renderer.draw_text(coord, { .fill = 0x60ffffff, .stroke = 0x60000000, .size = 60, .stroke_scale = 0.12f });
+            }
         }
-        for (; newTopY < bottomY; newTopY += 50) {
-            renderer.move_to(leftX, newTopY);
-            renderer.line_to(rightX, newTopY);
-        }
-        renderer.stroke();
     }
 
     if (alive() && Input::movement_helper && !Input::keyboard_movement && !Input::is_mobile) {
         Entity const &player = simulation.get_ent(player_id);
-        float norm_mouse_x = (Input::mouse_x - renderer.width / 2) / Ui::scale;
-        float norm_mouse_y = (Input::mouse_y - renderer.height / 2) / Ui::scale;
+        // Player drifts off screen-centre when the camera is clamped at an edge;
+        // anchor the helper to the player's real on-screen position.
+        float view_scale = Ui::scale * camera.get_fov();
+        float px_off = (player.get_x() - Game::view_cam_x) * view_scale;
+        float py_off = (player.get_y() - Game::view_cam_y) * view_scale;
+        float norm_mouse_x = (Input::mouse_x - renderer.width / 2 - px_off) / Ui::scale;
+        float norm_mouse_y = (Input::mouse_y - renderer.height / 2 - py_off) / Ui::scale;
         Vector delta{norm_mouse_x, norm_mouse_y};
         float dist = delta.magnitude();
         if (dist >= player.get_radius() + 80) {
             RenderContext context(&renderer);
             renderer.reset_transform();
-            renderer.translate(renderer.width/2,renderer.height/2);
+            renderer.translate(renderer.width/2 + px_off, renderer.height/2 + py_off);
             renderer.scale(Ui::scale);
             uint8_t alpha = (uint8_t) (fclamp((dist - player.get_radius() - 80) / 80, 0, 1) * 255 * 0.15);
             delta.set_magnitude(player.get_radius() + 40);
@@ -197,6 +220,25 @@ void Game::render_game() {
         renderer.translate(ent.get_x(), ent.get_y());
         render_name(renderer, ent);
     });
+
+    // G: overlay every visible petal's hitbox (radius circle in its rarity
+    // colour at 75% transparency) with the rarity name beneath it.
+    if (Game::show_hitboxes) {
+        simulation.for_each<kPetal>([](Simulation *sim, Entity const &ent){
+            uint8_t rarity = PETAL_DATA[ent.get_petal_id()].rarity;
+            uint32_t rcol = RARITY_COLORS[rarity];
+            RenderContext context(&renderer);
+            renderer.translate(ent.get_x(), ent.get_y());
+            float r = ent.get_radius();
+            renderer.set_fill((rcol & 0x00ffffff) | 0x40000000);   // ~75% transparent
+            renderer.begin_path();
+            renderer.arc(0, 0, r);
+            renderer.fill();
+            renderer.translate(0, r + 10);
+            renderer.draw_text(RARITY_NAMES[rarity],
+                { .fill = rcol, .stroke = 0xff000000, .size = 13, .stroke_scale = 0.2f });
+        });
+    }
 }
 
 void Game::render_title_screen() {

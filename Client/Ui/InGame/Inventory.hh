@@ -11,6 +11,8 @@ namespace Ui {
         uint8_t selected;
         float drag_x;
         float drag_y;
+        uint32_t last_count = 0;
+        float pop_t = 2;   // >1 = no pop playing
         InventoryStackSlot(uint32_t);
 
         virtual void on_render(Renderer &) override;

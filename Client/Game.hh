@@ -40,6 +40,7 @@ namespace Game {
     // edges so the blank outside never shows). Shared by render + mouse aim.
     extern float view_cam_x;
     extern float view_cam_y;
+    extern uint8_t show_hitboxes;   // G toggles petal-hitbox overlay
 
     extern uint32_t respawn_level;
 

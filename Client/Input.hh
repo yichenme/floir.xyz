@@ -39,6 +39,8 @@ namespace Input {
     extern uint8_t freeze_input;
     extern uint8_t movement_helper;
     extern uint8_t keyboard_movement;
+    extern uint8_t high_quality;   // full res + 60fps when on; half res + 30fps off
+    extern uint8_t show_grid;      // draw world grid + coordinates when on
     extern uint8_t is_mobile;
     //use these for game inputs that can be held down
     extern std::unordered_set<char> keys_held;

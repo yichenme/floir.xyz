@@ -44,6 +44,7 @@ namespace Game {
     float transition_circle = 0;
     float view_cam_x = 0;
     float view_cam_y = 0;
+    uint8_t show_hitboxes = 0;
 
     uint32_t respawn_level = 1;
 
@@ -100,6 +101,9 @@ void Game::init() {
     );
     game_ui_window.add_child(
         Ui::make_minimap()
+    );
+    game_ui_window.add_child(
+        Ui::make_leave_button()
     );
     game_ui_window.add_child(
         Ui::make_loadout_backgrounds()
@@ -320,6 +324,8 @@ void Game::tick(double time) {
         
     if (Input::keys_held_this_tick.contains('M'))
         Ui::minimap_expanded = !Ui::minimap_expanded;
+    if (Input::keys_held_this_tick.contains('G'))
+        Game::show_hitboxes = !Game::show_hitboxes;
 
     if (Game::timestamp - Ui::UiLoadout::last_key_select > 5000)
         Ui::UiLoadout::selected_with_keys = MAX_SLOT_COUNT;

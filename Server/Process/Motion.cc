@@ -17,6 +17,8 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
     }
     // Players and mobs collide with impassable terrain (resolved after the move).
     bool const terrain_collide = ent.has_component(kFlower) || ent.has_component(kMob);
+    float const prev_x = ent.get_x();
+    float const prev_y = ent.get_y();
     float const dt = (BASE_TPS / TPS);
     if (ent.friction <= 0) {
         Vector const add = ent.velocity * dt + ent.acceleration * (0.5 * dt * dt);
@@ -51,42 +53,51 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
     if (terrain_collide) {
         float const r = ent.get_radius();
         float const cs = Tilemap::COLL_CELL;
-        for (uint32_t pass = 0; pass < 2; ++pass) {
-            float x = ent.get_x();
-            float y = ent.get_y();
-            int32_t c0 = (int32_t)std::floor((x - r) / cs);
-            int32_t c1 = (int32_t)std::floor((x + r) / cs);
-            int32_t r0 = (int32_t)std::floor((y - r) / cs);
-            int32_t r1 = (int32_t)std::floor((y + r) / cs);
-            for (int32_t rr = r0; rr <= r1; ++rr)
-            for (int32_t cc = c0; cc <= c1; ++cc) {
-                if (!Tilemap::solid_at(cc * cs + 1, rr * cs + 1)) continue;
-                float const cellL = cc * cs, cellT = rr * cs;
-                float const cellR = cellL + cs, cellB = cellT + cs;
-                float const nearX = fclamp(x, cellL, cellR);
-                float const nearY = fclamp(y, cellT, cellB);
-                float dx = x - nearX, dy = y - nearY;
-                float d2 = dx * dx + dy * dy;
-                if (d2 >= r * r) continue;
-                if (d2 > 0.0001f) {
-                    float d = std::sqrt(d2);
-                    float push = r - d;
-                    ent.set_x(x + dx / d * push);
-                    ent.set_y(y + dy / d * push);
-                } else {
-                    // Center inside the cell: eject along the nearest face.
-                    float const dl = x - cellL, dr = cellR - x;
-                    float const dt = y - cellT, db = cellB - y;
-                    float const m = std::min(std::min(dl, dr), std::min(dt, db));
-                    if (m == dl) ent.set_x(cellL - r);
-                    else if (m == dr) ent.set_x(cellR + r);
-                    else if (m == dt) ent.set_y(cellT - r);
-                    else ent.set_y(cellB + r);
+        // Resolve a point out of every solid cell its radius overlaps.
+        auto resolve = [&](float x, float y) -> Vector {
+            for (uint32_t pass = 0; pass < 2; ++pass) {
+                int32_t c0 = (int32_t)std::floor((x - r) / cs);
+                int32_t c1 = (int32_t)std::floor((x + r) / cs);
+                int32_t r0 = (int32_t)std::floor((y - r) / cs);
+                int32_t r1 = (int32_t)std::floor((y + r) / cs);
+                for (int32_t rr = r0; rr <= r1; ++rr)
+                for (int32_t cc = c0; cc <= c1; ++cc) {
+                    if (!Tilemap::solid_at(cc * cs + 1, rr * cs + 1)) continue;
+                    float const cellL = cc * cs, cellT = rr * cs;
+                    float const cellR = cellL + cs, cellB = cellT + cs;
+                    float const nearX = fclamp(x, cellL, cellR);
+                    float const nearY = fclamp(y, cellT, cellB);
+                    float dx = x - nearX, dy = y - nearY;
+                    float d2 = dx * dx + dy * dy;
+                    if (d2 >= r * r) continue;
+                    if (d2 > 0.0001f) {
+                        float d = std::sqrt(d2); float push = r - d;
+                        x += dx / d * push; y += dy / d * push;
+                    } else {
+                        float const dl = x - cellL, dr = cellR - x;
+                        float const dtp = y - cellT, db = cellB - y;
+                        float const m = std::min(std::min(dl, dr), std::min(dtp, db));
+                        if (m == dl) x = cellL - r; else if (m == dr) x = cellR + r;
+                        else if (m == dtp) y = cellT - r; else y = cellB + r;
+                    }
                 }
-                x = ent.get_x();
-                y = ent.get_y();
             }
+            return Vector(x, y);
+        };
+        // Sub-step from the pre-move position so a big knockback can't tunnel
+        // through a thin wall: advance in <=half-cell hops, resolving each.
+        float tx = ent.get_x(), ty = ent.get_y();
+        float dist = std::hypot(tx - prev_x, ty - prev_y);
+        int steps = std::max(1, (int)std::ceil(dist / (cs * 0.5f)));
+        float cx = prev_x, cy = prev_y;
+        for (int s = 1; s <= steps; ++s) {
+            float sx = prev_x + (tx - prev_x) * s / steps;
+            float sy = prev_y + (ty - prev_y) * s / steps;
+            Vector rv = resolve(sx, sy);
+            cx = rv.x; cy = rv.y;
         }
+        ent.set_x(cx);
+        ent.set_y(cy);
     }
     //ent.acceleration.set(0,0);
     ent.collision_velocity.set(0,0);

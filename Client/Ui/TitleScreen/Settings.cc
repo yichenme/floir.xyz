@@ -22,6 +22,14 @@ Element *Ui::make_settings_panel() {
             new Ui::StaticText(16, "Movement helper")
         }, 0, 10, {.h_justify = Style::Left }),
         new Ui::HContainer({
+            new Ui::ToggleButton(30, &Input::high_quality),
+            new Ui::StaticText(16, "High quality")
+        }, 0, 10, {.h_justify = Style::Left }),
+        new Ui::HContainer({
+            new Ui::ToggleButton(30, &Input::show_grid),
+            new Ui::StaticText(16, "Show grid")
+        }, 0, 10, {.h_justify = Style::Left }),
+        new Ui::HContainer({
             new Ui::ToggleButton(30, &Game::show_debug),
             new Ui::StaticText(16, "Debug stats")
         }, 0, 10, {.h_justify = Style::Left }),

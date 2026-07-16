@@ -47,6 +47,7 @@ namespace Ui {
     Element *make_leaderboard();
     Element *make_level_bar();
     Element *make_minimap();
+    Element *make_leave_button();
     Element *make_mobile_attack_button();
     Element *make_mobile_defend_button();
     Element *make_mobile_joystick();

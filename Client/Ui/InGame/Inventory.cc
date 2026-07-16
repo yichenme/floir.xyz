@@ -38,24 +38,24 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
     index(idx), selected(0), drag_x(0), drag_y(0)
 {
     style.should_render = [this](){ return index < Game::inventory_stacks.size(); };
-    // Mirror LoadoutPetal: dispatch relies on kMouseDown; release is polled
-    // here because the framework never fires kMouseUp on drag-out.
+    // The slot stays put in the grid; the single dragged petal is drawn by the
+    // Window as a floating preview. Release is polled here (no kMouseUp event).
     style.animate = [this](Element *elt, Renderer &ctx){
-        ctx.scale((float) elt->animation);
-        if (!selected) {
-            drag_x = drag_y = 0;
-            style.layer = 0;
-            return;
+        // Pop 90%->110%->100% when this stack gains petals.
+        if (index < Game::inventory_stacks.size()) {
+            uint32_t cnt = Game::inventory_stacks[index].count;
+            if (cnt > last_count) pop_t = 0;
+            last_count = cnt;
         }
-        style.layer = 1;
-        uint8_t released = BitMath::at(Input::mouse_buttons_released, Input::LeftMouse);
-        // Follow the cursor visually while dragged.
-        float target_x = (Input::mouse_x - screen_x) / Ui::scale;
-        float target_y = (Input::mouse_y - screen_y) / Ui::scale;
-        drag_x = lerp(drag_x, target_x, Ui::lerp_amount);
-        drag_y = lerp(drag_y, target_y, Ui::lerp_amount);
-        ctx.translate(drag_x, drag_y);
-        if (released) {
+        float pop = 1.0f;
+        if (pop_t <= 1.0f) {
+            pop = pop_t < 0.5f ? lerp(0.9f, 1.1f, pop_t * 2)
+                               : lerp(1.1f, 1.0f, (pop_t - 0.5f) * 2);
+            pop_t += (float) Ui::dt / 260.0f;
+        }
+        ctx.scale((float) elt->animation * pop);
+        if (!selected) return;
+        if (BitMath::at(Input::mouse_buttons_released, Input::LeftMouse)) {
             uint8_t potential_swap = find_viable_target(Input::mouse_x, Input::mouse_y);
             if (potential_swap != ((uint8_t)-1) && potential_swap < 2 * MAX_SLOT_COUNT) {
                 Game::equip_petal(index, dynamic_to_static(potential_swap));
@@ -67,7 +67,6 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
             }
             selected = 0;
             Ui::dragging_inventory_index = -1;
-            drag_x = drag_y = 0;
         }
     };
 }
@@ -76,7 +75,10 @@ void InventoryStackSlot::on_render(Renderer &ctx) {
     if (index >= Game::inventory_stacks.size()) return;
     PetalStack const &stack = Game::inventory_stacks[index];
     draw_loadout_background(ctx, stack.type);
-    std::string const count_text = format_stack_count(stack.count);
+    // While dragging one out, show the remaining count (999 -> 998).
+    uint32_t shown = stack.count;
+    if (selected && shown > 0) --shown;
+    std::string const count_text = format_stack_count(shown);
     if (!count_text.empty()) {
         ctx.translate(width / 2 - 12, -height / 2 + 10);
         ctx.draw_text(count_text.c_str(), { .fill = 0xffffffff, .size = 13 });
@@ -141,6 +143,12 @@ Element *Ui::make_inventory_button() {
     // Match the Settings button's 10px inset from the bottom-left corner.
     elt->x = 10;
     elt->y = -10;
+    // Publish the icon's screen position so the drag preview can fly back to it.
+    elt->style.animate = [](Element *e, Renderer &ctx){
+        Ui::inventory_icon_x = e->screen_x;
+        Ui::inventory_icon_y = e->screen_y;
+        ctx.scale((float) e->animation);
+    };
     return elt;
 }
 

@@ -23,4 +23,6 @@ namespace Ui {
     int32_t dragging_inventory_index = -1;
     float drag_start_mouse_x = 0;
     float drag_start_mouse_y = 0;
+    float inventory_icon_x = 0;
+    float inventory_icon_y = 0;
 }

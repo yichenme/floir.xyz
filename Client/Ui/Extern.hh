@@ -33,4 +33,6 @@ namespace Ui {
     extern int32_t dragging_inventory_index;
     extern float drag_start_mouse_x;
     extern float drag_start_mouse_y;
+    extern float inventory_icon_x;
+    extern float inventory_icon_y;
 };

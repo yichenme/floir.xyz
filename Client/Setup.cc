@@ -9,6 +9,9 @@
 
 #include <emscripten.h>
 
+// Read by the JS render loop / input handlers to pick render scale + fps cap.
+extern "C" EMSCRIPTEN_KEEPALIVE int get_high_quality() { return Input::high_quality; }
+
 static char _get_key_from_code(std::string const &code) {
     static std::unordered_map<std::string, char> const KEYCODE_MAP = 
         {{"AltLeft", 18},{"AltRight", 18},{"ArrowDown", 40},
@@ -106,31 +109,31 @@ int setup_inputs() {
         });
         window.addEventListener("mousedown", (e) => {
             //e.preventDefault();
-            _mouse_event(e.clientX * devicePixelRatio, e.clientY * devicePixelRatio, 0, +!!e.button);
+            _mouse_event(e.clientX * devicePixelRatio * (Module.renderScale||1), e.clientY * devicePixelRatio * (Module.renderScale||1), 0, +!!e.button);
         });
         window.addEventListener("mousemove", (e) => {
             //e.preventDefault();
-            _mouse_event(e.clientX * devicePixelRatio, e.clientY * devicePixelRatio, 1, +!!e.button);
+            _mouse_event(e.clientX * devicePixelRatio * (Module.renderScale||1), e.clientY * devicePixelRatio * (Module.renderScale||1), 1, +!!e.button);
         });
         window.addEventListener("mouseup", (e) => {
             //e.preventDefault();
-            _mouse_event(e.clientX * devicePixelRatio, e.clientY * devicePixelRatio, 2, +!!e.button);
+            _mouse_event(e.clientX * devicePixelRatio * (Module.renderScale||1), e.clientY * devicePixelRatio * (Module.renderScale||1), 2, +!!e.button);
         });
         window.addEventListener("touchstart", (e) => {
             for (const t of e.changedTouches)
-                _touch_event(t.clientX * devicePixelRatio, t.clientY * devicePixelRatio, 0, t.identifier);
+                _touch_event(t.clientX * devicePixelRatio * (Module.renderScale||1), t.clientY * devicePixelRatio * (Module.renderScale||1), 0, t.identifier);
         }, { passive: false });
         window.addEventListener("touchmove", (e) => {
             for (const t of e.changedTouches)
-                _touch_event(t.clientX * devicePixelRatio, t.clientY * devicePixelRatio, 1, t.identifier);
+                _touch_event(t.clientX * devicePixelRatio * (Module.renderScale||1), t.clientY * devicePixelRatio * (Module.renderScale||1), 1, t.identifier);
         }, { passive: false });
         window.addEventListener("touchend", (e) => {
             for (const t of e.changedTouches)
-                _touch_event(t.clientX * devicePixelRatio, t.clientY * devicePixelRatio, 2, t.identifier);
+                _touch_event(t.clientX * devicePixelRatio * (Module.renderScale||1), t.clientY * devicePixelRatio * (Module.renderScale||1), 2, t.identifier);
         }, { passive: false });
         window.addEventListener("touchcancel", (e) => {
             for (const t of e.changedTouches)
-                _touch_event(t.clientX * devicePixelRatio, t.clientY * devicePixelRatio, 2, t.identifier);
+                _touch_event(t.clientX * devicePixelRatio * (Module.renderScale||1), t.clientY * devicePixelRatio * (Module.renderScale||1), 2, t.identifier);
         }, { passive: false });
         window.addEventListener("paste", (e) => {
             try {
@@ -148,11 +151,22 @@ int setup_inputs() {
 
 void main_loop() {
     EM_ASM({
+        let lastFrame = -1e9;
         function loop(time)
         {
-            Module.canvas.width = innerWidth * devicePixelRatio;
-            Module.canvas.height = innerHeight * devicePixelRatio;
-            _loop(time, innerWidth * devicePixelRatio, innerHeight * devicePixelRatio);
+            const hq = _get_high_quality();
+            // High quality: full res + 60fps. Low: half res + 30fps.
+            const minDelta = hq ? 0 : (1000 / 30) - 1;
+            if (time - lastFrame >= minDelta) {
+                lastFrame = time;
+                Module.renderScale = hq ? 1 : 0.5;
+                const s = devicePixelRatio * Module.renderScale;
+                const w = Math.max(1, Math.floor(innerWidth * s));
+                const h = Math.max(1, Math.floor(innerHeight * s));
+                Module.canvas.width = w;
+                Module.canvas.height = h;
+                _loop(time, w, h);
+            }
             requestAnimationFrame(loop);
         };
         requestAnimationFrame(loop);
