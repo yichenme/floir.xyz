@@ -120,6 +120,7 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             uint8_t pos = reader.read<uint8_t>();
             if (pos >= MAX_SLOT_COUNT + player.get_loadout_count()) break;
             PetalID::T old_id = player.get_loadout_ids(pos);
+            PetalTracker::remove_petal(simulation, old_id);
             if (old_id != PetalID::kNone && old_id != PetalID::kBasic) {
                 uint8_t rarity = PETAL_DATA[old_id].rarity;
                 player.set_score(player.get_score() + RARITY_TO_XP[rarity]);
