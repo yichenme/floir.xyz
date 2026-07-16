@@ -11,14 +11,16 @@
 using namespace Ui;
 
 // Player HUD bar (top-left, below the game title): live flower model on the
-// left; to its right the name sits above the HP bar, with the XP bar stacked
-// below the HP bar.
+// left; the HP bar runs behind it (flower overlaps its left end), the name is
+// drawn on the HP bar just right of the flower, and a shorter XP bar sits just
+// below the HP bar, left-aligned with it.
 static float const BAR_W = 220;
-static float const HP_H = 16;
-static float const XP_H = 14;
+static float const HP_H = 18;
+static float const XP_H = 12;
 static float const FACE_R = 26;
+static float const XP_FRAC = 0.75f;   // xp bar = 75% of hp bar length
 
-LevelBar::LevelBar() : Element(FACE_R * 2 + 12 + BAR_W, FACE_R * 2 + 8) {
+LevelBar::LevelBar() : Element(FACE_R + BAR_W, FACE_R * 2 + 8) {
     progress = 0;
     hp = 1;
     style.animate = [&](Element *elt, Renderer &ctx) {
@@ -40,10 +42,57 @@ LevelBar::LevelBar() : Element(FACE_R * 2 + 12 + BAR_W, FACE_R * 2 + 8) {
 void LevelBar::on_render(Renderer &ctx) {
     float const left = -width / 2;
     float const face_cx = left + FACE_R;
-    float const bar_x0 = face_cx + FACE_R + 12;
-    float const bar_w = width / 2 - bar_x0;
+    // Bars start at the flower centre so the flower overlaps their left end by
+    // ~50% of its width; the flower is drawn on top afterwards.
+    float const bar_x0 = face_cx;
+    float const hp_y = 0;
+    float const xp_y = HP_H / 2 + XP_H / 2 + 4;   // just below the hp bar
 
-    // Live flower model (eyes/mouth mirror the in-game player).
+    auto bar = [&](float x0, float y, float len, float h, uint32_t fill, float ratio) {
+        RenderContext c(&ctx);
+        ctx.set_stroke(0xc0222222);
+        ctx.round_line_cap();
+        ctx.set_line_width(h);
+        ctx.begin_path();
+        ctx.move_to(x0, y);
+        ctx.line_to(x0 + len, y);
+        ctx.stroke();
+        ctx.set_stroke(fill);
+        ctx.set_line_width(h * 0.72);
+        ctx.begin_path();
+        ctx.move_to(x0, y);
+        ctx.line_to(x0 + len * ratio, y);
+        ctx.stroke();
+    };
+    // HP bar (full) and XP bar (75% length, left-aligned, just below).
+    bar(bar_x0, hp_y, BAR_W, HP_H, 0xff75dd34, (float) hp);
+    bar(bar_x0, xp_y, BAR_W * XP_FRAC, XP_H, 0xfff9e496, (float) progress);
+
+    // Level label on the XP bar.
+    {
+        RenderContext c(&ctx);
+        ctx.translate(bar_x0 + BAR_W * XP_FRAC / 2, xp_y);
+        std::string const t = "Lvl " + std::to_string(level);
+        ctx.draw_text(t.c_str(), { .size = XP_H * 0.85f });
+    }
+
+    // Name drawn on the HP bar, just right of the flower model.
+    {
+        RenderContext c(&ctx);
+        ctx.translate(face_cx + FACE_R + 8, hp_y);
+        std::string const name = Game::nickname.empty() ? std::string("Unnamed") : Game::nickname;
+        ctx.set_text_size(16);
+        ctx.set_fill(0xffffffff);
+        ctx.set_stroke(0xff222222);
+        ctx.set_line_width(16 * 0.14);
+        // Left-anchor by shifting right half the measured width.
+        float const tw = ctx.get_text_size(name.c_str());
+        ctx.translate(tw / 2, 0);
+        ctx.stroke_text(name.c_str());
+        ctx.fill_text(name.c_str());
+    }
+
+    // Live flower model on top (eyes/mouth mirror the in-game player).
     if (Game::alive() && Game::simulation.ent_exists(Game::player_id)) {
         Entity const &player = Game::simulation.get_ent(Game::player_id);
         RenderContext c(&ctx);
@@ -57,42 +106,6 @@ void LevelBar::on_render(Renderer &ctx) {
             .equip_flags = 0,
             .color = player.get_color()
         });
-    }
-
-    // Name above the HP bar.
-    {
-        RenderContext c(&ctx);
-        ctx.translate(bar_x0 + bar_w / 2, -HP_H / 2 - 12);
-        std::string const name = Game::nickname.empty() ? std::string("Unnamed") : Game::nickname;
-        ctx.draw_text(name.c_str(), { .size = 18 });
-    }
-
-    // HP bar.
-    auto bar = [&](float y, float h, uint32_t fill, float ratio) {
-        RenderContext c(&ctx);
-        ctx.set_stroke(0xc0222222);
-        ctx.round_line_cap();
-        ctx.set_line_width(h);
-        ctx.begin_path();
-        ctx.move_to(bar_x0, y);
-        ctx.line_to(bar_x0 + bar_w, y);
-        ctx.stroke();
-        ctx.set_stroke(fill);
-        ctx.set_line_width(h * 0.75);
-        ctx.begin_path();
-        ctx.move_to(bar_x0, y);
-        ctx.line_to(bar_x0 + bar_w * ratio, y);
-        ctx.stroke();
-    };
-    bar(2, HP_H, 0xff75dd34, (float) hp);
-    bar(2 + HP_H / 2 + XP_H / 2 + 6, XP_H, 0xfff9e496, (float) progress);
-
-    // Level label on the XP bar.
-    {
-        RenderContext c(&ctx);
-        ctx.translate(bar_x0 + bar_w / 2, 2 + HP_H / 2 + XP_H / 2 + 6);
-        std::string const t = "Lvl " + std::to_string(level);
-        ctx.draw_text(t.c_str(), { .size = XP_H * 0.8f });
     }
 }
 

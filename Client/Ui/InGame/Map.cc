@@ -58,8 +58,11 @@ void Minimap::on_render(Renderer &ctx) {
     }
     float const view_w = lerp(ARENA_WIDTH / MINIMAP_ZOOM, (float)ARENA_WIDTH, e);
     float const view_h = lerp(ARENA_HEIGHT / MINIMAP_ZOOM, (float)ARENA_HEIGHT, e);
-    float const cx = lerp(px, arena_cx, e);
-    float const cy = lerp(py, arena_cy, e);
+    float cx = lerp(px, arena_cx, e);
+    float cy = lerp(py, arena_cy, e);
+    // Keep the view inside the map edges so the blank outside never shows.
+    if (view_w < ARENA_WIDTH)  cx = fclamp(cx, view_w / 2, ARENA_WIDTH - view_w / 2);
+    if (view_h < ARENA_HEIGHT) cy = fclamp(cy, view_h / 2, ARENA_HEIGHT - view_h / 2);
     float const view_l = cx - view_w / 2;
     float const view_t = cy - view_h / 2;
 
@@ -80,6 +83,9 @@ void Minimap::on_render(Renderer &ctx) {
     int32_t c1 = std::min<int32_t>(Tilemap::GRID_W, (int32_t)std::ceil((view_l + view_w) / Tilemap::CELL_SIZE));
     int32_t r0 = std::max(0, (int32_t)std::floor(view_t / Tilemap::CELL_SIZE));
     int32_t r1 = std::min<int32_t>(Tilemap::GRID_H, (int32_t)std::ceil((view_t + view_h) / Tilemap::CELL_SIZE));
+    // Overlap each run by half a cell so no white seam shows between the black
+    // blocked rects.
+    float const ov = Tilemap::CELL_SIZE * 0.5f;
     ctx.set_fill(0xff000000);
     for (int32_t r = r0; r < r1; ++r) {
         int32_t start = c0;
@@ -88,20 +94,22 @@ void Minimap::on_render(Renderer &ctx) {
             bool w = c < c1 && Tilemap::blocks_movement(Tilemap::TERRAIN[r * Tilemap::GRID_W + c]);
             if (w != in_wall) {
                 if (in_wall)
-                    ctx.fill_rect(start * Tilemap::CELL_SIZE, r * Tilemap::CELL_SIZE,
-                                  (c - start) * Tilemap::CELL_SIZE, Tilemap::CELL_SIZE);
+                    ctx.fill_rect(start * Tilemap::CELL_SIZE, r * Tilemap::CELL_SIZE - ov,
+                                  (c - start) * Tilemap::CELL_SIZE + ov, Tilemap::CELL_SIZE + 2 * ov);
                 in_wall = w;
                 start = c;
             }
         }
     }
 
-    // Player marker.
+    // Player marker: bigger when zoomed in, smaller when zoomed out, black
+    // outlined. Sized in screen px then converted to the current world scale.
     if (Game::simulation.ent_exists(Game::camera_id)) {
+        float const dot_screen = lerp(size * 0.07f, size * 0.03f, e);
+        float const dot = dot_screen * view_w / size;
         ctx.set_fill(0xffffe763);
-        ctx.set_stroke(Renderer::HSV(0xffffe763, 0.8));
-        float const dot = view_w / 45;
-        ctx.set_line_width(dot / 3);
+        ctx.set_stroke(0xff000000);
+        ctx.set_line_width(dot * 0.35f);
         ctx.begin_path();
         ctx.arc(px, py, dot);
         ctx.fill();
