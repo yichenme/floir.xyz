@@ -9,11 +9,11 @@ static std::string _gen_nonce() {
     return "fjs" + std::to_string(static_cast<uint32_t>(frand() * 49263 + 672));
 }
 
-TextInput::TextInput(std::string &r, float w, float h, uint32_t m, Style s, bool password) : 
+TextInput::TextInput(std::string &r, float w, float h, uint32_t m, Style s, bool password, char const *placeholder) :
     Element(w, h, s), name(_gen_nonce()), ref(r), max(m) {
     style.fill = 0xffeeeeee;
     style.stroke_hsv = 0;
-    DOM::create_text_input(name.c_str(), max, password);
+    DOM::create_text_input(name.c_str(), max, password, placeholder);
     DOM::update_text(name.c_str(), r, max);
 }
 

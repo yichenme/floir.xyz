@@ -77,33 +77,32 @@ void Minimap::on_render(Renderer &ctx) {
     ctx.scale(size / view_w, size / view_h);
     ctx.translate(-view_l, -view_t);
 
-    int32_t c0 = std::max(0, (int32_t)std::floor(view_l / Tilemap::CELL_SIZE));
-    int32_t c1 = std::min<int32_t>(Tilemap::GRID_W, (int32_t)std::ceil((view_l + view_w) / Tilemap::CELL_SIZE));
-    int32_t r0 = std::max(0, (int32_t)std::floor(view_t / Tilemap::CELL_SIZE));
-    int32_t r1 = std::min<int32_t>(Tilemap::GRID_H, (int32_t)std::ceil((view_t + view_h) / Tilemap::CELL_SIZE));
-    // Overlap each run by half a cell so no white seam shows between the black
-    // blocked rects.
-    float const ov = Tilemap::CELL_SIZE * 0.5f;
+    // Sample the actual collision (solid_at) at 4x the cell resolution so the
+    // minimap black/white follows the real wall/water shapes, not the grid.
+    float const step = Tilemap::CELL_SIZE / 4;
+    int32_t sc0 = std::max(0, (int32_t)std::floor(view_l / step));
+    int32_t sc1 = (int32_t)std::ceil((view_l + view_w) / step);
+    int32_t sr0 = std::max(0, (int32_t)std::floor(view_t / step));
+    int32_t sr1 = (int32_t)std::ceil((view_t + view_h) / step);
+    float const ov = step * 0.5f;
     ctx.set_fill(0xff000000);
-    for (int32_t r = r0; r < r1; ++r) {
-        int32_t start = c0;
-        bool in_wall = Tilemap::blocks_movement(Tilemap::TERRAIN[r * Tilemap::GRID_W + c0]);
-        for (int32_t c = c0 + 1; c <= c1; ++c) {
-            bool w = c < c1 && Tilemap::blocks_movement(Tilemap::TERRAIN[r * Tilemap::GRID_W + c]);
-            if (w != in_wall) {
-                if (in_wall)
-                    ctx.fill_rect(start * Tilemap::CELL_SIZE, r * Tilemap::CELL_SIZE - ov,
-                                  (c - start) * Tilemap::CELL_SIZE + ov, Tilemap::CELL_SIZE + 2 * ov);
-                in_wall = w;
-                start = c;
+    for (int32_t r = sr0; r < sr1; ++r) {
+        int32_t start = -1;
+        for (int32_t c = sc0; c <= sc1; ++c) {
+            bool w = c < sc1 && Tilemap::solid_at(c * step + step / 2, r * step + step / 2);
+            if (w && start < 0) start = c;
+            else if (!w && start >= 0) {
+                ctx.fill_rect(start * step, r * step - ov,
+                              (c - start) * step + ov, step + 2 * ov);
+                start = -1;
             }
         }
     }
 
-    // Player marker: bigger when zoomed in, smaller when zoomed out, black
-    // outlined. Sized in screen px then converted to the current world scale.
+    // Player marker: zoomed-in dot 50% of the old size, zoomed-out 10% of it,
+    // black outlined. Sized in screen px then converted to world scale.
     if (Game::simulation.ent_exists(Game::camera_id)) {
-        float const dot_screen = lerp(size * 0.07f, size * 0.03f, e);
+        float const dot_screen = lerp(size * 0.035f, size * 0.007f, e);
         float const dot = dot_screen * view_w / size;
         ctx.set_fill(0xffffe763);
         ctx.set_stroke(0xff000000);

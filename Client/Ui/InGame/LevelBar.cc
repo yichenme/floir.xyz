@@ -24,15 +24,15 @@ static float const XP_FRAC = 0.75f;   // xp bar = 75% of hp bar length
 LevelBar::LevelBar() : Element(FACE_R + BAR_W, FACE_R * 2 + 8) {
     progress = 0;
     hp = 1;
+    level = 1;
     style.animate = [&](Element *elt, Renderer &ctx) {
-        if (Game::alive() && Game::simulation.ent_exists(Game::player_id)) {
-            float xp = Game::score;
-            level = score_to_level(xp);
-            xp -= level_to_score(level);
-            xp = fclamp(xp / score_to_pass_level(level), 0, 1);
-            progress.set(xp);
+        // Level/XP straight from the live score so the bar always reflects it.
+        double s = Game::score;
+        level = score_to_level(s);
+        double into = s - level_to_score(level);
+        progress.set(fclamp(into / score_to_pass_level(level), 0, 1));
+        if (Game::alive() && Game::simulation.ent_exists(Game::player_id))
             hp.set(Game::simulation.get_ent(Game::player_id).get_health_ratio());
-        }
         progress.step(Ui::lerp_amount);
         hp.step(Ui::lerp_amount);
     };

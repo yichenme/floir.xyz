@@ -31,11 +31,6 @@ namespace Ui {
         virtual void on_event(uint8_t) override;
     };
 
-    class OverlevelTimer final : public Element {
-    public:
-        OverlevelTimer(float);
-        virtual void on_render(Renderer &) override;
-    };
 
     class MobileJoyStick final : public Element {
         float joystick_x;
@@ -52,7 +47,6 @@ namespace Ui {
     Element *make_leaderboard();
     Element *make_level_bar();
     Element *make_minimap();
-    Element *make_overlevel_indicator();
     Element *make_mobile_attack_button();
     Element *make_mobile_defend_button();
     Element *make_mobile_joystick();

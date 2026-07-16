@@ -112,8 +112,10 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
         if (!sim->ent_alive(ent.get_parent()))
             return;
         Entity &camera = sim->get_ent(ent.get_parent());
-        //set respawn level; loadout/inventory contents are untouched
-        uint32_t respawn_level = div_round_up(3 * score_to_level(ent.get_score()), 4);
+        // No death loss: respawn at the same level so the slot count (and thus
+        // the whole loadout) is preserved -- petals don't disappear on death.
+        uint32_t respawn_level = score_to_level(ent.get_score());
+        if (respawn_level < 1) respawn_level = 1;
         if (respawn_level > MAX_LEVEL) respawn_level = MAX_LEVEL;
         camera.set_respawn_level(respawn_level);
     } else if (ent.has_component(kDrop)) {

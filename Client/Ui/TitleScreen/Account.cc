@@ -54,18 +54,18 @@ static Element *make_logged_out_view() {
         new Ui::TextInput(Account::username_field, 220, 36, 16, {
             .line_width = 4,
             .round_radius = 4
-        }),
+        }, false, "Username"),
         new Ui::TextInput(Account::password_field, 220, 36, 32, {
             .line_width = 4,
             .round_radius = 4
-        }, true),
+        }, true, "Password"),
         new Ui::Choose(
             new Ui::Element(0, 0, { .no_animation = 1 }),
             new Ui::TextInput(Account::confirm_field, 220, 36, 32, {
                 .line_width = 4,
                 .round_radius = 4,
                 .no_animation = 1
-            }, true),
+            }, true, "Confirm password"),
             [](){ return Account::register_mode; },
             { .no_animation = 1 }
         ),
@@ -91,12 +91,16 @@ Element *Ui::make_account_panel() {
             .fill = 0xff5a9fdb,
             .line_width = 7,
             .round_radius = 3,
+            // Slide up/down on open/close (Choose::refactor guards the first-open
+            // collapse so it doesn't glitch).
+            .animate = [](Element *elt, Renderer &ctx){
+                ctx.translate(0, (1 - elt->animation) * 2 * elt->height);
+            },
             .should_render = [](){
                 return Ui::panel_open == Panel::kAccount && Game::should_render_title_ui();
             },
             .h_justify = Style::Left,
-            .v_justify = Style::Bottom,
-            .no_animation = 1
+            .v_justify = Style::Bottom
         }
     );
     Ui::Panel::account = elt;

@@ -124,9 +124,6 @@ void Game::init() {
         Ui::make_leaderboard()
     );
     game_ui_window.add_child(
-        Ui::make_overlevel_indicator()
-    );
-    game_ui_window.add_child(
         Ui::make_stat_screen()
     );
     game_ui_window.add_child(

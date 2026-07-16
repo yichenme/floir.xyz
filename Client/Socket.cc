@@ -49,7 +49,9 @@ Socket::Socket() {}
 void Socket::connect(std::string const url) {
     std::cout << "Connecting to " << url << '\n';
     EM_ASM({
-        let string = UTF8ToString($1);
+        // Derive the WS endpoint from the page origin so the same build works
+        // locally and behind an https/nginx proxy. The compiled url is ignored.
+        let string = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
         function connect() {
             let socket = Module.socket = new WebSocket(string);
             socket.binaryType = "arraybuffer";

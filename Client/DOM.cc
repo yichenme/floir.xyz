@@ -4,7 +4,7 @@
 
 #include <emscripten.h>
 
-void DOM::create_text_input(char const *name, uint32_t max_len, bool password) {
+void DOM::create_text_input(char const *name, uint32_t max_len, bool password, char const *placeholder) {
     EM_ASM(
     {
         const name = UTF8ToString($0);
@@ -21,9 +21,11 @@ void DOM::create_text_input(char const *name, uint32_t max_len, bool password) {
         elem.style["padding-left"] = "5px";
         elem.maxLength = ($1).toString();
         elem.setAttribute("spellcheck", "false");
+        const ph = UTF8ToString($3);
+        if (ph) elem.placeholder = ph;
         document.body.appendChild(elem);
     },
-    name, max_len * 2, password);
+    name, max_len * 2, password, placeholder ? placeholder : "");
 }
 
 void DOM::element_show(char const *name)

@@ -35,8 +35,7 @@ GID_TO_SVG = {
     112: 'scliff_c_0.svg', 113: 'scliff_l_0.svg', 114: 'scliff_tl_0.svg', 115: 'scliff_tli_0.svg',
     # transitions (biome-boundary edges)
     46: 'desert_r_0.svg', 70: 'desert_t_0.svg', 87: 'grass2_t_0.svg',
-    48: 'grass2_b_0.svg',
-    # 47 still unmapped -> layer fallback
+    48: 'grass2_b_0.svg', 47: 'desert_b_0.svg',
 }
 
 # Draw order must match the .tmj (bottom -> top): transitions sit just above bg,
@@ -148,25 +147,104 @@ MASK_RES = 50   # per-cell collision-mask resolution -> 10 world units/pixel
 FLIP_H_B, FLIP_V_B, FLIP_D_B = 0x80000000, 0x40000000, 0x20000000
 
 
+def _arc_points(x1, y1, rx, ry, phi_deg, large, sweep, x2, y2):
+    # SVG elliptical arc -> sampled points (endpoint->center parameterization).
+    if rx == 0 or ry == 0 or (x1 == x2 and y1 == y2):
+        return [(x2, y2)]
+    rx, ry = abs(rx), abs(ry)
+    phi = math.radians(phi_deg)
+    cosp, sinp = math.cos(phi), math.sin(phi)
+    dx, dy = (x1 - x2) / 2, (y1 - y2) / 2
+    x1p = cosp * dx + sinp * dy
+    y1p = -sinp * dx + cosp * dy
+    lam = x1p**2 / rx**2 + y1p**2 / ry**2
+    if lam > 1:
+        s = math.sqrt(lam); rx *= s; ry *= s
+    num = rx**2 * ry**2 - rx**2 * y1p**2 - ry**2 * x1p**2
+    den = rx**2 * y1p**2 + ry**2 * x1p**2
+    co = math.sqrt(max(0.0, num / den)) if den else 0.0
+    if large == sweep:
+        co = -co
+    cxp = co * rx * y1p / ry
+    cyp = -co * ry * x1p / rx
+    cx = cosp * cxp - sinp * cyp + (x1 + x2) / 2
+    cy = sinp * cxp + cosp * cyp + (y1 + y2) / 2
+
+    def ang(ux, uy, vx, vy):
+        d = math.hypot(ux, uy) * math.hypot(vx, vy)
+        c = max(-1.0, min(1.0, (ux * vx + uy * vy) / d)) if d else 1.0
+        a = math.acos(c)
+        return -a if (ux * vy - uy * vx) < 0 else a
+
+    t1 = ang(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry)
+    dt = ang((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry)
+    if not sweep and dt > 0:
+        dt -= 2 * math.pi
+    elif sweep and dt < 0:
+        dt += 2 * math.pi
+    out = []
+    for s in range(1, 9):
+        th = t1 + dt * s / 8.0
+        px = cosp * rx * math.cos(th) - sinp * ry * math.sin(th) + cx
+        py = sinp * rx * math.cos(th) + cosp * ry * math.sin(th) + cy
+        out.append((px, py))
+    return out
+
+
 def _path_points(d):
-    # Tokenize an SVG path 'd' into an approximate polygon (curves sampled).
-    toks = re.findall(r'[MmLlHhVvCcSsZz]|-?\d*\.?\d+(?:e-?\d+)?', d)
-    pts = []
+    # Char-scanning SVG path parser (handles packed arc flags). Curves & arcs
+    # are sampled into a polygon outline.
+    n = len(d)
     i = 0
+    pts = []
     cx = cy = sx = sy = 0.0
     cmd = None
     prev_c2 = None
 
+    def skip_sep():
+        nonlocal i
+        while i < n and d[i] in ' ,\t\r\n':
+            i += 1
+
     def num():
         nonlocal i
-        v = float(toks[i]); i += 1; return v
+        skip_sep()
+        j = i
+        if j < n and d[j] in '+-':
+            j += 1
+        seen_dot = False
+        while j < n:
+            ch = d[j]
+            if ch.isdigit():
+                j += 1
+            elif ch == '.' and not seen_dot:  # SVG packs "1.2.3" as 1.2, .3
+                seen_dot = True; j += 1
+            else:
+                break
+        if j < n and d[j] in 'eE':
+            j += 1
+            if j < n and d[j] in '+-':
+                j += 1
+            while j < n and d[j].isdigit():
+                j += 1
+        v = float(d[i:j]); i = j; return v
 
-    while i < len(toks):
-        t = toks[i]
-        if re.match(r'[A-Za-z]', t):
-            cmd = t; i += 1
-        rel = cmd.islower()
-        c = cmd.upper()
+    def flag():
+        nonlocal i
+        skip_sep()
+        v = int(d[i]); i += 1; return v
+
+    def more_coords():
+        skip_sep()
+        return i < n and (d[i].isdigit() or d[i] in '+-.')
+
+    while i < n:
+        skip_sep()
+        if i >= n:
+            break
+        if d[i].isalpha():
+            cmd = d[i]; i += 1
+        rel = cmd.islower(); c = cmd.upper()
         if c == 'M':
             x = num(); y = num()
             if rel: x += cx; y += cy
@@ -187,18 +265,16 @@ def _path_points(d):
             if c == 'C':
                 x1 = num(); y1 = num(); x2 = num(); y2 = num(); x = num(); y = num()
                 if rel: x1 += cx; y1 += cy; x2 += cx; y2 += cy; x += cx; y += cy
-            else:  # smooth: reflect previous control
+            else:
                 x2 = num(); y2 = num(); x = num(); y = num()
                 if rel: x2 += cx; y2 += cy; x += cx; y += cy
                 if prev_c2: x1 = 2 * cx - prev_c2[0]; y1 = 2 * cy - prev_c2[1]
                 else: x1, y1 = cx, cy
             for s in range(1, 7):
-                tt = s / 6.0
-                mt = 1 - tt
-                bx = mt**3 * cx + 3 * mt**2 * tt * x1 + 3 * mt * tt**2 * x2 + tt**3 * x
-                by = mt**3 * cy + 3 * mt**2 * tt * y1 + 3 * mt * tt**2 * y2 + tt**3 * y
-                pts.append((bx, by))
-            prev_c2 = (x2, y2); cx, cy = x, y
+                tt = s / 6.0; mt = 1 - tt
+                pts.append((mt**3*cx + 3*mt**2*tt*x1 + 3*mt*tt**2*x2 + tt**3*x,
+                            mt**3*cy + 3*mt**2*tt*y1 + 3*mt*tt**2*y2 + tt**3*y))
+            prev_c2 = (x2, y2); cx, cy = x, y; continue
         elif c == 'Q':
             x1 = num(); y1 = num(); x = num(); y = num()
             if rel: x1 += cx; y1 += cy; x += cx; y += cy
@@ -208,16 +284,16 @@ def _path_points(d):
                             mt*mt*cy + 2*mt*tt*y1 + tt*tt*y))
             cx, cy = x, y
         elif c == 'A':
-            num(); num(); num(); num(); num()  # rx ry rot large sweep
-            x = num(); y = num()
+            rx = num(); ry = num(); rot = num(); large = flag(); sweep = flag(); x = num(); y = num()
             if rel: x += cx; y += cy
-            pts.append((x, y)); cx, cy = x, y   # approximate arc by its chord
+            for p in _arc_points(cx, cy, rx, ry, rot, large, sweep, x, y):
+                pts.append(p)
+            cx, cy = x, y
         elif c == 'Z':
             pts.append((sx, sy)); cx, cy = sx, sy
         else:
             i += 1
-        if c != 'C' and c != 'S':
-            prev_c2 = None
+        prev_c2 = None
     return pts
 
 
@@ -225,29 +301,50 @@ _MASK_CACHE = {}
 
 
 def _tile_mask(svg_name):
-    # Rasterize a tile's fill shape into a MASK_RES x MASK_RES coverage mask
-    # (supersampled 3x for a clean outline).
+    # Rasterize the union of a tile's opaque-fill shapes (rects, paths,
+    # polylines/polygons with fill="#..."; opacity-only shadows ignored) into a
+    # MASK_RES x MASK_RES coverage mask, supersampled 3x for a clean outline.
     if svg_name in _MASK_CACHE:
         return _MASK_CACHE[svg_name]
     from PIL import Image, ImageDraw
     txt = open(os.path.join(TILES, svg_name)).read()
     RES = MASK_RES * 3
+    sc = RES / 256.0
     img = Image.new('1', (RES, RES), 0)
     dr = ImageDraw.Draw(img)
-    if '<rect' in txt and 'fill=' in txt.split('<rect', 1)[1][:60]:
-        dr.rectangle([0, 0, RES, RES], fill=1)
-    else:
-        m = re.search(r'<path fill="#[0-9a-fA-F]+"[^>]*d="([^"]+)"', txt)
-        if not m:
-            m = re.search(r'd="([^"]+)"', txt)
+    drew = False
+
+    def attr(el, name):
+        m = re.search(name + r'="([^"]*)"', el)
+        return m.group(1) if m else None
+
+    # only elements that carry an opaque fill colour count as solid
+    for el in re.findall(r'<(?:rect|path|polygon|polyline)\b[^>]*?/?>', txt):
+        if not re.search(r'fill="#[0-9a-fA-F]{3,8}"', el):
+            continue
         try:
-            poly = [(x / 256 * RES, y / 256 * RES) for x, y in _path_points(m.group(1))] if m else []
-            if len(poly) >= 3:
-                dr.polygon(poly, fill=1)
-            else:
-                dr.rectangle([0, 0, RES, RES], fill=1)
+            if el.startswith('<rect'):
+                x = float(attr(el, 'x') or 0); y = float(attr(el, 'y') or 0)
+                w = float(attr(el, 'width') or 0); h = float(attr(el, 'height') or 0)
+                if w > 0 and h > 0:
+                    dr.rectangle([x*sc, y*sc, (x+w)*sc, (y+h)*sc], fill=1); drew = True
+            elif el.startswith('<path'):
+                d = attr(el, 'd')
+                if d:
+                    poly = [(px*sc, py*sc) for px, py in _path_points(d)]
+                    if len(poly) >= 3:
+                        dr.polygon(poly, fill=1); drew = True
+            else:  # polygon / polyline
+                p = attr(el, 'points')
+                if p:
+                    nums = [float(v) for v in re.findall(r'-?\d*\.?\d+', p)]
+                    poly = [(nums[k]*sc, nums[k+1]*sc) for k in range(0, len(nums) - 1, 2)]
+                    if len(poly) >= 3:
+                        dr.polygon(poly, fill=1); drew = True
         except Exception:
-            dr.rectangle([0, 0, RES, RES], fill=1)   # unparseable: block whole cell
+            pass
+    if not drew:
+        dr.rectangle([0, 0, RES, RES], fill=1)   # nothing parsed: block whole cell
     px = img.load()
     mask = []
     for sr in range(MASK_RES):
