@@ -70,6 +70,10 @@ WebSocketServer::WebSocketServer() {
                     encodeType = "image/svg+xml";
                     file = "main-map.svg";
                     break;
+                case "/grass_bg.svg":
+                    encodeType = "image/svg+xml";
+                    file = "grass_bg.svg";
+                    break;
                 default:
                     file = "";
                     break;
