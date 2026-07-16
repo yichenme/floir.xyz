@@ -125,7 +125,13 @@ void WebSocket::send(uint8_t const *packet, size_t size) {
     EM_ASM({
         if (!Module.ws_connections || !Module.ws_connections[$0]) return;
         const ws = Module.ws_connections[$0];
-        ws.send(HEAPU8.subarray($1,$1+$2));
+        // ws.send() can defer the actual write (e.g. backpressure, per-message
+        // compression), so callers that write multiple packets back-to-back
+        // into the same native OUTGOING_PACKET buffer before the socket
+        // flushes need each send to own its bytes. HEAPU8.subarray() is only
+        // a view into the shared heap and would alias later writes; slice()
+        // copies out a standalone Uint8Array.
+        ws.send(HEAPU8.slice($1,$1+$2));
     }, ws_id, packet, size);
 }
 
