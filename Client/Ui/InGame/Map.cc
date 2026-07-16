@@ -62,14 +62,14 @@ void Minimap::on_render(Renderer &ctx) {
 }
 
 Element *Ui::make_minimap() {
+    // Bottom-right, 10px inset from both edges to match the Settings button.
     Element *elt = new Ui::VContainer({
         new Ui::StaticText(20, "Minimap"),
-        new Ui::Minimap(75)
-    }, 20, 10, { 
+        new Ui::Minimap(112)
+    }, 10, 10, {
         .should_render = [](){ return Game::should_render_game_ui(); },
         .h_justify = Style::Right,
         .v_justify = Style::Bottom
     });
-    elt->y = -50;
     return elt;
 }
