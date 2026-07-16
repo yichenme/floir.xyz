@@ -29,6 +29,7 @@ namespace Ui {
     extern Element *focused;
     extern Element *pressed;
     extern uint8_t panel_open;
+    extern uint8_t minimap_expanded;
     extern int32_t dragging_inventory_index;
     extern float drag_start_mouse_x;
     extern float drag_start_mouse_y;

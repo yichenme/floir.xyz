@@ -22,8 +22,12 @@ namespace Ui {
 
     class Minimap final : public Element {
     public:
+        float base_size;
+        LerpFloat expand;   // 0 = zoomed follow-cam, 1 = full map
+        uint8_t hovering;
         Minimap(float);
         virtual void on_render(Renderer &) override;
+        virtual void on_event(uint8_t) override;
     };
 
     class OverlevelTimer final : public Element {

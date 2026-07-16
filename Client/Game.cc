@@ -5,6 +5,7 @@
 #include <Client/Particle.hh>
 #include <Client/Setup.hh>
 #include <Client/Storage.hh>
+#include <Client/Ui/Extern.hh>
 
 #include <Shared/Config.hh>
 
@@ -314,6 +315,9 @@ void Game::tick(double time) {
         game_ui_window.on_render_skip(game_ui_renderer);
     }
         
+    if (Input::keys_held_this_tick.contains('M'))
+        Ui::minimap_expanded = !Ui::minimap_expanded;
+
     if (Game::timestamp - Ui::UiLoadout::last_key_select > 5000)
         Ui::UiLoadout::selected_with_keys = MAX_SLOT_COUNT;
     slot_indicator_opacity = lerp(slot_indicator_opacity, Ui::UiLoadout::selected_with_keys != MAX_SLOT_COUNT, Ui::lerp_amount);

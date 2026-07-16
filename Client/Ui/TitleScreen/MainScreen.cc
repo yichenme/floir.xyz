@@ -54,18 +54,13 @@ Element *Ui::make_title_input_box() {
 
 Element *Ui::make_title_info_box() {
     Element *elt = new Ui::VContainer({
-        new Ui::HContainer({
-            new Ui::DynamicText(16, [](){
-                return std::format("You will respawn at level {}", Game::respawn_level);
-            }, { .fill = 0xffffffff, .no_animation = 1 }),
-            new Ui::StaticText(16, " with:", {
-                .fill = 0xffffffff,
-                .should_render = [](){
-                    if (!Game::simulation.ent_exists(Game::camera_id)) return false;
-                    return Game::simulation.get_ent(Game::camera_id).get_inventory(0) > PetalID::kBasic;
-                }
-            })
-        }, 0, 0),
+        new Ui::StaticText(16, "Respawn with:", {
+            .fill = 0xffffffff,
+            .should_render = [](){
+                if (!Game::simulation.ent_exists(Game::camera_id)) return false;
+                return Game::simulation.get_ent(Game::camera_id).get_inventory(0) > PetalID::kBasic;
+            }
+        }),
         new Ui::HContainer(
             Ui::make_range(0, MAX_SLOT_COUNT, [](uint32_t i){ return (Element *) (new Ui::TitlePetalSlot(i)); })
         , 0, 10),

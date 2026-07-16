@@ -56,16 +56,15 @@ void Game::render_game() {
     }
     {
         RenderContext context(&renderer);
-        // Blit the pre-rendered composite tilemap SVG as the world backdrop.
-        // The image is 50x51 tile-cells; draw at its world footprint.
-        renderer.draw_map(0, 0, Tilemap::GRID_W * Tilemap::CELL_SIZE,
-                                Tilemap::GRID_H * Tilemap::CELL_SIZE);
-
         float scale = 1 / (2 * camera.get_fov() * Ui::scale);
         float leftX   = camera.get_camera_x() - renderer.width  * scale;
         float rightX  = camera.get_camera_x() + renderer.width  * scale;
         float topY    = camera.get_camera_y() - renderer.height * scale;
         float bottomY = camera.get_camera_y() + renderer.height * scale;
+        // Blit only the visible slice of the composite backdrop.
+        renderer.draw_map(leftX, topY, rightX, bottomY,
+                          Tilemap::GRID_W * Tilemap::CELL_SIZE,
+                          Tilemap::GRID_H * Tilemap::CELL_SIZE);
         int32_t c0 = std::max(0, (int32_t) std::floor(leftX   / Tilemap::CELL_SIZE));
         int32_t c1 = std::min<int32_t>(Tilemap::GRID_W, (int32_t) std::ceil (rightX  / Tilemap::CELL_SIZE));
         int32_t r0 = std::max(0, (int32_t) std::floor(topY    / Tilemap::CELL_SIZE));
