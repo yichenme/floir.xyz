@@ -358,6 +358,36 @@ void Renderer::draw_map(float x, float y, float w, float h) {
     }, id, x, y, w, h);
 }
 
+void Renderer::draw_grass_bg(float ox, float oy, float tile, float w, float h) {
+    // Fill the whole target with a repeating grass tile, offset by (ox,oy) so the
+    // caller can scroll it for an endless-field animation. Falls back to solid
+    // grass green until the tile image has loaded.
+    EM_ASM({
+        const ctx = Module.ctxs[$0];
+        const img = Module.grassImage;
+        if (!img || !img.complete || img.naturalWidth === 0) {
+            ctx.fillStyle = '#1ea761';
+            ctx.fillRect(0, 0, $4, $5);
+            return;
+        }
+        const t = Math.max(1, Math.round($3));
+        if (!Module.grassPattern || Module.grassPatternTile !== t) {
+            const pc = document.createElement('canvas');
+            pc.width = pc.height = t;
+            const pctx = pc.getContext('2d');
+            pctx.imageSmoothingEnabled = true;
+            pctx.drawImage(img, 0, 0, t, t);
+            Module.grassPattern = ctx.createPattern(pc, 'repeat');
+            Module.grassPatternTile = t;
+        }
+        ctx.save();
+        ctx.fillStyle = Module.grassPattern;
+        ctx.translate($1, $2);
+        ctx.fillRect(-$1, -$2, $4, $5);
+        ctx.restore();
+    }, id, ox, oy, tile, w, h);
+}
+
 void Renderer::fill_text(char const *text) {
     EM_ASM({
         Module.ctxs[$0].fillText(Module.TextDecoder.decode(HEAPU8.subarray($1, $1+$2)),0,0);

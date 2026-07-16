@@ -49,7 +49,11 @@ void ScrollContainer::on_render(Renderer &ctx) {
     } else 
         content->y = scroll->y = 0;
     RenderContext c(&ctx);
-    ctx.clip_rect(0,0,width,height);
+    // Content is left-aligned inside a width that also budgets the scrollbar +
+    // gap, so its left edge lands exactly on a (0,0,width,height) clip boundary
+    // and the leftmost pixels get shaved. Widen the clip by the gutter on both
+    // sides (still within the enclosing panel's padding) so nothing is cut.
+    ctx.clip_rect(0,0,width + 2 * inner_pad,height);
     for (Element *elt : children) {
         RenderContext context(&ctx);
         ctx.translate(elt->x, elt->y);

@@ -92,6 +92,7 @@ public:
 
     void draw_image(Renderer &);
     void draw_map(float, float, float, float);
+    void draw_grass_bg(float ox, float oy, float tile, float w, float h);
 
     void fill_text(char const *);
     void stroke_text(char const *);

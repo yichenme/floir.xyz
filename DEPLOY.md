@@ -43,7 +43,7 @@ export SSHPASS='8gqIktKMAzpe'
 HOST=root@38.76.198.54
 # scp is slow (~2MB can exceed a 3-min timeout); split big files / run in background if needed.
 sshpass -e scp -C -o StrictHostKeyChecking=no \
-  floir-server.js Account build floir-client.js floir-client.wasm index.html main-map.svg \
+  floir-server.js Account build floir-client.js floir-client.wasm index.html main-map.svg grass_bg.svg \
   $HOST:/var/www/floir.xyz/
 sshpass -e ssh -o StrictHostKeyChecking=no $HOST \
   'cd /var/www/floir.xyz && pm2 restart floir.xyz --update-env'

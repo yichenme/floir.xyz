@@ -230,7 +230,7 @@ void Game::render_game() {
             RenderContext context(&renderer);
             renderer.translate(ent.get_x(), ent.get_y());
             float r = ent.get_radius();
-            renderer.set_fill((rcol & 0x00ffffff) | 0x40000000);   // ~75% transparent
+            renderer.set_fill(rcol | 0xff000000);   // solid rarity colour, fills the whole hitbox
             renderer.begin_path();
             renderer.arc(0, 0, r);
             renderer.fill();
@@ -244,6 +244,10 @@ void Game::render_game() {
 void Game::render_title_screen() {
     RenderContext context(&renderer);
     renderer.reset_transform();
-    renderer.set_fill(0xff1ea761);
-    renderer.fill_rect(0,0,renderer.width,renderer.height);
+    // Endlessly scrolling grass field: tile the grass image and drift the offset
+    // diagonally, wrapping every tile so the loop is seamless.
+    float const tile = std::max(160.0f, renderer.height / 4.0f);
+    float off = std::fmod((float)(Game::timestamp * 0.02), tile);
+    if (off < 0) off += tile;
+    renderer.draw_grass_bg(off, off, tile, renderer.width, renderer.height);
 }

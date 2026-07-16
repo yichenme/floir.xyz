@@ -324,8 +324,8 @@ void Game::tick(double time) {
         
     if (Input::keys_held_this_tick.contains('M'))
         Ui::minimap_expanded = !Ui::minimap_expanded;
-    if (Input::keys_held_this_tick.contains('G'))
-        Game::show_hitboxes = !Game::show_hitboxes;
+    // Hold G to show hitboxes; release to hide.
+    Game::show_hitboxes = Input::keys_held.contains('G');
 
     if (Game::timestamp - Ui::UiLoadout::last_key_select > 5000)
         Ui::UiLoadout::selected_with_keys = MAX_SLOT_COUNT;

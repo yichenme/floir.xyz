@@ -207,6 +207,9 @@ int setup_canvas() {
         // page script can reach. draw_map reads this same object.
         Module.mapImage = new Image();
         Module.mapImage.src = 'main-map.svg';
+        // Grass tile for the animated title-screen backdrop.
+        Module.grassImage = new Image();
+        Module.grassImage.src = 'grass_bg.svg';
     });
     return 0;
 }
