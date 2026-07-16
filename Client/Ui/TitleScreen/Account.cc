@@ -60,11 +60,11 @@ static Element *make_logged_out_view() {
             .round_radius = 4
         }, true),
         new Ui::Choose(
+            new Ui::Element(0, 0),
             new Ui::TextInput(Account::confirm_field, 220, 36, 32, {
                 .line_width = 4,
                 .round_radius = 4
             }, true),
-            new Ui::Element(0, 0),
             [](){ return Account::register_mode; }
         ),
         new Ui::Button(140, 36,
@@ -82,8 +82,8 @@ static Element *make_logged_out_view() {
 
 Element *Ui::make_account_panel() {
     Element *elt = new Ui::Choose(
-        make_logged_in_view(),
         make_logged_out_view(),
+        make_logged_in_view(),
         [](){ return Account::logged_in(); },
         {
             .fill = 0xff5a9fdb,

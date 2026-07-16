@@ -112,6 +112,7 @@ void Account::request_logout() {
 void Account::on_auth_response(uint8_t ok, std::string const &payload) {
     if (!ok) {
         error = payload;
+        logged_in_user = "";
         return;
     }
     error = "";
