@@ -11,35 +11,44 @@ using namespace Ui;
 
 Minimap::Minimap(float w) : Element(w, w*ARENA_HEIGHT/ARENA_WIDTH, {}) {}
 
+// Black = walls / water / thick foliage (impassable-ish);
+// white = anything the flower can walk across freely.
+static bool is_wall_terrain(uint8_t t) {
+    switch (t) {
+        case Tilemap::TerrainID::kWater:
+        case Tilemap::TerrainID::kJungle:
+        case Tilemap::TerrainID::kCliff:
+        case Tilemap::TerrainID::kJungleWall:
+        case Tilemap::TerrainID::kCliffWall:
+            return true;
+        default:
+            return false;
+    }
+}
+
 void Minimap::on_render(Renderer &ctx) {
     ctx.set_line_width(7);
     ctx.set_stroke(0xff444444);
     ctx.stroke_rect(-width/2,-height/2,width,height);
+    // White backdrop = standable ground; walls painted on top in black.
+    ctx.set_fill(0xffffffff);
+    ctx.fill_rect(-width/2,-height/2,width,height);
     ctx.translate(-width/2,-height/2);
     ctx.scale(width/ARENA_WIDTH);
-    // Tilemap fill – same run-length merge as the world renderer, no culling
-    // needed because the minimap always shows the whole arena.
+    ctx.set_fill(0xff000000);
     for (uint32_t r = 0; r < Tilemap::GRID_H; ++r) {
         uint32_t start = 0;
-        uint8_t cur = Tilemap::TERRAIN[r * Tilemap::GRID_W];
+        bool in_wall = is_wall_terrain(Tilemap::TERRAIN[r * Tilemap::GRID_W]);
         for (uint32_t c = 1; c <= Tilemap::GRID_W; ++c) {
-            uint8_t t = c < Tilemap::GRID_W ? Tilemap::TERRAIN[r * Tilemap::GRID_W + c] : 255;
-            if (t != cur) {
-                if (cur != Tilemap::TerrainID::kVoid) {
-                    ctx.set_fill(Tilemap::COLORS[cur]);
+            bool w = c < Tilemap::GRID_W && is_wall_terrain(Tilemap::TERRAIN[r * Tilemap::GRID_W + c]);
+            if (w != in_wall) {
+                if (in_wall)
                     ctx.fill_rect(start * Tilemap::CELL_SIZE, r * Tilemap::CELL_SIZE,
                                   (c - start) * Tilemap::CELL_SIZE, Tilemap::CELL_SIZE);
-                }
-                cur = t;
+                in_wall = w;
                 start = c;
             }
         }
-    }
-    // Biome name labels
-    for (ZoneDefinition const &def : MAP_DATA) {
-        ctx.translate((def.left+def.right)/2,(def.top+def.bottom)/2);
-        ctx.draw_text(def.name, { .size = 800 });
-        ctx.translate(-(def.left+def.right)/2,-(def.top+def.bottom)/2);
     }
     if (!Game::simulation.ent_exists(Game::camera_id)) return;
     Entity const &camera = Game::simulation.get_ent(Game::camera_id);
@@ -55,7 +64,7 @@ void Minimap::on_render(Renderer &ctx) {
 Element *Ui::make_minimap() {
     Element *elt = new Ui::VContainer({
         new Ui::StaticText(20, "Minimap"),
-        new Ui::Minimap(300)
+        new Ui::Minimap(75)
     }, 20, 10, { 
         .should_render = [](){ return Game::should_render_game_ui(); },
         .h_justify = Style::Right,
