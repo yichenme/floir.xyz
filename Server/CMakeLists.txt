@@ -41,6 +41,8 @@ set(SOURCES
     ../Shared/Map.cc
     ../Shared/Simulation.cc
     ../Shared/StaticData.cc
+    ../Shared/StackFormat.cc
+    ../Shared/AccountValidation.cc
 )
 
 if(WASM_SERVER)

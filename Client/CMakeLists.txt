@@ -69,6 +69,8 @@ set(SRCS
     ../Shared/Map.cc
     ../Shared/Simulation.cc
     ../Shared/StaticData.cc
+    ../Shared/StackFormat.cc
+    ../Shared/AccountValidation.cc
 )
 
 set(CMAKE_CXX_COMPILER "em++")
