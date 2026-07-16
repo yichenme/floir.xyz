@@ -169,6 +169,11 @@ int setup_canvas() {
         Module.ctxs = [];
         Module.availableCtxs = [];
         Module.TextDecoder = new TextDecoder('utf8');
+        // Load the composite tilemap here (not index.html): EM_ASM's Module is
+        // the emscripten-internal object, distinct from the global Module the
+        // page script can reach. draw_map reads this same object.
+        Module.mapImage = new Image();
+        Module.mapImage.src = 'main-map.svg';
     });
     return 0;
 }

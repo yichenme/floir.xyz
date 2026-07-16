@@ -46,11 +46,6 @@
     <div id="font-loader" style="font-family: Ubuntu;">hello!</div>
     <canvas id="canvas" width="0" height="0"></canvas>
     <script>
-        // Preload the composite map SVG so the client can blit it as the
-        // world backdrop without waiting on a network round-trip mid-frame.
-        window.Module = window.Module || {};
-        Module.mapImage = new Image();
-        Module.mapImage.src = 'main-map.svg';
         document.addEventListener("DOMContentLoaded", () => {
             const script = document.createElement('script');
             script.src = 'floir-client.js';
