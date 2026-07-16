@@ -201,10 +201,13 @@ Element *Ui::make_debug_stats() {
             return std::format("frame: {:.1f}/{:.1f}/{:.1f} ms (min/avg/max) - {:.1f} fps", min_dt, avg_dt, max_dt, 1000 / Ui::dt);
         }, { .fill = 0xffffffff, .h_justify = Style::Right })
     }, 5, 5, {
-        // Sit just left of the bottom-right minimap and slide further left as it
-        // expands (112px base, up to 2x), sliding back when it collapses.
+        // In game: sit just left of the bottom-right minimap and slide further
+        // left as it expands (112px base, up to 2x). On the menu there is no
+        // minimap, so sit flush in the bottom-right corner.
         .animate = [](Element *elt, Renderer &){
-            elt->x = -(20.0f + 112.0f * (1.0f + Ui::minimap_expand));
+            elt->x = Game::should_render_game_ui()
+                ? -(20.0f + 112.0f * (1.0f + Ui::minimap_expand))
+                : -10.0f;
             elt->y = -10;
         },
         .should_render = [](){ return Game::show_debug; },

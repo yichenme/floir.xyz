@@ -653,39 +653,43 @@ namespace Tilemap {
         ox=ax+t*dx; oy=ay+t*dy;
     }
 
-    // Push a circle of radius rad out of the tile polygons it overlaps.
-    // Each pass resolves only the SINGLE deepest penetration among all
-    // overlapped cells, so the result is independent of cell iteration
-    // order -- this stops the frame-to-frame oscillation that made a body
-    // wedged into a concave wall corner jitter.
+    // Push a circle of radius rad out of the solid tiles, sliding smoothly.
+    // Only SURFACE edges (those bordering empty space) collide; an edge
+    // shared with an adjacent solid tile is skipped. That removes the
+    // "ghost collision" where a body catches on the internal seam between
+    // two solid tiles while sliding along a wall. Each pass applies the
+    // single deepest correction so concave corners settle without jitter.
     inline void push_circle(float &x, float &y, float rad) {
-        for (int pass=0; pass<8; ++pass) {
+        for (int pass=0; pass<6; ++pass) {
             int c0=(int)std::floor((x-rad)/CELL_SIZE), c1=(int)std::floor((x+rad)/CELL_SIZE);
             int r0=(int)std::floor((y-rad)/CELL_SIZE), r1=(int)std::floor((y+rad)/CELL_SIZE);
             float best_pen=0.f, tgtx=x, tgty=y; bool found=false;
             for (int rr=r0; rr<=r1; ++rr) for (int cc=c0; cc<=c1; ++cc) {
                 if (cc<0||rr<0||cc>=(int)GRID_W||rr>=(int)GRID_H) continue;
                 uint16_t pi=CELL_POLY[rr*GRID_W+cc]; if(!pi) continue; --pi;
-                float lx=x-cc*CELL_SIZE, ly=y-rr*CELL_SIZE;
+                float ox0=cc*CELL_SIZE, oy0=rr*CELL_SIZE;
+                float lx=x-ox0, ly=y-oy0;
                 uint32_t s=POLY_START[pi], n=POLY_LEN[pi];
-                float bestd2=1e18f, bx=0, by=0;
-                for (uint32_t i=0,j=n-1;i<n;j=i++) {
-                    float ox,oy; _closest_seg(lx,ly, POLY_VERTS[2*(s+j)],POLY_VERTS[2*(s+j)+1],
-                        POLY_VERTS[2*(s+i)],POLY_VERTS[2*(s+i)+1], ox,oy);
-                    float ddx=lx-ox, ddy=ly-oy, d2=ddx*ddx+ddy*ddy;
-                    if (d2<bestd2){bestd2=d2;bx=ox;by=oy;}
-                }
-                float bd=std::sqrt(bestd2);
                 bool inside=_in_poly(lx,ly,pi);
-                float nlx, nly, pen;
-                if (inside) {
-                    float ux=bx-lx, uy=by-ly, ul=std::sqrt(ux*ux+uy*uy);
-                    if (ul<=0.001f) continue;
-                    nlx=bx+ux/ul*rad; nly=by+uy/ul*rad; pen=ul+rad;
-                } else if (bd<rad && bd>0.001f) {
-                    nlx=bx+(lx-bx)/bd*rad; nly=by+(ly-by)/bd*rad; pen=rad-bd;
-                } else continue;
-                if (pen>best_pen){ best_pen=pen; tgtx=cc*CELL_SIZE+nlx; tgty=rr*CELL_SIZE+nly; found=true; }
+                float bestd2=1e18f, bx=0, by=0, bnx=0, bny=0; bool surf=false;
+                for (uint32_t i=0,j=n-1;i<n;j=i++) {
+                    float ax=POLY_VERTS[2*(s+j)], ay=POLY_VERTS[2*(s+j)+1];
+                    float bx2=POLY_VERTS[2*(s+i)], by2=POLY_VERTS[2*(s+i)+1];
+                    float ex=bx2-ax, ey=by2-ay, el=std::sqrt(ex*ex+ey*ey); if(el<1e-4f) continue;
+                    float nx=ey/el, ny=-ex/el;
+                    float mx=(ax+bx2)*0.5f, my=(ay+by2)*0.5f;
+                    if (_in_poly(mx+nx*1.5f, my+ny*1.5f, pi)) { nx=-nx; ny=-ny; }
+                    if (solid_at(ox0+mx+nx*4.f, oy0+my+ny*4.f)) continue;   // internal edge
+                    float px,py; _closest_seg(lx,ly, ax,ay, bx2,by2, px,py);
+                    float dx=lx-px, dy=ly-py, d2=dx*dx+dy*dy;
+                    if (d2<bestd2){ bestd2=d2; bx=px; by=py; bnx=nx; bny=ny; surf=true; }
+                }
+                if (!surf) continue;
+                float bd=std::sqrt(bestd2); float nlx, nly, pen;
+                if (inside) { nlx=bx+bnx*rad; nly=by+bny*rad; pen=bd+rad; }
+                else if (bd<rad && bd>1e-4f) { nlx=bx+(lx-bx)/bd*rad; nly=by+(ly-by)/bd*rad; pen=rad-bd; }
+                else continue;
+                if (pen>best_pen){ best_pen=pen; tgtx=ox0+nlx; tgty=oy0+nly; found=true; }
             }
             if (!found) break;
             x=tgtx; y=tgty;
