@@ -4,7 +4,7 @@
 #include <string>
 
 namespace DOM {
-    void create_text_input(char const *, uint32_t);
+    void create_text_input(char const *, uint32_t, bool password = false);
     void element_show(char const *);
     void element_hide(char const *);
     void update_pos_and_dimension(char const *, float, float, float, float);

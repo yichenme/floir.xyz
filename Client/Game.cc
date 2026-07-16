@@ -30,6 +30,7 @@ namespace Game {
     std::string disconnect_message;
     std::array<uint8_t, PetalID::kNumPetals> seen_petals;
     std::array<uint8_t, MobID::kNumMobs> seen_mobs;
+    std::vector<PetalStack> inventory_stacks;
     std::array<PetalID::T, 2 * MAX_SLOT_COUNT> cached_loadout = {PetalID::kNone};
 
     double timestamp = 0;
@@ -73,6 +74,9 @@ void Game::init() {
     );
     title_ui_window.add_child(
         Ui::make_settings_panel()
+    );
+    title_ui_window.add_child(
+        Ui::make_account_panel()
     );
     title_ui_window.add_child(
         Ui::make_petal_gallery()

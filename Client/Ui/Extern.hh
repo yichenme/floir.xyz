@@ -8,11 +8,13 @@ namespace Ui {
         enum {
             kNone,
             kSettings,
+            kAccount,
             kPetals,
             kMobs,
             kChangelog
         };
         extern Element *settings;
+        extern Element *account;
         extern Element *petal_gallery;
         extern Element *mob_gallery;
         extern Element *changelog;

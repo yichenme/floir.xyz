@@ -1,6 +1,8 @@
 #include <Client/Game.hh>
 
+#include <Client/Account.hh>
 #include <Client/Input.hh>
+#include <Client/Ui/Extern.hh>
 #include <Client/Ui/Ui.hh>
 
 #include <Shared/Binary.hh>
@@ -34,6 +36,26 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
             simulation.arena_info.read(&reader, reader.read<uint8_t>());
             break;
         }
+        case Clientbound::kAuthResponse: {
+            uint8_t ok = reader.read<uint8_t>();
+            std::string payload;
+            reader.read<std::string>(payload);
+            Account::on_auth_response(ok, payload);
+            break;
+        }
+        case Clientbound::kInventoryUpdate: {
+            uint32_t n = reader.read<uint32_t>();
+            inventory_stacks.clear();
+            inventory_stacks.reserve(n);
+            for (uint32_t i = 0; i < n; ++i) {
+                PetalStack stack;
+                stack.type = static_cast<PetalID::T>(reader.read<uint8_t>());
+                stack.rarity = reader.read<uint8_t>();
+                stack.count = reader.read<uint64_t>();
+                inventory_stacks.push_back(stack);
+            }
+            break;
+        }
         default:
             break;
     }
@@ -55,8 +77,13 @@ void Game::send_inputs() {
 }
 
 void Game::spawn_in() {
-    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
     if (Game::alive()) return;
+    if (!Account::logged_in()) {
+        Ui::panel_open = Ui::Panel::kAccount;
+        Account::error = "Register or log in to play";
+        return;
+    }
+    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
     if (Game::on_game_screen == 0) {
         writer.write<uint8_t>(Serverbound::kClientSpawn);
         std::string name = Game::nickname;

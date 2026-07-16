@@ -5,9 +5,11 @@
 #include <Client/Ui/Ui.hh>
 #include <Client/StaticData.hh>
 
+#include <Shared/PetalItem.hh>
 #include <Shared/Simulation.hh>
 
 #include <array>
+#include <vector>
 
 namespace Game {
     extern Simulation simulation;
@@ -23,6 +25,8 @@ namespace Game {
     extern std::string disconnect_message;
     extern std::array<uint8_t, PetalID::kNumPetals> seen_petals;
     extern std::array<uint8_t, MobID::kNumMobs> seen_mobs;
+    // Populated from kInventoryUpdate; consumed by the Task 8 inventory UI.
+    extern std::vector<PetalStack> inventory_stacks;
     
     extern double timestamp;
     

@@ -4,13 +4,13 @@
 
 #include <emscripten.h>
 
-void DOM::create_text_input(char const *name, uint32_t max_len) {
+void DOM::create_text_input(char const *name, uint32_t max_len, bool password) {
     EM_ASM(
     {
         const name = UTF8ToString($0);
         const elem = document.createElement('input');
         elem.id = name;
-        elem.type = "text";
+        elem.type = $2 ? "password" : "text";
         elem.style.position = "absolute";
         elem.style["font-family"] = "Ubuntu";
         elem.style.display = 'none';
@@ -23,7 +23,7 @@ void DOM::create_text_input(char const *name, uint32_t max_len) {
         elem.setAttribute("spellcheck", "false");
         document.body.appendChild(elem);
     },
-    name, max_len * 2);
+    name, max_len * 2, password);
 }
 
 void DOM::element_show(char const *name)

@@ -63,6 +63,7 @@ namespace Ui {
     Element *make_death_main_screen();
     Element *make_stat_screen();
     Element *make_settings_panel();
+    Element *make_account_panel();
     Element *make_petal_gallery();
     Element *make_mob_gallery();
     Element *make_changelog();

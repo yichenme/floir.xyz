@@ -10,7 +10,7 @@ namespace Ui {
         std::string &ref;
         uint32_t max;
     public:
-        TextInput(std::string &, float, float, uint32_t, Style = {});
+        TextInput(std::string &, float, float, uint32_t, Style = {}, bool password = false);
 
         virtual void on_render(Renderer &) override;
         virtual void on_render_skip(Renderer &) override;

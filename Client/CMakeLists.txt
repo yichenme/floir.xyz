@@ -18,6 +18,7 @@ set(SRCS
     Render/RenderPetal.cc
     Render/RenderWeb.cc
     Render/Renderer.cc
+    Account.cc
     Debug.cc
     DOM.cc
     Game.cc
@@ -40,6 +41,7 @@ set(SRCS
     Ui/InGame/Mobile.cc
     Ui/InGame/OverlevelTimer.cc
     Ui/InGame/Tooltip.cc
+    Ui/TitleScreen/Account.cc
     Ui/TitleScreen/Changelog.cc
     Ui/TitleScreen/DeathScreen.cc
     Ui/TitleScreen/MainScreen.cc

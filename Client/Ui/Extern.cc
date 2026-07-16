@@ -5,6 +5,7 @@
 namespace Ui {
     namespace Panel {
         Element *settings = nullptr;
+        Element *account = nullptr;
         Element *petal_gallery = nullptr;
         Element *mob_gallery = nullptr;
         Element *changelog = nullptr;

@@ -1,6 +1,8 @@
 #include <Client/Socket.hh>
 #include <Client/Game.hh>
 
+#include <Client/Account.hh>
+
 #include <Shared/Binary.hh>
 #include <Shared/Config.hh>
 
@@ -22,6 +24,7 @@ extern "C" {
             Game::reset();
             Game::socket.ready = 1; //force send
             Game::socket.send(w.packet, w.at - w.packet);
+            Account::request_session_restore();
             Game::socket.ready = 0;
         } 
         else if (type == 2) {
