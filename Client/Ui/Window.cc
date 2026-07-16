@@ -4,6 +4,8 @@
 
 #include <Client/Game.hh>
 #include <Client/Input.hh>
+#include <Client/Assets/Assets.hh>
+#include <Client/Ui/InGame/Loadout.hh>
 
 #include <cmath>
 
@@ -34,6 +36,22 @@ void Window::on_render(Renderer &ctx) {
             ctx.translate(elt->x, elt->y);
             elt->render(ctx);
         }
+    }
+    if (Ui::dragging_inventory_index != -1 && Game::alive() && (uint32_t)Ui::dragging_inventory_index < Game::inventory_stacks.size()) {
+        RenderContext c(&ctx);
+        ctx.reset_transform();
+        float draw_x = Input::mouse_x;
+        float draw_y = Input::mouse_y;
+        uint8_t potential_swap = find_viable_target(Input::mouse_x, Input::mouse_y);
+        if (potential_swap != ((uint8_t)-1) && potential_swap < 2 * MAX_SLOT_COUNT) {
+            UiLoadoutSlot *slot = Ui::UiLoadout::petal_backgrounds[potential_swap];
+            draw_x = slot->screen_x;
+            draw_y = slot->screen_y;
+        }
+        ctx.translate(draw_x, draw_y);
+        ctx.scale(Ui::scale);
+        PetalID::T type = Game::inventory_stacks[Ui::dragging_inventory_index].type;
+        draw_loadout_background(ctx, type);
     }
     on_render_tooltip(ctx);
 }

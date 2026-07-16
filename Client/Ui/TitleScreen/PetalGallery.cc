@@ -17,17 +17,12 @@ GalleryPetal::GalleryPetal(PetalID::T id, float w) :
     Element(w,w,{ .fill = 0x40000000, .round_radius = w/20 , .h_justify = Style::Left }), id(id) {}
 
 void GalleryPetal::on_render(Renderer &ctx) {
-    if (!Game::seen_petals[id]) {
-        Element::on_render(ctx);
-        ctx.draw_text("?", { .fill = 0xffeeeeee, .size = width / 2, .stroke_scale = 0});
-    } else {
-        ctx.scale(width / 60);
-        draw_loadout_background(ctx, id);
-    }
+    ctx.scale(width / 60);
+    draw_loadout_background(ctx, id);
 }
 
 void GalleryPetal::on_event(uint8_t event) {
-    if (event != kFocusLost && id != PetalID::kNone && Game::seen_petals[id]) {
+    if (event != kFocusLost && id != PetalID::kNone) {
         rendering_tooltip = 1;
         tooltip = Ui::UiLoadout::petal_tooltips[id];
     } else

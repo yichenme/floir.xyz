@@ -38,7 +38,7 @@ void Ui::backward_secondary_select() {
     Ui::UiLoadout::selected_with_keys = MAX_SLOT_COUNT;
 }
 
-static uint8_t static_to_dynamic(uint8_t static_pos) {
+uint8_t Ui::static_to_dynamic(uint8_t static_pos) {
     if (static_pos >= Game::loadout_count) 
         return std::min(MAX_SLOT_COUNT + static_pos - Game::loadout_count, 2 * MAX_SLOT_COUNT);
     else
@@ -65,14 +65,14 @@ void Ui::ui_swap_petals(uint8_t static_pos1, uint8_t static_pos2) {
     Game::swap_petals(static_pos1, static_pos2);
 }
 
-static uint8_t dynamic_to_static(uint8_t dynamic_pos) {
+uint8_t Ui::dynamic_to_static(uint8_t dynamic_pos) {
     if (dynamic_pos >= MAX_SLOT_COUNT)
         dynamic_pos -= (MAX_SLOT_COUNT - Game::loadout_count);
     return dynamic_pos; 
 }
 
 
-static uint8_t find_viable_target(float x, float y) {
+uint8_t Ui::find_viable_target(float x, float y) {
     float min_dist = 10000;
     uint8_t min_index = -1;
     for (uint8_t i = 0; i < 2 * MAX_SLOT_COUNT + 1; ++i) {

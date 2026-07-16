@@ -19,4 +19,7 @@ namespace Ui {
     Element *focused = nullptr;
     Element *pressed = nullptr;
     uint8_t panel_open = Panel::kNone;
+    int32_t dragging_inventory_index = -1;
+    float drag_start_mouse_x = 0;
+    float drag_start_mouse_y = 0;
 }

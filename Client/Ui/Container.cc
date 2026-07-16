@@ -52,8 +52,6 @@ void HContainer::refactor() {
     for (Element *elt : children) {
         elt->refactor();
         if (!elt->visible) continue;
-        //if (!elt->rendering || elt->detached) continue;
-        //Layout l = elt->get_layout();
         elt->x = x;
         elt->y = -elt->style.v_justify * outer_pad;
         x += elt->width + inner_pad;
@@ -77,11 +75,8 @@ void VContainer::refactor() {
     float x = 0;
     float y = outer_pad;
     for (Element *elt : children) {
-        //elt->style.v_justify = -1;
         elt->refactor();
         if (!elt->visible) continue;
-        //if (!elt->rendering || elt->detached) continue;
-        //Layout l = elt->get_layout();
         elt->x = -elt->style.h_justify * outer_pad;
         elt->y = y;
         x = fmax(x, elt->width);
@@ -112,4 +107,49 @@ void HFlexContainer::on_render(Renderer &ctx) {
     if (parent != nullptr)
         width = fmax(width, parent->width - 2 * outer_pad);
     Container::on_render(ctx);
+}
+
+float HContainer::get_target_width() const {
+    float x = outer_pad;
+    float last_pad = 0;
+    for (Element *elt : children) {
+        if (elt->style.should_render()) {
+            float w = elt->get_target_width();
+            x += w + inner_pad;
+            last_pad = inner_pad;
+        }
+    }
+    return x + outer_pad - last_pad;
+}
+
+float HContainer::get_target_height() const {
+    float y = 0;
+    for (Element *elt : children) {
+        if (elt->style.should_render()) {
+            y = fmax(y, elt->get_target_height());
+        }
+    }
+    return y + 2 * outer_pad;
+}
+
+float VContainer::get_target_width() const {
+    float x = 0;
+    for (Element *elt : children) {
+        if (elt->style.should_render()) {
+            x = fmax(x, elt->get_target_width());
+        }
+    }
+    return x + 2 * outer_pad;
+}
+
+float VContainer::get_target_height() const {
+    float y = outer_pad;
+    float last_pad = 0;
+    for (Element *elt : children) {
+        if (elt->style.should_render()) {
+            y += elt->get_target_height() + inner_pad;
+            last_pad = inner_pad;
+        }
+    }
+    return y + outer_pad - last_pad;
 }

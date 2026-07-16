@@ -82,6 +82,8 @@ namespace Ui {
         //std::function<void(Renderer &)> animate;
         virtual void refactor();
         virtual void poll_events(ScreenEvent const &);
+        virtual float get_target_width() const { return width; }
+        virtual float get_target_height() const { return height; }
     };
 
     std::vector<Element *> const make_range(uint32_t, uint32_t, Element *(uint32_t));

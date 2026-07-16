@@ -45,12 +45,11 @@ set(SOURCES
     ../Shared/AccountValidation.cc
 )
 
+set(SOURCES ${SOURCES} Account/Auth.cc EntityFunctions/InventoryOps.cc)
 if(WASM_SERVER)
-    # InventoryOps.cc calls AccountDB (only implemented in DatabaseWasm.cc);
-    # no native AccountDB backend exists yet, so keep it alongside Auth.cc.
-    set(SOURCES ${SOURCES} Wasm.cc Account/DatabaseWasm.cc Account/Auth.cc EntityFunctions/InventoryOps.cc)
+    set(SOURCES ${SOURCES} Wasm.cc Account/DatabaseWasm.cc)
 else()
-    set(SOURCES ${SOURCES} Native.cc)
+    set(SOURCES ${SOURCES} Native.cc Account/DatabaseNative.cc)
 endif()
 if(GENERAL_SPATIAL_HASH)
     set(SOURCES ${SOURCES} SpatialHashCanonical.cc)

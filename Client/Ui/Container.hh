@@ -22,6 +22,8 @@ namespace Ui {
         HContainer(std::vector<Element *> const &, float = 0, float = 0, Style = {});
 
         virtual void refactor() override;
+        virtual float get_target_width() const override;
+        virtual float get_target_height() const override;
     };
 
     class VContainer : public Container {
@@ -32,6 +34,8 @@ namespace Ui {
         VContainer(std::vector<Element *> const &, float = 0, float = 0, Style = {});
 
         virtual void refactor() override;
+        virtual float get_target_width() const override;
+        virtual float get_target_height() const override;
     };
 
     class HFlexContainer final : public Container {

@@ -9,8 +9,12 @@
 #include <Client/Assets/Assets.hh>
 #include <Client/Game.hh>
 #include <Client/StaticData.hh>
+#include <Client/Input.hh>
+#include <Client/Ui/InGame/Loadout.hh>
 
 #include <Shared/StackFormat.hh>
+#include <Helpers/Bits.hh>
+#include <cmath>
 
 using namespace Ui;
 
@@ -31,9 +35,41 @@ static uint8_t find_equip_target() {
 
 InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
     Element(INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE, { .h_justify = Style::Left }),
-    index(idx)
+    index(idx), selected(0), drag_x(0), drag_y(0)
 {
     style.should_render = [this](){ return index < Game::inventory_stacks.size(); };
+    // Mirror LoadoutPetal: dispatch relies on kMouseDown; release is polled
+    // here because the framework never fires kMouseUp on drag-out.
+    style.animate = [this](Element *elt, Renderer &ctx){
+        ctx.scale((float) elt->animation);
+        if (!selected) {
+            drag_x = drag_y = 0;
+            style.layer = 0;
+            return;
+        }
+        style.layer = 1;
+        uint8_t released = BitMath::at(Input::mouse_buttons_released, Input::LeftMouse);
+        // Follow the cursor visually while dragged.
+        float target_x = (Input::mouse_x - screen_x) / Ui::scale;
+        float target_y = (Input::mouse_y - screen_y) / Ui::scale;
+        drag_x = lerp(drag_x, target_x, Ui::lerp_amount);
+        drag_y = lerp(drag_y, target_y, Ui::lerp_amount);
+        ctx.translate(drag_x, drag_y);
+        if (released) {
+            uint8_t potential_swap = find_viable_target(Input::mouse_x, Input::mouse_y);
+            if (potential_swap != ((uint8_t)-1) && potential_swap < 2 * MAX_SLOT_COUNT) {
+                Game::equip_petal(index, dynamic_to_static(potential_swap));
+            } else {
+                float dist = hypotf(Input::mouse_x - Ui::drag_start_mouse_x,
+                                    Input::mouse_y - Ui::drag_start_mouse_y);
+                if (dist < 10 * Ui::scale)
+                    Game::equip_petal(index, find_equip_target());
+            }
+            selected = 0;
+            Ui::dragging_inventory_index = -1;
+            drag_x = drag_y = 0;
+        }
+    };
 }
 
 void InventoryStackSlot::on_render(Renderer &ctx) {
@@ -52,9 +88,13 @@ void InventoryStackSlot::on_event(uint8_t event) {
         rendering_tooltip = 0;
         return;
     }
-    if (event == kClick)
-        Game::equip_petal(index, find_equip_target());
-    if (event != kFocusLost) {
+    if (event == kMouseDown && !selected) {
+        selected = 1;
+        Ui::dragging_inventory_index = index;
+        Ui::drag_start_mouse_x = Input::mouse_x;
+        Ui::drag_start_mouse_y = Input::mouse_y;
+    }
+    if (event != kFocusLost && !selected) {
         rendering_tooltip = 1;
         tooltip = Ui::UiLoadout::petal_tooltips[Game::inventory_stacks[index].type];
     } else
@@ -68,6 +108,7 @@ static Element *make_inventory_grid() {
         for (uint32_t j = 0; j < INVENTORY_COLUMNS && i < INVENTORY_DISPLAY_CAP; ++j, ++i)
             row->add_child(new InventoryStackSlot(i));
         row->refactor();
+        row->width = INVENTORY_COLUMNS * INVENTORY_SLOT_SIZE + (INVENTORY_COLUMNS - 1) * 10;
         grid->add_child(row);
     }
     return new Ui::ScrollContainer(grid, 300);

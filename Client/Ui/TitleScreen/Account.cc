@@ -25,7 +25,7 @@ static Element *make_logged_in_view() {
             nullptr,
             { .fill = 0xffdb5a5a, .line_width = 5, .round_radius = 3 }
         )
-    }, 15, 10, { .h_justify = Style::Left });
+    }, 15, 10, { .h_justify = Style::Left, .no_animation = 1 });
 }
 
 static Element *make_logged_out_view() {
@@ -60,12 +60,14 @@ static Element *make_logged_out_view() {
             .round_radius = 4
         }, true),
         new Ui::Choose(
-            new Ui::Element(0, 0),
+            new Ui::Element(0, 0, { .no_animation = 1 }),
             new Ui::TextInput(Account::confirm_field, 220, 36, 32, {
                 .line_width = 4,
-                .round_radius = 4
+                .round_radius = 4,
+                .no_animation = 1
             }, true),
-            [](){ return Account::register_mode; }
+            [](){ return Account::register_mode; },
+            { .no_animation = 1 }
         ),
         new Ui::Button(140, 36,
             new Ui::StaticText(18, "Submit"),
@@ -77,7 +79,7 @@ static Element *make_logged_out_view() {
             { .fill = 0xff1dd129, .line_width = 5, .round_radius = 3 }
         ),
         new Ui::DynamicText(14, [](){ return Account::error; }, { .fill = 0xffff5555 })
-    }, 12, 10, { .h_justify = Style::Left });
+    }, 12, 10, { .h_justify = Style::Left, .no_animation = 1 });
 }
 
 Element *Ui::make_account_panel() {

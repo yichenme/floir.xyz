@@ -19,7 +19,9 @@ TextInput::TextInput(std::string &r, float w, float h, uint32_t m, Style s, bool
 
 void TextInput::on_render(Renderer &ctx) {
     DOM::element_show(name.c_str());
-    DOM::update_pos_and_dimension(name.c_str(), screen_x, screen_y, width * Ui::scale, height * Ui::scale);
+    float eff_w = ctx.context.transform_matrix[0] * width;
+    float eff_h = ctx.context.transform_matrix[4] * height;
+    DOM::update_pos_and_dimension(name.c_str(), screen_x, screen_y, eff_w, eff_h);
     ref = DOM::retrieve_text(name.c_str(), max);
     DOM::update_text(name.c_str(), ref, max);
     Element::on_render(ctx);

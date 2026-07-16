@@ -20,75 +20,75 @@
 // database.js emits back into PetalItem/PetalStack.
 
 EM_JS(void, ejs_ensure_ready, (), {
-    if (typeof global.loadDatabase !== "function") {
+    if (typeof global['loadDatabase'] !== "function") {
         var path = require("path");
         require(path.join(__dirname, "..", "Account", "database.js"));
     }
-    if (typeof global.__allocUtf8 !== "function") {
+    if (typeof global['__allocUtf8'] !== "function") {
         // Captured once here so later calls don't depend on whether other
         // EM_JS blocks share lexical scope with this one.
-        global.__allocUtf8 = (str) => {
+        global['__allocUtf8'] = (str) => {
             var len = lengthBytesUTF8(str) + 1;
             var ptr = _malloc(len);
             stringToUTF8(str, ptr, len);
             return ptr;
         };
     }
-    global.loadDatabase();
+    global['loadDatabase']();
 });
 
 EM_JS(int, ejs_user_exists, (char const *user), {
-    return global.dbUserExists(UTF8ToString(user)) ? 1 : 0;
+    return global['dbUserExists'](UTF8ToString(user)) ? 1 : 0;
 });
 
 EM_JS(char *, ejs_hash_password, (char const *pass), {
-    return global.__allocUtf8(global.hashPassword(UTF8ToString(pass)));
+    return global['__allocUtf8'](global['hashPassword'](UTF8ToString(pass)));
 });
 
 EM_JS(char *, ejs_register, (char const *user, char const *pass_hash, char const *loadout_json, char const *inventory_json), {
-    var key = global.dbRegister(UTF8ToString(user), UTF8ToString(pass_hash), UTF8ToString(loadout_json), UTF8ToString(inventory_json));
-    return key === null ? 0 : global.__allocUtf8(key);
+    var key = global['dbRegister'](UTF8ToString(user), UTF8ToString(pass_hash), UTF8ToString(loadout_json), UTF8ToString(inventory_json));
+    return key === null ? 0 : global['__allocUtf8'](key);
 });
 
 EM_JS(char *, ejs_login, (char const *user, char const *pass_hash), {
-    var key = global.dbLogin(UTF8ToString(user), UTF8ToString(pass_hash));
-    return key === null ? 0 : global.__allocUtf8(key);
+    var key = global['dbLogin'](UTF8ToString(user), UTF8ToString(pass_hash));
+    return key === null ? 0 : global['__allocUtf8'](key);
 });
 
 EM_JS(int, ejs_check_session, (char const *user, char const *session_key), {
-    return global.dbCheckSession(UTF8ToString(user), UTF8ToString(session_key)) ? 1 : 0;
+    return global['dbCheckSession'](UTF8ToString(user), UTF8ToString(session_key)) ? 1 : 0;
 });
 
 EM_JS(char *, ejs_get_loadout, (char const *user), {
-    var json = global.dbGetLoadout(UTF8ToString(user));
-    return json === null ? 0 : global.__allocUtf8(json);
+    var json = global['dbGetLoadout'](UTF8ToString(user));
+    return json === null ? 0 : global['__allocUtf8'](json);
 });
 
 EM_JS(int, ejs_set_loadout, (char const *user, char const *json), {
-    return global.dbSetLoadout(UTF8ToString(user), UTF8ToString(json)) ? 1 : 0;
+    return global['dbSetLoadout'](UTF8ToString(user), UTF8ToString(json)) ? 1 : 0;
 });
 
 EM_JS(char *, ejs_get_inventory, (char const *user), {
-    var json = global.dbGetInventory(UTF8ToString(user));
-    return json === null ? 0 : global.__allocUtf8(json);
+    var json = global['dbGetInventory'](UTF8ToString(user));
+    return json === null ? 0 : global['__allocUtf8'](json);
 });
 
 EM_JS(int, ejs_set_inventory, (char const *user, char const *json), {
-    return global.dbSetInventory(UTF8ToString(user), UTF8ToString(json)) ? 1 : 0;
+    return global['dbSetInventory'](UTF8ToString(user), UTF8ToString(json)) ? 1 : 0;
 });
 
 EM_JS(char *, ejs_get_progress, (char const *user), {
-    var json = global.dbGetProgress(UTF8ToString(user));
-    return json === null ? 0 : global.__allocUtf8(json);
+    var json = global['dbGetProgress'](UTF8ToString(user));
+    return json === null ? 0 : global['__allocUtf8'](json);
 });
 
 EM_JS(int, ejs_set_progress, (char const *user, int level, int xp), {
-    return global.dbSetProgress(UTF8ToString(user), level, xp) ? 1 : 0;
+    return global['dbSetProgress'](UTF8ToString(user), level, xp) ? 1 : 0;
 });
 
 EM_JS(int, ejs_save_database, (), {
     try {
-        global.saveDatabase();
+        global['saveDatabase']();
         return 1;
     } catch (e) {
         console.error(e);

@@ -1,7 +1,9 @@
-# the gardn project
+# floir
 Open source self-hostable, multiplayer version of pvp [florr.io](https://static.florr.io/old/) written in C++.
 
 See [INSTALLATION.md](./INSTALLATION.md) for how to set up and run the game.
+
+An account (registered against the WASM/Node server, which persists to `Server/database.json`) is required to spawn; it keeps your loadout and petal inventory saved between sessions — see [Accounts & Inventory](./INSTALLATION.md#accounts--inventory) in INSTALLATION.md for details.
 
 # About
 Although this game is heavily inspired from florr.io, all lines of code were personally written by me. As direct source code of the original game is not accessible, all game logic is also custom-made to fit the original as closely as possible, while allowing for some creativity.

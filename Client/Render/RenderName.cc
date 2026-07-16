@@ -13,4 +13,9 @@ void render_name(Renderer &ctx, Entity const &ent) {
     ctx.set_global_alpha(1 - ent.deletion_animation);
     ctx.scale(1 + 0.5 * ent.deletion_animation);
     ctx.draw_text(ent.get_name().c_str(), { .size = 18 });
+    if (!ent.get_account_name().empty()) {
+        ctx.translate(0, -20);
+        std::string tag = "@" + ent.get_account_name();
+        ctx.draw_text(tag.c_str(), { .size = 14 });
+    }
 }

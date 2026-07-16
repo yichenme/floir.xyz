@@ -21,17 +21,6 @@ namespace Ui {
         virtual void on_render(Renderer &) override;
     };
 
-    class InputFreeze final : public Container {
-    public:
-        float render_width;
-        float render_height;
-        InputFreeze();
-        virtual void on_render(Renderer &) override;
-        virtual void on_render_skip(Renderer &) override;
-        virtual void on_event(uint8_t) override;
-        virtual void poll_events(ScreenEvent const &) override;
-    };
-
     class UiLoadoutPetal final : public Element {
     public:
         LerpFloat reload;
@@ -60,6 +49,9 @@ namespace Ui {
 
     Element *make_loadout_backgrounds();
     void make_petal_tooltips();
+    uint8_t find_viable_target(float, float);
+    uint8_t dynamic_to_static(uint8_t);
+    uint8_t static_to_dynamic(uint8_t);
 
     void forward_secondary_select();
     void backward_secondary_select();

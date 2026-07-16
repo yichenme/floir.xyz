@@ -67,10 +67,8 @@ Element *Ui::make_loadout_backgrounds() {
                         else return (Element *) (new Ui::UiLoadoutSlot(i)); 
                     })
                 , 10, 15, { .layer = 1 }
-            )),
-            new Ui::InputFreeze(),
-            new Ui::Element(0,34,{ .should_render = [](){ return Input::keyboard_movement || Input::is_mobile; }})
-        }, 0, 0, { .should_render = [](){ return Game::alive(); } }
+            ))
+        }, 0, 10, { .should_render = [](){ return Game::alive(); } }
     );
     base->style.v_justify = Style::Bottom;
     base->style.animate = [](Element *elt, Renderer &ctx) {

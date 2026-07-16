@@ -77,3 +77,11 @@ void ScrollContainer::poll_events(ScreenEvent const &event) {
         for (Element *elt : children)
             elt->poll_events(event);
 }
+
+float ScrollContainer::get_target_width() const {
+    return children[0]->get_target_width() + inner_pad + children[1]->get_target_width();
+}
+
+float ScrollContainer::get_target_height() const {
+    return height;
+}

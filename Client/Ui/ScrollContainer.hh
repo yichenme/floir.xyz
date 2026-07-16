@@ -20,5 +20,7 @@ namespace Ui {
         virtual void on_render(Renderer &) override;
         virtual void poll_events(ScreenEvent const &) override;
         virtual void refactor() override;
+        virtual float get_target_width() const override;
+        virtual float get_target_height() const override;
     };
 }
