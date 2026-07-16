@@ -91,12 +91,17 @@ Element *Ui::make_account_panel() {
             .fill = 0xff5a9fdb,
             .line_width = 7,
             .round_radius = 3,
+            // Slide up into view like the other panels. Choose::refactor snaps
+            // to the visible child's real size on first open so the panel
+            // doesn't collapse to an invisible sliver mid-animation.
+            .animate = [](Element *elt, Renderer &ctx){
+                ctx.translate(0, (1 - elt->animation) * 2 * elt->height);
+            },
             .should_render = [](){
                 return Ui::panel_open == Panel::kAccount && Game::should_render_title_ui();
             },
             .h_justify = Style::Left,
-            .v_justify = Style::Bottom,
-            .no_animation = 1
+            .v_justify = Style::Bottom
         }
     );
     Ui::Panel::account = elt;

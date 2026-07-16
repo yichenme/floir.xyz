@@ -72,7 +72,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .radius = 7.0,
         .reload = 3.5,
         .count = 1,
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .attributes = {}
     },
     {
@@ -83,7 +83,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .radius = 10.0,
         .reload = 1.0,
         .count = 1,
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .attributes = {
             .constant_heal = 1,
             .icon_angle = -1
@@ -97,7 +97,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .radius = 7.0,
         .reload = 1.0,
         .count = 2,
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .attributes = {}
     },
     {
@@ -108,7 +108,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .radius = 10.0,
         .reload = 3.5,
         .count = 1,
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .attributes = { 
             .secondary_reload = 1.0,
             .burst_heal = 10,
@@ -123,7 +123,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .radius = 7.0,
         .reload = 5.0,
         .count = 1,
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .attributes = { 
             .poison_damage = {
                 .damage = 10.0,
@@ -677,7 +677,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .radius = 10.0,
         .reload = 1.0,
         .count = 1,
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .attributes = {
             .constant_heal = 1.5,
             .icon_angle = -1
@@ -743,7 +743,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
     {
         .name = "Soldier Ant",
         .description = "It's got wings and it's ready to use them.",
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .health = {40.0},
         .damage = 10.0,
         .radius = {14.0},
@@ -782,7 +782,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
     {
         .name = "Beetle",
         .description = "It's hungry and flowers are its favorite meal.",
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .health = {40.0},
         .damage = 35.0,
         .radius = {35.0},
@@ -823,7 +823,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
     {
         .name = "Ladybug",
         .description = "Cute and harmless... if left unprovoked.",
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .health = {35.0},
         .damage = 10.0,
         .radius = {30.0},
@@ -836,7 +836,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
     {
         .name = "Hornet",
         .description = "These aren't quite as nice as the little bees.",
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .health = {40.0},
         .damage = 40.0,
         .radius = {40.0},
@@ -881,7 +881,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
     {
         .name = "Boulder",
         .description = "A bigger rock. It also doesn't do much.",
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .health = {40.0, 60.0},
         .damage = 10.0,
         .radius = {50.0, 75.0},
@@ -896,7 +896,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
     {
         .name = "Centipede",
         .description = "It's just there doing its thing.",
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .health = {50.0},
         .damage = 10.0,
         .radius = {35.0},
@@ -945,7 +945,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
     {
         .name = "Sandstorm",
         .description = "Quite unpredictable.",
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .health = {30.0, 45.0},
         .damage = 40.0,
         .radius = {32.0, 48.0},
@@ -958,7 +958,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
     {
         .name = "Scorpion",
         .description = "This one stings, now with poison.",
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .health = {35.0},
         .damage = 10.0,
         .radius = {35.0},
@@ -976,7 +976,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
     {
         .name = "Spider",
         .description = "Spooky.",
-        .rarity = RarityID::kUnusual,
+        .rarity = RarityID::kUncommon,
         .health = {35.0},
         .damage = 10.0,
         .radius = {15.0},

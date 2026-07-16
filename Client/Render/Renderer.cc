@@ -344,12 +344,21 @@ void Renderer::draw_image(Renderer &ctx) {
 }
 
 void Renderer::draw_map(float x, float y, float w, float h) {
-    // Blit the preloaded composite SVG (index.html -> Module.mapImage) as the
-    // world backdrop. No-op until the image finishes loading.
+    // Blit the composite map. The SVG is rasterized *once* into an offscreen
+    // canvas at 2x its natural size; thereafter we blit canvas->canvas, which
+    // avoids the browser re-rasterizing the vector art every frame (the old
+    // hot path). No-op until the source image has loaded.
     EM_ASM({
         const img = Module.mapImage;
-        if (img && img.complete && img.naturalWidth > 0)
-            Module.ctxs[$0].drawImage(img, $1, $2, $3, $4);
+        if (!img || !img.complete || img.naturalWidth === 0) return;
+        if (!Module.mapCanvas) {
+            const s = 2;
+            const oc = new OffscreenCanvas(img.naturalWidth * s, img.naturalHeight * s);
+            const octx = oc.getContext('2d');
+            octx.drawImage(img, 0, 0, oc.width, oc.height);
+            Module.mapCanvas = oc;
+        }
+        Module.ctxs[$0].drawImage(Module.mapCanvas, $1, $2, $3, $4);
     }, id, x, y, w, h);
 }
 

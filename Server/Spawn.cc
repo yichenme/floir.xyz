@@ -7,6 +7,7 @@
 #include <Shared/Map.hh>
 #include <Shared/Simulation.hh>
 #include <Shared/StaticData.hh>
+#include <Shared/Tilemap.hh>
 
 #include <cmath>
 
@@ -230,10 +231,20 @@ void player_spawn(Simulation *sim, Entity &camera, Entity &player) {
     camera.set_player(player.id);
     player.set_parent(camera.id);
     player.set_color(camera.get_color());
-    uint32_t power = Map::difficulty_at_level(camera.get_respawn_level());
-    ZoneDefinition const &zone = MAP_DATA[Map::get_suitable_difficulty_zone(power)];
-    float spawn_x = lerp(zone.left, zone.right, frand());
-    float spawn_y = lerp(zone.top, zone.bottom, frand());
+    // Everyone spawns by the NW rounded water, on walkable ground clear of
+    // walls. Jitter around the shoreline point and reject blocked cells.
+    constexpr float SPAWN_CX = 2750, SPAWN_CY = 7750, SPAWN_JITTER = 1500;
+    float spawn_x = SPAWN_CX;
+    float spawn_y = SPAWN_CY;
+    for (uint32_t i = 0; i < 40; ++i) {
+        float jx = SPAWN_CX + (frand() - 0.5f) * 2 * SPAWN_JITTER;
+        float jy = SPAWN_CY + (frand() - 0.5f) * 2 * SPAWN_JITTER;
+        if (!Tilemap::blocks_movement(Tilemap::terrain_at(jx, jy))) {
+            spawn_x = jx;
+            spawn_y = jy;
+            break;
+        }
+    }
     camera.set_camera_x(spawn_x);
     camera.set_camera_y(spawn_y);
     player.set_x(spawn_x);

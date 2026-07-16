@@ -1,5 +1,7 @@
 #include <Shared/Map.hh>
 
+#include <Shared/Tilemap.hh>
+
 #ifdef SERVERSIDE
 #include <Server/Spawn.hh>
 #include <Shared/Entity.hh>
@@ -41,6 +43,8 @@ void Map::remove_mob(Simulation *sim, uint32_t zone) {
 }
 
 void Map::spawn_random_mob(Simulation *sim, float x, float y) {
+    // Mobs never spawn inside impassable terrain (bush, water, cliff, dirt, castle).
+    if (Tilemap::blocks_movement(Tilemap::terrain_at(x, y))) return;
     uint32_t zone_id = Map::get_zone_from_pos(x, y);
     struct ZoneDefinition const &zone = MAP_DATA[zone_id];
     if (zone.density * (zone.right - zone.left) * (zone.bottom - zone.top) / (500 * 500) < sim->zone_mob_counts[zone_id]) return;
@@ -67,6 +71,7 @@ void Map::spawn_random_mob(Simulation *sim, float x, float y) {
 bool Map::find_spawn_location(Simulation *sim, float d, Vector &vref) {
     for (uint32_t i = 0; i < 10; ++i) {
         vref.set(frand() * ARENA_WIDTH, frand() * ARENA_HEIGHT);
+        if (Tilemap::blocks_movement(Tilemap::terrain_at(vref.x, vref.y))) continue;
         bool valid = true;
         sim->for_each<kFlower>([&](Simulation *, Entity &ent) {
             if (ent.has_component(kMob)) return;

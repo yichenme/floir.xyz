@@ -14,9 +14,9 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
         ent.speed_ratio *= 0.5;
         --ent.slow_ticks;
     }
-    // Player flowers (not mobs) collide with impassable terrain. Capture the
-    // pre-move position so we can revert blocked axes for wall-sliding below.
-    bool const terrain_collide = ent.has_component(kFlower) && !ent.has_component(kMob);
+    // Players and mobs collide with impassable terrain. Capture the pre-move
+    // position so we can revert blocked axes for wall-sliding below.
+    bool const terrain_collide = ent.has_component(kFlower) || ent.has_component(kMob);
     float const prev_x = ent.get_x();
     float const prev_y = ent.get_y();
     float const dt = (BASE_TPS / TPS);
@@ -45,16 +45,20 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
         ent.set_x(fclamp(ent.get_x(), ent.get_radius(), ARENA_WIDTH - ent.get_radius()));
         ent.set_y(fclamp(ent.get_y(), ent.get_radius(), ARENA_HEIGHT - ent.get_radius()));
     }
-    // Axis-separated terrain collision: revert whichever axis would put the
-    // player's center into an impassable cell, so they slide along walls
-    // instead of stopping dead. Only blocks moves *into* new blocked cells,
-    // so a player who spawns on one can still walk off it.
+    // Edge-based axis-separated terrain collision: sample the leading edge of
+    // the body (center +/- radius in the move direction) so the entity stops
+    // when its *body* touches a blocked cell, not when its center crosses the
+    // grid line. Reverting per-axis lets it slide along walls. Only blocks
+    // moves *into* new blocked cells, so anything already inside one can leave.
     if (terrain_collide) {
+        float const r = ent.get_radius();
         float nx = ent.get_x();
         float ny = ent.get_y();
-        if (Tilemap::blocks_movement(Tilemap::terrain_at(nx, prev_y)))
+        float const edge_x = nx + (nx > prev_x ? r : (nx < prev_x ? -r : 0));
+        if (Tilemap::blocks_movement(Tilemap::terrain_at(edge_x, prev_y)))
             nx = prev_x;
-        if (Tilemap::blocks_movement(Tilemap::terrain_at(nx, ny)))
+        float const edge_y = ny + (ny > prev_y ? r : (ny < prev_y ? -r : 0));
+        if (Tilemap::blocks_movement(Tilemap::terrain_at(nx, edge_y)))
             ny = prev_y;
         ent.set_x(nx);
         ent.set_y(ny);

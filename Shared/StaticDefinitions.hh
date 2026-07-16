@@ -115,11 +115,13 @@ namespace MobID {
 namespace RarityID {
     enum {
         kCommon,
-        kUnusual,
+        kUncommon,
         kRare,
         kEpic,
         kLegendary,
         kMythic,
+        kUltra,
+        kSuper,
         kUnique,
         kNumRarities
     };
