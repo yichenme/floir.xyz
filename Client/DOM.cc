@@ -56,11 +56,15 @@ void DOM::update_pos_and_dimension(char const *name, float x, float y, float w, 
         {
             const name = UTF8ToString($0);
             const elem = document.getElementById(name);
-            elem.style.left = ($1 - $3 / 2) / devicePixelRatio + "px";
-            elem.style.top = ($2 - $4 / 2) / devicePixelRatio + "px";
-            elem.style.width = ($3 / devicePixelRatio - 10) + "px";
-            elem.style.height = $4 / devicePixelRatio + "px";
-            elem.style["font-size"] = $4 / devicePixelRatio * 0.66 + "px";
+            // Canvas coords are in device px scaled by renderScale (low quality =
+            // 0.5), so convert back to CSS px with the same factor the input
+            // handlers use, or the inputs land at half position in low quality.
+            const rs = devicePixelRatio * (Module.renderScale || 1);
+            elem.style.left = ($1 - $3 / 2) / rs + "px";
+            elem.style.top = ($2 - $4 / 2) / rs + "px";
+            elem.style.width = ($3 / rs - 10) + "px";
+            elem.style.height = $4 / rs + "px";
+            elem.style["font-size"] = $4 / rs * 0.66 + "px";
         },
         name, x, y, w, h);
 }
