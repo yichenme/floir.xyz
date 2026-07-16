@@ -2,6 +2,7 @@
 
 #include <Shared/Simulation.hh>
 #include <Shared/Entity.hh>
+#include <Shared/Tilemap.hh>
 
 #include <cmath>
 
@@ -13,6 +14,11 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
         ent.speed_ratio *= 0.5;
         --ent.slow_ticks;
     }
+    // Player flowers (not mobs) collide with impassable terrain. Capture the
+    // pre-move position so we can revert blocked axes for wall-sliding below.
+    bool const terrain_collide = ent.has_component(kFlower) && !ent.has_component(kMob);
+    float const prev_x = ent.get_x();
+    float const prev_y = ent.get_y();
     float const dt = (BASE_TPS / TPS);
     if (ent.friction <= 0) {
         Vector const add = ent.velocity * dt + ent.acceleration * (0.5 * dt * dt);
@@ -38,6 +44,20 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
     if (!ent.has_component(kPetal) && !ent.has_component(kWeb)) {
         ent.set_x(fclamp(ent.get_x(), ent.get_radius(), ARENA_WIDTH - ent.get_radius()));
         ent.set_y(fclamp(ent.get_y(), ent.get_radius(), ARENA_HEIGHT - ent.get_radius()));
+    }
+    // Axis-separated terrain collision: revert whichever axis would put the
+    // player's center into an impassable cell, so they slide along walls
+    // instead of stopping dead. Only blocks moves *into* new blocked cells,
+    // so a player who spawns on one can still walk off it.
+    if (terrain_collide) {
+        float nx = ent.get_x();
+        float ny = ent.get_y();
+        if (Tilemap::blocks_movement(Tilemap::terrain_at(nx, prev_y)))
+            nx = prev_x;
+        if (Tilemap::blocks_movement(Tilemap::terrain_at(nx, ny)))
+            ny = prev_y;
+        ent.set_x(nx);
+        ent.set_y(ny);
     }
     //ent.acceleration.set(0,0);
     ent.collision_velocity.set(0,0);

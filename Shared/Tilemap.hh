@@ -82,4 +82,32 @@ namespace Tilemap {
         10,5,5,5,5,5,5,5,10,10,10,10,10,5,5,5,5,5,5,5,5,5,5,5,5,5,5,10,10,10,9,4,4,4,4,4,4,4,4,4,9,9,9,4,4,4,4,4,4,9,
         10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
     };
+
+    // Terrain sampling + walkability, shared by the client minimap/renderer and
+    // the server movement collision so both agree on what blocks the player.
+    inline uint8_t terrain_at(float x, float y) {
+        if (x < 0 || y < 0) return TerrainID::kVoid;
+        uint32_t c = (uint32_t)(x / CELL_SIZE);
+        uint32_t r = (uint32_t)(y / CELL_SIZE);
+        if (c >= GRID_W || r >= GRID_H) return TerrainID::kVoid;
+        return TERRAIN[r * GRID_W + c];
+    }
+
+    // Blocked: dirt, water, bush foliage (kJungle + jungle wall), cliff
+    // (+ cliff wall), castle. Walkable: grass, grass2/jungle-floor (kBush),
+    // stone, and void (arena border is handled by the clamp; don't trap here).
+    inline bool blocks_movement(uint8_t t) {
+        switch (t) {
+            case TerrainID::kDirt:
+            case TerrainID::kWater:
+            case TerrainID::kJungle:
+            case TerrainID::kCliff:
+            case TerrainID::kCastle:
+            case TerrainID::kJungleWall:
+            case TerrainID::kCliffWall:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

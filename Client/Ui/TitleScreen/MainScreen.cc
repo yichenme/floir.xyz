@@ -118,12 +118,8 @@ Element *Ui::make_panel_buttons() {
             [](){ return Ui::panel_open == Panel::kAccount; },
             { .fill = 0xff5a9fdb, .line_width = 5, .round_radius = 3 }
         ),
-        new Ui::Button(100, 35, 
-            new Ui::HContainer({
-                new Ui::Element(0,0),
-                new Ui::StaticText(16, "Petals"),
-                new Ui::PetalsCollectedIndicator(20)
-            }, 0, 10),
+        new Ui::Button(100, 35,
+            new Ui::StaticText(16, "Petals"),
             [](Element *elt, uint8_t e){ if (e == Ui::kClick) {
                 if (Ui::panel_open != Panel::kPetals) {
                     Ui::panel_open = Panel::kPetals;

@@ -138,8 +138,9 @@ Element *Ui::make_inventory_button() {
             .v_justify = Style::Bottom
         }
     );
-    elt->x = 20;
-    elt->y = -20;
+    // Match the Settings button's 10px inset from the bottom-left corner.
+    elt->x = 10;
+    elt->y = -10;
     return elt;
 }
 

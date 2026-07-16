@@ -11,21 +11,6 @@ using namespace Ui;
 
 Minimap::Minimap(float w) : Element(w, w*ARENA_HEIGHT/ARENA_WIDTH, {}) {}
 
-// Black = walls / water / thick foliage (impassable-ish);
-// white = anything the flower can walk across freely.
-static bool is_wall_terrain(uint8_t t) {
-    switch (t) {
-        case Tilemap::TerrainID::kWater:
-        case Tilemap::TerrainID::kJungle:
-        case Tilemap::TerrainID::kCliff:
-        case Tilemap::TerrainID::kJungleWall:
-        case Tilemap::TerrainID::kCliffWall:
-            return true;
-        default:
-            return false;
-    }
-}
-
 void Minimap::on_render(Renderer &ctx) {
     ctx.set_line_width(7);
     ctx.set_stroke(0xff444444);
@@ -35,12 +20,14 @@ void Minimap::on_render(Renderer &ctx) {
     ctx.fill_rect(-width/2,-height/2,width,height);
     ctx.translate(-width/2,-height/2);
     ctx.scale(width/ARENA_WIDTH);
+    // Black = anything that blocks the player (matches server collision);
+    // white = walkable ground.
     ctx.set_fill(0xff000000);
     for (uint32_t r = 0; r < Tilemap::GRID_H; ++r) {
         uint32_t start = 0;
-        bool in_wall = is_wall_terrain(Tilemap::TERRAIN[r * Tilemap::GRID_W]);
+        bool in_wall = Tilemap::blocks_movement(Tilemap::TERRAIN[r * Tilemap::GRID_W]);
         for (uint32_t c = 1; c <= Tilemap::GRID_W; ++c) {
-            bool w = c < Tilemap::GRID_W && is_wall_terrain(Tilemap::TERRAIN[r * Tilemap::GRID_W + c]);
+            bool w = c < Tilemap::GRID_W && Tilemap::blocks_movement(Tilemap::TERRAIN[r * Tilemap::GRID_W + c]);
             if (w != in_wall) {
                 if (in_wall)
                     ctx.fill_rect(start * Tilemap::CELL_SIZE, r * Tilemap::CELL_SIZE,
@@ -67,6 +54,9 @@ Element *Ui::make_minimap() {
         new Ui::StaticText(20, "Minimap"),
         new Ui::Minimap(112)
     }, 10, 10, {
+        .fill = 0xff5a9fdb,
+        .line_width = 7,
+        .round_radius = 3,
         .should_render = [](){ return Game::should_render_game_ui(); },
         .h_justify = Style::Right,
         .v_justify = Style::Bottom

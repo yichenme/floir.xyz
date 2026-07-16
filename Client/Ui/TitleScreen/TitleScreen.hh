@@ -42,13 +42,6 @@ namespace Ui {
         virtual void on_event(uint8_t) override;
     };
 
-    class PetalsCollectedIndicator final : public Element {
-    public:
-        PetalsCollectedIndicator(float);
-
-        virtual void on_render(Renderer &) override;
-    };
-
     class GalleryMob final : public Element {
     public:
         MobID::T id;

@@ -29,26 +29,6 @@ void GalleryPetal::on_event(uint8_t event) {
         rendering_tooltip = 0;
 }
 
-PetalsCollectedIndicator::PetalsCollectedIndicator(float w) : Element(w,w,{}) {}
-
-void PetalsCollectedIndicator::on_render(Renderer &ctx) {
-    uint32_t colct = 0;
-    uint32_t totct = 0;
-    for (PetalID::T i = PetalID::kBasic; i < PetalID::kNumPetals; ++i) {
-        colct += Game::seen_petals[i] != 0;
-        ++totct;
-    }
-    ctx.set_fill(0x80000000);
-    ctx.begin_path();
-    ctx.arc(0,0,width/2);
-    ctx.fill();
-    ctx.set_fill(0xc0eeeeee);
-    ctx.begin_path();
-    ctx.move_to(0,0);
-    ctx.partial_arc(0,0,width/2*0.8,-M_PI/2,-M_PI/2+2*M_PI*colct/totct,0);
-    ctx.close_path();
-    ctx.fill();
-}
 
 static Element *make_scroll() {
     Element *elt = new Ui::VContainer({}, 10, 10, {});
