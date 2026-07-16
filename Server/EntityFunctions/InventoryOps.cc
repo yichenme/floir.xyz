@@ -147,9 +147,12 @@ void apply_account_loadout_to_camera(Client *client, Entity &camera) {
     if (client == nullptr) return;
     std::array<PetalItem, 2 * MAX_SLOT_COUNT> items{};
     AccountDB::read_loadout(client->username, items.data());
+    Simulation *sim = &client->game->simulation;
     for (uint32_t i = 0; i < 2 * MAX_SLOT_COUNT; ++i) {
+        PetalTracker::remove_petal(sim, camera.get_inventory(i));
         camera.set_inventory(i, items[i].type);
         camera.set_inventory_rarity(i, items[i].rarity);
+        PetalTracker::add_petal(sim, items[i].type);
     }
 }
 

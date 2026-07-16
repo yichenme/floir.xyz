@@ -9,7 +9,6 @@ set(SOURCES
     EntityFunctions/Damage.cc
     EntityFunctions/Death.cc
     EntityFunctions/Detection.cc
-    EntityFunctions/InventoryOps.cc
     EntityFunctions/Misc.cc
     Process/Ai.cc
     Process/Camera.cc
@@ -47,7 +46,9 @@ set(SOURCES
 )
 
 if(WASM_SERVER)
-    set(SOURCES ${SOURCES} Wasm.cc Account/DatabaseWasm.cc Account/Auth.cc)
+    # InventoryOps.cc calls AccountDB (only implemented in DatabaseWasm.cc);
+    # no native AccountDB backend exists yet, so keep it alongside Auth.cc.
+    set(SOURCES ${SOURCES} Wasm.cc Account/DatabaseWasm.cc Account/Auth.cc EntityFunctions/InventoryOps.cc)
 else()
     set(SOURCES ${SOURCES} Native.cc)
 endif()
