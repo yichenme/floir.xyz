@@ -6,16 +6,31 @@
 #include <string>
 #include <vector>
 
+// kAuthResponse: uint8 success, string session_key_or_error
+// kInventoryUpdate: uint32 n, then n × (uint8 type, uint8 rarity, uint64 count)
 enum Clientbound {
-    kClientUpdate
+    kClientUpdate,
+    kAuthResponse,
+    kInventoryUpdate
 };
 
+// kRegister / kLogin: string username, string password
+// kSessionRestore: string username, string session_key
+// kPetalStore: uint8 loadout_static_pos
+// kEquipPetal: uint32 inventory_index, uint8 loadout_static_pos
+// kInventorySwap: uint32 inventory_index, uint8 loadout_static_pos (swap one equipped ↔ one from stack)
+// kPetalSwap: loadout↔loadout (existing)
 enum Serverbound {
     kVerify,
     kClientInput,
     kClientSpawn,
     kPetalSwap,
-    kPetalDelete
+    kPetalStore,
+    kEquipPetal,
+    kInventorySwap,
+    kRegister,
+    kLogin,
+    kSessionRestore
 };
 
 enum CloseReason {

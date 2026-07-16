@@ -111,7 +111,7 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             player.set_name(name);
             break;
         }
-        case Serverbound::kPetalDelete: {
+        case Serverbound::kPetalStore: {
             if (!client->alive()) break;
             Simulation *simulation = &client->game->simulation;
             Entity &camera = simulation->get_ent(client->camera);

@@ -68,7 +68,7 @@ void Game::spawn_in() {
 void Game::delete_petal(uint8_t pos) {
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
     if (!Game::alive()) return;
-    writer.write<uint8_t>(Serverbound::kPetalDelete);
+    writer.write<uint8_t>(Serverbound::kPetalStore);
     writer.write<uint8_t>(pos);
     socket.send(writer.packet, writer.at - writer.packet);
 }
