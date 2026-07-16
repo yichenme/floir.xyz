@@ -15,8 +15,9 @@ using namespace Ui;
 // drawn on the HP bar just right of the flower, and a shorter XP bar sits just
 // below the HP bar, left-aligned with it.
 static float const BAR_W = 220;
-static float const HP_H = 18;
+static float const HP_H = 22;          // 25% thicker than before
 static float const XP_H = 12;
+static float const GAP = 4;
 static float const FACE_R = 26;
 static float const XP_FRAC = 0.75f;   // xp bar = 75% of hp bar length
 
@@ -45,8 +46,10 @@ void LevelBar::on_render(Renderer &ctx) {
     // Bars start at the flower centre so the flower overlaps their left end by
     // ~50% of its width; the flower is drawn on top afterwards.
     float const bar_x0 = face_cx;
-    float const hp_y = 0;
-    float const xp_y = HP_H / 2 + XP_H / 2 + 4;   // just below the hp bar
+    // Centre the hp+xp stack on the flower model's y axis.
+    float const stack = HP_H + GAP + XP_H;
+    float const hp_y = -stack / 2 + HP_H / 2;
+    float const xp_y = stack / 2 - XP_H / 2;
 
     auto bar = [&](float x0, float y, float len, float h, uint32_t fill, float ratio) {
         RenderContext c(&ctx);

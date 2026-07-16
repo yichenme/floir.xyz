@@ -6,7 +6,7 @@ GID -> SVG mapping is maintained by hand here since we have no tileset.tsj.
 Re-run after editing GID_TO_SVG or the tiles. Honours Tiled flip bits
 (horizontal/vertical/diagonal) so rotated autotile pieces face correctly.
 """
-import json, base64, gzip, re, os, shutil
+import json, base64, gzip, re, os, shutil, math
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TILES = os.path.join(ROOT, 'tiles')
@@ -139,10 +139,143 @@ def main():
 
 
 # --- Collision/minimap terrain grid ---------------------------------------
-# A cell is blocked if ANY tile of a blocking biome layer sits on it (florr-style
-# hard walls); the edge-based collision in Motion.cc stops the body at the tile.
-# id per blocking layer.
+# Coarse per-cell terrain (minimap colours) plus a fine sub-cell collision mask
+# rasterized from each blocking tile's actual fill shape, so the body collides
+# with the visible asset outline rather than the whole grid cell.
 LAYER_BLOCK_ID = {'water': 3, 'bush': 4, 'cliff': 5, 'dirt': 1, 'castle': 6}
+BLOCK_LAYERS = ('castle', 'dirt', 'cliff', 'bush', 'water')
+COLL_SUB = 5   # sub-cells per cell -> 100 world units each
+FLIP_H_B, FLIP_V_B, FLIP_D_B = 0x80000000, 0x40000000, 0x20000000
+
+
+def _path_points(d):
+    # Tokenize an SVG path 'd' into an approximate polygon (curves sampled).
+    toks = re.findall(r'[MmLlHhVvCcSsZz]|-?\d*\.?\d+(?:e-?\d+)?', d)
+    pts = []
+    i = 0
+    cx = cy = sx = sy = 0.0
+    cmd = None
+    prev_c2 = None
+
+    def num():
+        nonlocal i
+        v = float(toks[i]); i += 1; return v
+
+    while i < len(toks):
+        t = toks[i]
+        if re.match(r'[A-Za-z]', t):
+            cmd = t; i += 1
+        rel = cmd.islower()
+        c = cmd.upper()
+        if c == 'M':
+            x = num(); y = num()
+            if rel: x += cx; y += cy
+            cx, cy = x, y; sx, sy = x, y; pts.append((cx, cy)); cmd = 'l' if rel else 'L'
+        elif c == 'L':
+            x = num(); y = num()
+            if rel: x += cx; y += cy
+            cx, cy = x, y; pts.append((cx, cy))
+        elif c == 'H':
+            x = num()
+            if rel: x += cx
+            cx = x; pts.append((cx, cy))
+        elif c == 'V':
+            y = num()
+            if rel: y += cy
+            cy = y; pts.append((cx, cy))
+        elif c in ('C', 'S'):
+            if c == 'C':
+                x1 = num(); y1 = num(); x2 = num(); y2 = num(); x = num(); y = num()
+                if rel: x1 += cx; y1 += cy; x2 += cx; y2 += cy; x += cx; y += cy
+            else:  # smooth: reflect previous control
+                x2 = num(); y2 = num(); x = num(); y = num()
+                if rel: x2 += cx; y2 += cy; x += cx; y += cy
+                if prev_c2: x1 = 2 * cx - prev_c2[0]; y1 = 2 * cy - prev_c2[1]
+                else: x1, y1 = cx, cy
+            for s in range(1, 7):
+                tt = s / 6.0
+                mt = 1 - tt
+                bx = mt**3 * cx + 3 * mt**2 * tt * x1 + 3 * mt * tt**2 * x2 + tt**3 * x
+                by = mt**3 * cy + 3 * mt**2 * tt * y1 + 3 * mt * tt**2 * y2 + tt**3 * y
+                pts.append((bx, by))
+            prev_c2 = (x2, y2); cx, cy = x, y
+        elif c == 'Q':
+            x1 = num(); y1 = num(); x = num(); y = num()
+            if rel: x1 += cx; y1 += cy; x += cx; y += cy
+            for s in range(1, 7):
+                tt = s / 6.0; mt = 1 - tt
+                pts.append((mt*mt*cx + 2*mt*tt*x1 + tt*tt*x,
+                            mt*mt*cy + 2*mt*tt*y1 + tt*tt*y))
+            cx, cy = x, y
+        elif c == 'A':
+            num(); num(); num(); num(); num()  # rx ry rot large sweep
+            x = num(); y = num()
+            if rel: x += cx; y += cy
+            pts.append((x, y)); cx, cy = x, y   # approximate arc by its chord
+        elif c == 'Z':
+            pts.append((sx, sy)); cx, cy = sx, sy
+        else:
+            i += 1
+        if c != 'C' and c != 'S':
+            prev_c2 = None
+    return pts
+
+
+_MASK_CACHE = {}
+
+
+def _tile_mask(svg_name):
+    # Rasterize a tile's fill shape into a COLL_SUB x COLL_SUB coverage mask.
+    if svg_name in _MASK_CACHE:
+        return _MASK_CACHE[svg_name]
+    from PIL import Image, ImageDraw
+    path = os.path.join(TILES, svg_name)
+    txt = open(path).read()
+    RES = 40  # rasterize at 40x40 then downsample to COLL_SUB
+    img = Image.new('1', (RES, RES), 0)
+    dr = ImageDraw.Draw(img)
+    if '<rect' in txt and 'fill=' in txt.split('<rect', 1)[1][:60]:
+        dr.rectangle([0, 0, RES, RES], fill=1)
+    else:
+        # use the opaque fill path (the one with fill="#...", not opacity=".1")
+        m = re.search(r'<path fill="#[0-9a-fA-F]+"[^>]*d="([^"]+)"', txt)
+        if not m:
+            m = re.search(r'd="([^"]+)"', txt)
+        try:
+            poly = [(x / 256 * RES, y / 256 * RES) for x, y in _path_points(m.group(1))] if m else []
+            if len(poly) >= 3:
+                dr.polygon(poly, fill=1)
+            else:
+                dr.rectangle([0, 0, RES, RES], fill=1)
+        except Exception:
+            # unparseable path (e.g. packed arc flags): block the whole cell
+            dr.rectangle([0, 0, RES, RES], fill=1)
+    px = img.load()
+    mask = []
+    step = RES / COLL_SUB
+    for sr in range(COLL_SUB):
+        row = []
+        for sc in range(COLL_SUB):
+            # sub-cell covered if the majority of its pixels are filled
+            cnt = 0; tot = 0
+            for yy in range(int(sr * step), int((sr + 1) * step)):
+                for xx in range(int(sc * step), int((sc + 1) * step)):
+                    tot += 1; cnt += px[xx, yy]
+            row.append(1 if cnt * 2 >= tot else 0)
+        mask.append(row)
+    _MASK_CACHE[svg_name] = mask
+    return mask
+
+
+def _flip_mask(mask, g):
+    m = mask
+    if g & FLIP_D_B:
+        m = [[m[c][r] for c in range(COLL_SUB)] for r in range(COLL_SUB)]  # transpose
+    if g & FLIP_H_B:
+        m = [list(reversed(r)) for r in m]
+    if g & FLIP_V_B:
+        m = list(reversed(m))
+    return m
 
 
 def write_tilemap_header(layers, W, H):
@@ -152,7 +285,7 @@ def write_tilemap_header(layers, W, H):
     terrain = []
     for i in range(W * H):
         t = 0  # grass / walkable default
-        for name in ('castle', 'dirt', 'cliff', 'bush', 'water'):
+        for name in BLOCK_LAYERS:
             if present(name, i):
                 t = LAYER_BLOCK_ID[name]
                 break
@@ -161,12 +294,35 @@ def write_tilemap_header(layers, W, H):
                 t = 15  # void (outside arena)
         terrain.append(t)
 
+    # Fine collision mask: for each cell, the top blocking tile's rasterized
+    # (flip-applied) shape marks the solid sub-cells.
+    CW, CH = W * COLL_SUB, H * COLL_SUB
+    coll = [0] * (CW * CH)
+    for r in range(H):
+        for c in range(W):
+            i = r * W + c
+            for name in BLOCK_LAYERS:
+                g = layers.get(name, [0] * (W * H))[i]
+                if not (g & 0x1FFFFFFF):
+                    continue
+                svg = GID_TO_SVG.get(g & 0x1FFFFFFF, LAYER_FALLBACK.get(name))
+                if not svg or not os.path.exists(os.path.join(TILES, svg)):
+                    m = [[1] * COLL_SUB for _ in range(COLL_SUB)]
+                else:
+                    m = _flip_mask(_tile_mask(svg), g)
+                for sr in range(COLL_SUB):
+                    for sc in range(COLL_SUB):
+                        if m[sr][sc]:
+                            coll[(r * COLL_SUB + sr) * CW + (c * COLL_SUB + sc)] = 1
+                break
+
     lines = [
         '#pragma once', '', '#include <cstdint>', '',
-        '// Auto-generated by Scripts/gen_map.py. 50x51 terrain grid used by the',
-        '// client minimap and the server collision. Only SOLID (center) tiles of a',
-        '// blocking biome are marked blocked, so collision follows the visible',
-        '// colour mass, not the full grid cell.', '',
+        '// Auto-generated by Scripts/gen_map.py.',
+        '//  - TERRAIN: coarse per-cell type, used for the minimap colours.',
+        '//  - COLLISION: fine sub-cell (100u) solid mask rasterized from each',
+        '//    blocking tile\'s actual fill shape, so the body collides with the',
+        '//    visible asset outline, not the whole grid cell.', '',
         'namespace Tilemap {',
         f'    inline constexpr uint32_t GRID_W = {W};',
         f'    inline constexpr uint32_t GRID_H = {H};',
@@ -182,6 +338,16 @@ def write_tilemap_header(layers, W, H):
         lines.append('        ' + ','.join(str(v) for v in terrain[r * W:(r + 1) * W]) + ',')
     lines += [
         '    };', '',
+        f'    inline constexpr uint32_t COLL_SUB = {COLL_SUB};',
+        '    inline constexpr uint32_t COLL_W = GRID_W * COLL_SUB;',
+        '    inline constexpr uint32_t COLL_H = GRID_H * COLL_SUB;',
+        '    inline constexpr float    COLL_CELL = CELL_SIZE / COLL_SUB;',
+        '    inline constexpr uint8_t COLLISION[COLL_W * COLL_H] = {',
+    ]
+    for r in range(CH):
+        lines.append('        ' + ','.join(str(v) for v in coll[r * CW:(r + 1) * CW]) + ',')
+    lines += [
+        '    };', '',
         '    inline uint8_t terrain_at(float x, float y) {',
         '        if (x < 0 || y < 0) return TerrainID::kVoid;',
         '        uint32_t c = (uint32_t)(x / CELL_SIZE);',
@@ -189,7 +355,6 @@ def write_tilemap_header(layers, W, H):
         '        if (c >= GRID_W || r >= GRID_H) return TerrainID::kVoid;',
         '        return TERRAIN[r * GRID_W + c];',
         '    }', '',
-        '    // Blocked: dirt, water, bush foliage, cliff, castle (solid tiles only).',
         '    inline bool blocks_movement(uint8_t t) {',
         '        switch (t) {',
         '            case TerrainID::kDirt:',
@@ -202,6 +367,14 @@ def write_tilemap_header(layers, W, H):
         '            default:',
         '                return false;',
         '        }',
+        '    }', '',
+        '    // Fine collision test against the actual tile-asset shape.',
+        '    inline bool solid_at(float x, float y) {',
+        '        if (x < 0 || y < 0) return false;',
+        '        uint32_t c = (uint32_t)(x / COLL_CELL);',
+        '        uint32_t r = (uint32_t)(y / COLL_CELL);',
+        '        if (c >= COLL_W || r >= COLL_H) return false;',
+        '        return COLLISION[r * COLL_W + c] != 0;',
         '    }',
         '}', '',
     ]
@@ -209,6 +382,7 @@ def write_tilemap_header(layers, W, H):
     open(out, 'w').write('\n'.join(lines))
     from collections import Counter
     print('Tilemap.hh terrain dist:', dict(Counter(terrain)))
+    print('COLLISION solid sub-cells:', sum(coll), '/', CW * CH)
 
 
 if __name__ == '__main__':

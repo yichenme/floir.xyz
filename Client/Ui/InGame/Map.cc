@@ -39,11 +39,9 @@ void Minimap::on_render(Renderer &ctx) {
     expand.step(Ui::lerp_amount * 1.5);
     float const e = expand;
 
-    // Widget grows toward EXPAND_SCALE as it opens. Keep the bottom-right
-    // corner pinned by shifting the extra size up-left.
+    // Widget grows toward EXPAND_SCALE as it opens. The Window anchors this
+    // element bottom-right, so growth naturally extends up-left (corner stays).
     float const size = base_size * lerp(1.0f, EXPAND_SCALE, e);
-    float const grow = (size - base_size) / 2;
-    ctx.translate(-grow, -grow);
     width = height = size;
 
     // World view rect: interpolate between a player-centred zoom window and the
@@ -109,7 +107,7 @@ void Minimap::on_render(Renderer &ctx) {
         float const dot = dot_screen * view_w / size;
         ctx.set_fill(0xffffe763);
         ctx.set_stroke(0xff000000);
-        ctx.set_line_width(dot * 0.35f);
+        ctx.set_line_width(dot * 0.18f);
         ctx.begin_path();
         ctx.arc(px, py, dot);
         ctx.fill();

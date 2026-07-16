@@ -239,7 +239,7 @@ void player_spawn(Simulation *sim, Entity &camera, Entity &player) {
     for (uint32_t i = 0; i < 40; ++i) {
         float jx = SPAWN_CX + (frand() - 0.5f) * 2 * SPAWN_JITTER;
         float jy = SPAWN_CY + (frand() - 0.5f) * 2 * SPAWN_JITTER;
-        if (!Tilemap::blocks_movement(Tilemap::terrain_at(jx, jy))) {
+        if (!Tilemap::solid_at(jx, jy)) {
             spawn_x = jx;
             spawn_y = jy;
             break;

@@ -50,7 +50,7 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
     // out along the shallowest axis so it can escape.
     if (terrain_collide) {
         float const r = ent.get_radius();
-        float const cs = Tilemap::CELL_SIZE;
+        float const cs = Tilemap::COLL_CELL;
         for (uint32_t pass = 0; pass < 2; ++pass) {
             float x = ent.get_x();
             float y = ent.get_y();
@@ -60,7 +60,7 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
             int32_t r1 = (int32_t)std::floor((y + r) / cs);
             for (int32_t rr = r0; rr <= r1; ++rr)
             for (int32_t cc = c0; cc <= c1; ++cc) {
-                if (!Tilemap::blocks_movement(Tilemap::terrain_at(cc * cs + 1, rr * cs + 1))) continue;
+                if (!Tilemap::solid_at(cc * cs + 1, rr * cs + 1)) continue;
                 float const cellL = cc * cs, cellT = rr * cs;
                 float const cellR = cellL + cs, cellB = cellT + cs;
                 float const nearX = fclamp(x, cellL, cellR);
