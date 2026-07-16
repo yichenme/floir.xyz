@@ -21,6 +21,7 @@ namespace Ui {
     Element *account_button = nullptr;
     uint8_t panel_open = Panel::kNone;
     uint8_t minimap_expanded = 0;
+    float minimap_expand = 0;
     int32_t dragging_inventory_index = -1;
     float drag_start_mouse_x = 0;
     float drag_start_mouse_y = 0;

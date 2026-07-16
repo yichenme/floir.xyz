@@ -85,14 +85,6 @@ void Game::render_game() {
         int32_t r0 = std::max(0, (int32_t) std::floor(topY    / Tilemap::CELL_SIZE));
         int32_t r1 = std::min<int32_t>(Tilemap::GRID_H, (int32_t) std::ceil (bottomY / Tilemap::CELL_SIZE));
 
-        // Difficulty darkening on top of biome tiles, per MAP_DATA zone.
-        uint32_t player_grade = Map::difficulty_at_level(score_to_level(Game::score));
-        for (ZoneDefinition const &def : MAP_DATA) {
-            if (player_grade <= def.difficulty) continue;
-            renderer.set_fill(0x40000000);
-            renderer.fill_rect(def.left, def.top, def.right - def.left, def.bottom - def.top);
-        }
-
         if (Input::show_grid) {
             // Fine grid (normal outline).
             renderer.set_stroke(alpha);
@@ -221,17 +213,23 @@ void Game::render_game() {
         render_name(renderer, ent);
     });
 
-    // G: overlay every visible petal's hitbox as a plain radius circle filled
-    // in its rarity colour at 25% transparency -- no outline, no label.
+    // G: overlay every petal's hitbox as a filled circle in its rarity colour at
+    // 25% opacity, drawn larger than the whole petal so it clears the outline.
+    // The rarity label is kept but rendered at 0% opacity (present, invisible).
     if (Game::show_hitboxes) {
         simulation.for_each<kPetal>([](Simulation *sim, Entity const &ent){
-            uint32_t rcol = RARITY_COLORS[PETAL_DATA[ent.get_petal_id()].rarity];
+            uint8_t rarity = PETAL_DATA[ent.get_petal_id()].rarity;
+            uint32_t rcol = RARITY_COLORS[rarity];
             RenderContext context(&renderer);
             renderer.translate(ent.get_x(), ent.get_y());
-            renderer.set_fill((rcol & 0x00ffffff) | 0xc0000000);   // rarity colour, 25% transparent
+            float r = ent.get_radius() * 1.4f;             // bigger than the petal art
+            renderer.set_fill((rcol & 0x00ffffff) | 0x40000000);   // 25% opacity
             renderer.begin_path();
-            renderer.arc(0, 0, ent.get_radius());
+            renderer.arc(0, 0, r);
             renderer.fill();
+            renderer.translate(0, r + 10);
+            renderer.draw_text(RARITY_NAMES[rarity],
+                { .fill = 0x00000000, .stroke = 0x00000000, .size = 13, .stroke_scale = 0.2f });
         });
     }
 }

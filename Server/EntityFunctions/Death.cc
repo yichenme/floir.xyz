@@ -49,6 +49,15 @@ static void _add_score(Simulation *sim, EntityID const killer_id, Entity const &
         killer.set_score(killer.get_score() + target.score_reward);
         if (target.has_component(kMob))
             killer.set_mobs_killed(killer.get_mobs_killed() + 1);
+        // Continuously bank the peak level on the camera so it persists across
+        // deaths and can only ever grow (XP is never lost on respawn).
+        if (sim->ent_exists(killer.get_parent())) {
+            Entity &cam = sim->get_ent(killer.get_parent());
+            if (cam.has_component(kCamera)) {
+                uint32_t lvl = score_to_level(killer.get_score());
+                if (lvl > cam.get_respawn_level()) cam.set_respawn_level(lvl);
+            }
+        }
     }
 }
 
@@ -112,9 +121,11 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
         if (!sim->ent_alive(ent.get_parent()))
             return;
         Entity &camera = sim->get_ent(ent.get_parent());
-        // No death loss: respawn at the same level so the slot count (and thus
-        // the whole loadout) is preserved -- petals don't disappear on death.
+        // No death loss: respawn at the peak level ever reached (level only
+        // grows, never drops) so XP and the whole loadout are preserved.
         uint32_t respawn_level = score_to_level(ent.get_score());
+        if (respawn_level < camera.get_respawn_level())
+            respawn_level = camera.get_respawn_level();
         if (respawn_level < 1) respawn_level = 1;
         if (respawn_level > MAX_LEVEL) respawn_level = MAX_LEVEL;
         camera.set_respawn_level(respawn_level);

@@ -118,14 +118,14 @@ def main():
                     continue
                 sid = f't_{svg.replace(".","_")}'
                 x, y = c * CELL, r * CELL
-                # Bleed ONLY the base ground layer outward by BLEED px so the
-                # ground has no hairline seam ("white gap lines"). The overlay
-                # layers (water/bush/cliff/dirt/castle/transitions) are placed at
-                # exact size: bleeding them made their shadows overlap and pushed
-                # their visible edge past the collision polygon (players could
-                # stand on the overhang). The bled ground beneath still fills any
-                # gap between overlay tiles.
-                bleed = BLEED if name == 'bg' else 0.0
+                # Bleed the base ground AND full-square centre tiles (name *_c_*)
+                # outward by BLEED px so their shared edges overlap and leave no
+                # hairline seam ("white gap lines"). Centre tiles' shadows are
+                # interior, so overlapping them doesn't double any edge shadow.
+                # Shaped EDGE tiles (_l/_t/_tri/…) stay exact size: bleeding them
+                # doubled their edge shadows and pushed the visible edge past the
+                # collision polygon (players stood on the overhang).
+                bleed = BLEED if (name == 'bg' or '_c_' in svg) else 0.0
                 sz = CELL + 2 * bleed
                 h_, v_, dg = bool(g & FLIP_H), bool(g & FLIP_V), bool(g & FLIP_D)
                 if not (h_ or v_ or dg):
@@ -454,16 +454,7 @@ def write_tilemap_header(layers, W, H):
 
     FULL = [(0, 0), (500, 0), (500, 500), (0, 500)]   # void / fallback cell
     terrain = []
-    polys = []            # list of vert-lists in 0..500
-    unique = {}           # rounded-tuple -> poly index (1-based)
-    cell_poly = [0] * (W * H)
-
-    def add_poly(p):
-        key = tuple((round(x, 1), round(y, 1)) for x, y in p)
-        if key not in unique:
-            unique[key] = len(polys) + 1
-            polys.append(p)
-        return unique[key]
+    raw = [None] * (W * H)   # per-cell fill polygon (0..500) or None if walkable
 
     for r in range(H):
         for c in range(W):
@@ -479,7 +470,7 @@ def write_tilemap_header(layers, W, H):
             terrain.append(t)
 
             if t == 15:
-                cell_poly[i] = add_poly(FULL)
+                raw[i] = FULL
                 continue
             for name in BLOCK_LAYERS:
                 g = layers.get(name, [0] * (W * H))[i]
@@ -491,8 +482,64 @@ def write_tilemap_header(layers, W, H):
                 else:
                     p = [(x * 500 / 256, y * 500 / 256)
                          for x, y in _flip_poly(_tile_polys(svg), g)]
-                cell_poly[i] = add_poly(p)
+                raw[i] = p
                 break
+
+    # Seam fill: where two blocking cells touch, the shared edge must be solid.
+    # If a blocking cell's fill doesn't reach an edge it shares with a blocking
+    # neighbour, promote that cell to a full square so the "touching" strip is
+    # unreachable -- and black on the minimap, which samples this same data.
+    BLOCK = {1, 2, 3, 4, 5, 6, 15}
+    SAMP = [40, 130, 250, 370, 460]
+
+    def _in(px, py, poly):
+        inside = False
+        n = len(poly)
+        j = n - 1
+        for k in range(n):
+            xi, yi = poly[k]
+            xj, yj = poly[j]
+            if ((yi > py) != (yj > py)) and (px < (xj - xi) * (py - yi) / (yj - yi) + xi):
+                inside = not inside
+            j = k
+        return inside
+
+    promote = [False] * (W * H)
+    for r in range(H):
+        for c in range(W):
+            i = r * W + c
+            if terrain[i] not in BLOCK or raw[i] is None or raw[i] is FULL:
+                continue
+            edges = [
+                (c + 1 < W and terrain[i + 1] in BLOCK,  [(498, s) for s in SAMP]),  # E
+                (c - 1 >= 0 and terrain[i - 1] in BLOCK, [(2,   s) for s in SAMP]),  # W
+                (r - 1 >= 0 and terrain[i - W] in BLOCK, [(s,   2) for s in SAMP]),  # N
+                (r + 1 < H and terrain[i + W] in BLOCK,  [(s, 498) for s in SAMP]),  # S
+            ]
+            # Promote only when an ENTIRE wall-facing edge is uncovered by the
+            # fill -- a genuine full-width seam (grass strip wedged between two
+            # blocking tiles). Partially-covered edges are real shaped shorelines
+            # against open ground and are left alone.
+            for nb_block, pts in edges:
+                if nb_block and all(not _in(px, py, raw[i]) for px, py in pts):
+                    promote[i] = True
+                    break
+
+    polys = []            # list of vert-lists in 0..500
+    unique = {}           # rounded-tuple -> poly index (1-based)
+    cell_poly = [0] * (W * H)
+
+    def add_poly(p):
+        key = tuple((round(x, 1), round(y, 1)) for x, y in p)
+        if key not in unique:
+            unique[key] = len(polys) + 1
+            polys.append(p)
+        return unique[key]
+
+    for i in range(W * H):
+        if raw[i] is None:
+            continue
+        cell_poly[i] = add_poly(FULL if promote[i] else raw[i])
 
     # flatten polygon vertices
     verts = []

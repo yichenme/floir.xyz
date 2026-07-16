@@ -200,6 +200,14 @@ Element *Ui::make_debug_stats() {
             avg_dt /= Debug::frame_times.size();
             return std::format("frame: {:.1f}/{:.1f}/{:.1f} ms (min/avg/max) - {:.1f} fps", min_dt, avg_dt, max_dt, 1000 / Ui::dt);
         }, { .fill = 0xffffffff, .h_justify = Style::Right })
-    }, 5, 5, { .should_render = [](){ return Game::show_debug; }, .h_justify = Style::Right, .v_justify = Style::Bottom, .no_animation = 1 });
+    }, 5, 5, {
+        // Sit just left of the bottom-right minimap and slide further left as it
+        // expands (112px base, up to 2x), sliding back when it collapses.
+        .animate = [](Element *elt, Renderer &){
+            elt->x = -(20.0f + 112.0f * (1.0f + Ui::minimap_expand));
+            elt->y = -10;
+        },
+        .should_render = [](){ return Game::show_debug; },
+        .h_justify = Style::Right, .v_justify = Style::Bottom, .no_animation = 1 });
     return elt;
 }

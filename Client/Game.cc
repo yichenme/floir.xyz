@@ -106,12 +106,9 @@ void Game::init() {
     game_ui_window.add_child(
         Ui::make_loadout_backgrounds()
     );
-    game_ui_window.add_child(
-        Ui::make_inventory_button()
-    );
-    game_ui_window.add_child(
-        Ui::make_inventory_panel()
-    );
+    // Mobile controls first so later-added UI (the inventory button/panel) wins
+    // touch focus over the full-screen joystick pad -- otherwise a tap on the
+    // inventory button is swallowed by the joystick and it never opens.
     game_ui_window.add_child(
         Ui::make_mobile_joystick()
     );
@@ -120,6 +117,12 @@ void Game::init() {
     );
     game_ui_window.add_child(
         Ui::make_mobile_defend_button()
+    );
+    game_ui_window.add_child(
+        Ui::make_inventory_button()
+    );
+    game_ui_window.add_child(
+        Ui::make_inventory_panel()
     );
     for (uint8_t i = 0; i < MAX_SLOT_COUNT * 2; ++i) game_ui_window.add_child(new Ui::UiLoadoutPetal(i));
     game_ui_window.add_child(

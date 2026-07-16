@@ -40,6 +40,7 @@ void Minimap::on_render(Renderer &ctx) {
     expand.set(want_full);
     expand.step(Ui::lerp_amount * 1.5);
     float const e = expand;
+    Ui::minimap_expand = e;   // let the debug stats slide clear of the minimap
 
     // Widget grows toward EXPAND_SCALE as it opens. The Window anchors this
     // element bottom-right, so growth naturally extends up-left (corner stays).

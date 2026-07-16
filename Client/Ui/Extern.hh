@@ -34,6 +34,9 @@ namespace Ui {
     extern Element *account_button;
     extern uint8_t panel_open;
     extern uint8_t minimap_expanded;
+    // Smoothed 0..1 minimap open amount, published by the Minimap each frame so
+    // the debug stats can slide left/right to stay clear of it.
+    extern float minimap_expand;
     extern int32_t dragging_inventory_index;
     extern float drag_start_mouse_x;
     extern float drag_start_mouse_y;
