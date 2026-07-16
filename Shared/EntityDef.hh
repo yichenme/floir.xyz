@@ -43,10 +43,11 @@ SINGLE(Physics, angle, Float)
 SINGLE(Camera, player, EntityID) \
 SINGLE(Camera, respawn_level, uint8_t) \
 MULTIPLE(Camera, inventory, PetalID::T, 2 * MAX_SLOT_COUNT) \
+MULTIPLE(Camera, inventory_rarity, uint8_t, 2 * MAX_SLOT_COUNT) \
 SINGLE(Camera, killed_by, std::string) \
 SINGLE(Camera, camera_x, Float) \
 SINGLE(Camera, camera_y, Float) \
-SINGLE(Camera, fov, Float) 
+SINGLE(Camera, fov, Float)
 
 #define FIELDS_Relations \
 SINGLE(Relations, team, EntityID) \
@@ -59,6 +60,7 @@ SINGLE(Flower, loadout_count, uint8_t) \
 SINGLE(Flower, face_flags, uint8_t) \
 SINGLE(Flower, equip_flags, uint8_t) \
 MULTIPLE(Flower, loadout_ids, PetalID::T, 2 * MAX_SLOT_COUNT) \
+MULTIPLE(Flower, loadout_rarities, uint8_t, 2 * MAX_SLOT_COUNT) \
 MULTIPLE(Flower, loadout_reloads, uint8_t, MAX_SLOT_COUNT)
 
 #define FIELDS_Petal \
@@ -73,7 +75,8 @@ SINGLE(Health, damaged, StickyFlag)
 SINGLE(Mob, mob_id, MobID::T)
 
 #define FIELDS_Drop \
-SINGLE(Drop, drop_id, PetalID::T)
+SINGLE(Drop, drop_id, PetalID::T) \
+SINGLE(Drop, drop_rarity, uint8_t)
 
 #define FIELDS_Segmented
 
@@ -84,6 +87,7 @@ SINGLE(Score, score, uint32_t)
 
 #define FIELDS_Name \
 SINGLE(Name, name, std::string) \
+SINGLE(Name, account_name, std::string) \
 SINGLE(Name, nametag_visible, uint8_t)
 
 #ifdef SERVERSIDE
@@ -129,8 +133,7 @@ SINGLE(Name, nametag_visible, uint8_t)
     SINGLE(ai_state, uint8_t, =0) \
     \
     SINGLE(zone, uint8_t, =0) \
-    SINGLE(deletion_tick, uint8_t, =0) \
-    SINGLE(deleted_petals, circ_arr_t, ={})
+    SINGLE(deletion_tick, uint8_t, =0)
 #else
 #define PER_EXTRA_FIELD \
     SINGLE(last_damaged_time, double, =0) \

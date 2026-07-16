@@ -123,13 +123,9 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             if (old_id != PetalID::kNone && old_id != PetalID::kBasic) {
                 uint8_t rarity = PETAL_DATA[old_id].rarity;
                 player.set_score(player.get_score() + RARITY_TO_XP[rarity]);
-                //need to delete if over cap
-                if (player.deleted_petals.size() == player.deleted_petals.capacity())
-                    //removes old trashed old petal
-                    PetalTracker::remove_petal(simulation, player.deleted_petals[0]);
-                player.deleted_petals.push_back(old_id);
             }
             player.set_loadout_ids(pos, PetalID::kNone);
+            player.set_loadout_rarities(pos, 0);
             break;
         }
         case Serverbound::kPetalSwap: {
@@ -143,8 +139,11 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             uint8_t pos2 = reader.read<uint8_t>();
             if (pos2 >= MAX_SLOT_COUNT + player.get_loadout_count()) break;
             PetalID::T tmp = player.get_loadout_ids(pos1);
+            uint8_t tmp_rarity = player.get_loadout_rarities(pos1);
             player.set_loadout_ids(pos1, player.get_loadout_ids(pos2));
+            player.set_loadout_rarities(pos1, player.get_loadout_rarities(pos2));
             player.set_loadout_ids(pos2, tmp);
+            player.set_loadout_rarities(pos2, tmp_rarity);
             break;
         }
     }

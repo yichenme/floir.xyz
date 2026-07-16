@@ -24,6 +24,7 @@ static void _pickup_drop(Simulation *sim, Entity &player, Entity &drop) {
     for (uint32_t i = 0; i <  player.get_loadout_count() + MAX_SLOT_COUNT; ++i) {
         if (player.get_loadout_ids(i) != PetalID::kNone) continue;
         player.set_loadout_ids(i, drop.get_drop_id());
+        player.set_loadout_rarities(i, drop.get_drop_rarity());
         drop.set_x(player.get_x());
         drop.set_y(player.get_y());
         BitMath::unset(drop.flags, EntityFlags::kIsDespawning);

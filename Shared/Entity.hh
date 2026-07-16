@@ -2,14 +2,11 @@
 
 #include <Shared/EntityDef.hh>
 
-#include <Helpers/Array.hh>
 #include <Helpers/Bits.hh>
 #include <Helpers/Macros.hh>
 #include <Helpers/Vector.hh>
 
 #include <cstdint>
-
-typedef CircularArray<PetalID::T, MAX_SLOT_COUNT> circ_arr_t;
 
 SERVER_ONLY(class Writer;)
 CLIENT_ONLY(class Reader;)
