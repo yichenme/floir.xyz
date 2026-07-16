@@ -10,6 +10,7 @@
 
 #include <Shared/Map.hh>
 #include <Shared/StaticData.hh>
+#include <Shared/Tilemap.hh>
 
 #include <cmath>
 
@@ -54,31 +55,53 @@ void Game::render_game() {
     }
     {
         RenderContext context(&renderer);
-        for (ZoneDefinition const &def : MAP_DATA) {
-            renderer.set_fill(def.color);
-            renderer.fill_rect(def.left, def.top, def.right - def.left, def.bottom - def.top);
-            if (Map::difficulty_at_level(score_to_level(Game::score)) > def.difficulty) {
-                renderer.set_fill(0x40000000);
-                renderer.fill_rect(def.left, def.top, def.right - def.left, def.bottom - def.top);
+        float scale = 1 / (2 * camera.get_fov() * Ui::scale);
+        float leftX   = camera.get_camera_x() - renderer.width  * scale;
+        float rightX  = camera.get_camera_x() + renderer.width  * scale;
+        float topY    = camera.get_camera_y() - renderer.height * scale;
+        float bottomY = camera.get_camera_y() + renderer.height * scale;
+
+        // Tilemap draw. Merge same-terrain runs along each visible row into a
+        // single fill_rect to keep call count sane at zoomed-out FOVs.
+        int32_t c0 = std::max(0, (int32_t) std::floor(leftX   / Tilemap::CELL_SIZE));
+        int32_t c1 = std::min<int32_t>(Tilemap::GRID_W, (int32_t) std::ceil (rightX  / Tilemap::CELL_SIZE));
+        int32_t r0 = std::max(0, (int32_t) std::floor(topY    / Tilemap::CELL_SIZE));
+        int32_t r1 = std::min<int32_t>(Tilemap::GRID_H, (int32_t) std::ceil (bottomY / Tilemap::CELL_SIZE));
+        for (int32_t r = r0; r < r1; ++r) {
+            int32_t start = c0;
+            uint8_t cur = Tilemap::TERRAIN[r * Tilemap::GRID_W + c0];
+            for (int32_t c = c0 + 1; c <= c1; ++c) {
+                uint8_t t = c < c1 ? Tilemap::TERRAIN[r * Tilemap::GRID_W + c] : 255;
+                if (t != cur) {
+                    if (cur != Tilemap::TerrainID::kVoid) {
+                        renderer.set_fill(Tilemap::COLORS[cur]);
+                        renderer.fill_rect(start * Tilemap::CELL_SIZE, r * Tilemap::CELL_SIZE,
+                                           (c - start) * Tilemap::CELL_SIZE, Tilemap::CELL_SIZE);
+                    }
+                    cur = t;
+                    start = c;
+                }
             }
         }
+
+        // Difficulty darkening on top of biome tiles, per MAP_DATA zone.
+        uint32_t player_grade = Map::difficulty_at_level(score_to_level(Game::score));
+        for (ZoneDefinition const &def : MAP_DATA) {
+            if (player_grade <= def.difficulty) continue;
+            renderer.set_fill(0x40000000);
+            renderer.fill_rect(def.left, def.top, def.right - def.left, def.bottom - def.top);
+        }
+
         renderer.set_stroke(alpha);
         renderer.set_line_width(0.5);
-        float scale = 1 / (2 * camera.get_fov() * Ui::scale);
-        float leftX = camera.get_camera_x() - renderer.width * scale;
-        float rightX = camera.get_camera_x() + renderer.width * scale;
-        float topY = camera.get_camera_y() - renderer.height * scale;
-        float bottomY = camera.get_camera_y() + renderer.height * scale;
         float newLeftX = ceilf(leftX / 50) * 50;
-        float newTopY = ceilf(topY / 50) * 50;
+        float newTopY  = ceilf(topY  / 50) * 50;
         renderer.begin_path();
-        for (; newLeftX < rightX; newLeftX += 50)
-        {
+        for (; newLeftX < rightX; newLeftX += 50) {
             renderer.move_to(newLeftX, topY);
             renderer.line_to(newLeftX, bottomY);
         }
-        for (; newTopY < bottomY; newTopY += 50)
-        {
+        for (; newTopY < bottomY; newTopY += 50) {
             renderer.move_to(leftX, newTopY);
             renderer.line_to(rightX, newTopY);
         }

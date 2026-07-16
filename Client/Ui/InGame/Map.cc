@@ -5,6 +5,7 @@
 #include <Client/Game.hh>
 
 #include <Shared/Map.hh>
+#include <Shared/Tilemap.hh>
 
 using namespace Ui;
 
@@ -16,11 +17,28 @@ void Minimap::on_render(Renderer &ctx) {
     ctx.stroke_rect(-width/2,-height/2,width,height);
     ctx.translate(-width/2,-height/2);
     ctx.scale(width/ARENA_WIDTH);
+    // Tilemap fill – same run-length merge as the world renderer, no culling
+    // needed because the minimap always shows the whole arena.
+    for (uint32_t r = 0; r < Tilemap::GRID_H; ++r) {
+        uint32_t start = 0;
+        uint8_t cur = Tilemap::TERRAIN[r * Tilemap::GRID_W];
+        for (uint32_t c = 1; c <= Tilemap::GRID_W; ++c) {
+            uint8_t t = c < Tilemap::GRID_W ? Tilemap::TERRAIN[r * Tilemap::GRID_W + c] : 255;
+            if (t != cur) {
+                if (cur != Tilemap::TerrainID::kVoid) {
+                    ctx.set_fill(Tilemap::COLORS[cur]);
+                    ctx.fill_rect(start * Tilemap::CELL_SIZE, r * Tilemap::CELL_SIZE,
+                                  (c - start) * Tilemap::CELL_SIZE, Tilemap::CELL_SIZE);
+                }
+                cur = t;
+                start = c;
+            }
+        }
+    }
+    // Biome name labels
     for (ZoneDefinition const &def : MAP_DATA) {
-        ctx.set_fill(def.color);
-        ctx.fill_rect(def.left, def.top, def.right - def.left, def.bottom - def.top);
         ctx.translate((def.left+def.right)/2,(def.top+def.bottom)/2);
-        ctx.draw_text(def.name, { .size = (def.bottom-def.top)/2 });
+        ctx.draw_text(def.name, { .size = 800 });
         ctx.translate(-(def.left+def.right)/2,-(def.top+def.bottom)/2);
     }
     if (!Game::simulation.ent_exists(Game::camera_id)) return;

@@ -23,15 +23,13 @@ extern float const BASE_BODY_DAMAGE;
 extern std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA;
 extern std::array<struct MobData, MobID::kNumMobs> const MOB_DATA;
 
-//map extends from (0,0) to (ARENA_WIDTH,ARENA_HEIGHT)
+// Biomes on the 25000x25500 arena, in override order (get_zone_from_pos picks
+// the last match). Zone 0 is the grasslands fallback that fills the middle;
+// tundra, desert and jungle overlay on top for their AABBs.
 inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
     {
-        .left = 0,
-        .top = 0,
-        .right = 10000,
-        .bottom = 4000,
-        .density = 1,
-        .drop_multiplier = 0.3,
+        .left = 0, .top = 2500, .right = 25000, .bottom = 15000,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 500000 },
             { MobID::kLadybug, 100000 },
@@ -42,78 +40,50 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kMassiveLadybug, 200 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 0,
-        .color = 0xff1ea761,
-        .name = "Easy"
+        .difficulty = 0, .color = 0xff58c05c, .name = "Grasslands"
     },
     {
-        .left = 10000,
-        .top = 0,
-        .right = 20000,
-        .bottom = 4000,
-        .density = 1,
-        .drop_multiplier = 0.15,
+        .left = 0, .top = 0, .right = 25000, .bottom = 2500,
+        .density = 1, .drop_multiplier = 0.2,
         .spawns = {
-            { MobID::kCactus, 400000 },
-            { MobID::kBeetle, 100000 },
-            { MobID::kSandstorm, 50000 },
+            { MobID::kBoulder, 200000 },
+            { MobID::kRock, 200000 },
+            { MobID::kDarkLadybug, 100000 },
             { MobID::kBee, 50000 },
-            { MobID::kScorpion, 50000 },
-            { MobID::kLadybug, 50000 },
-            { MobID::kDesertCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
-            { MobID::kShinyLadybug, 1000 },
+            { MobID::kCentipede, 10000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 1,
-        .color = 0xffdecf7c,
-        .name = "Medium"
+        .difficulty = 1, .color = 0xff8a5a3c, .name = "Tundra"
     },
     {
-        .left = 20000,
-        .top = 0,
-        .right = 30000,
-        .bottom = 4000,
-        .density = 1,
-        .drop_multiplier = 0.1,
+        .left = 12500, .top = 5000, .right = 25000, .bottom = 25500,
+        .density = 1, .drop_multiplier = 0.1,
         .spawns = {
             { MobID::kSpider, 100000 },
-            { MobID::kBoulder, 100000 },
-            { MobID::kBee, 100000 },
             { MobID::kHornet, 100000 },
+            { MobID::kBoulder, 80000 },
             { MobID::kBeetle, 50000 },
-            { MobID::kLadybug, 50000 },
-            { MobID::kCentipede, 10000 },
             { MobID::kEvilCentipede, 10000 },
             { MobID::kMassiveBeetle, 2000 },
             { MobID::kAntHole, 2000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 2,
-        .color = 0xffb06655,
-        .name = "Hard"
+        .difficulty = 2, .color = 0xff3a8f4a, .name = "Jungle"
     },
     {
-        .left = 30000,
-        .top = 0,
-        .right = 40000,
-        .bottom = 4000,
-        .density = 1,
-        .drop_multiplier = 0.025,
+        .left = 0, .top = 14000, .right = 14000, .bottom = 25500,
+        .density = 1, .drop_multiplier = 0.15,
         .spawns = {
-            { MobID::kDarkLadybug, 150000 },
-            { MobID::kBeetle, 150000 },
-            { MobID::kHornet, 150000 },
-            { MobID::kSpider, 150000 },
-            { MobID::kBoulder, 100000 },
-            { MobID::kEvilCentipede, 10000 },
-            { MobID::kMassiveBeetle, 2500 },
-            { MobID::kAntHole, 2500 },
+            { MobID::kCactus, 400000 },
+            { MobID::kBeetle, 100000 },
+            { MobID::kSandstorm, 50000 },
+            { MobID::kScorpion, 50000 },
+            { MobID::kDesertCentipede, 10000 },
+            { MobID::kAntHole, 2000 },
+            { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 3,
-        .color = 0xff777777,
-        .name = "???"
+        .difficulty = 3, .color = 0xffe6c98a, .name = "Desert"
     }
 });
 
