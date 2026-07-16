@@ -259,6 +259,17 @@ namespace Tilemap {
         return TILE_MASKS[mi - 1][my * MASK_RES + mx] != 0;
     }
 
+    // Radius-aware test: true if a body of radius r at (x,y) would touch
+    // any solid asset. Used to keep spawns off walls/water entirely.
+    inline bool solid_circle(float x, float y, float r) {
+        if (solid_at(x, y)) return true;
+        float const d = r * 0.70710678f;
+        return solid_at(x + r, y) || solid_at(x - r, y) ||
+               solid_at(x, y + r) || solid_at(x, y - r) ||
+               solid_at(x + d, y + d) || solid_at(x + d, y - d) ||
+               solid_at(x - d, y + d) || solid_at(x - d, y - d);
+    }
+
     // Effective collision-cell size, used to step the resolver.
     inline constexpr float COLL_CELL = CELL_SIZE / MASK_RES;
 }

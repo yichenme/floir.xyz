@@ -43,8 +43,6 @@ void Map::remove_mob(Simulation *sim, uint32_t zone) {
 }
 
 void Map::spawn_random_mob(Simulation *sim, float x, float y) {
-    // Mobs never spawn inside impassable terrain (bush, water, cliff, dirt, castle).
-    if (Tilemap::solid_at(x, y)) return;
     uint32_t zone_id = Map::get_zone_from_pos(x, y);
     struct ZoneDefinition const &zone = MAP_DATA[zone_id];
     if (zone.density * (zone.right - zone.left) * (zone.bottom - zone.top) / (500 * 500) < sim->zone_mob_counts[zone_id]) return;
@@ -55,6 +53,8 @@ void Map::spawn_random_mob(Simulation *sim, float x, float y) {
     for (SpawnChance const &s : zone.spawns) {
         sum -= s.chance;
         if (sum <= 0) {
+            // Reject if the chosen mob's body would overlap any wall/water.
+            if (Tilemap::solid_circle(x, y, MOB_DATA[s.id].radius.upper)) return;
             Entity &ent = alloc_mob(sim, s.id, x, y, NULL_ENTITY, [&](Entity &mob){
                 mob.zone = zone_id;
                 mob.immunity_ticks = TPS;
@@ -71,7 +71,7 @@ void Map::spawn_random_mob(Simulation *sim, float x, float y) {
 bool Map::find_spawn_location(Simulation *sim, float d, Vector &vref) {
     for (uint32_t i = 0; i < 10; ++i) {
         vref.set(frand() * ARENA_WIDTH, frand() * ARENA_HEIGHT);
-        if (Tilemap::solid_at(vref.x, vref.y)) continue;
+        if (Tilemap::solid_circle(vref.x, vref.y, BASE_FLOWER_RADIUS)) continue;
         bool valid = true;
         sim->for_each<kFlower>([&](Simulation *, Entity &ent) {
             if (ent.has_component(kMob)) return;
