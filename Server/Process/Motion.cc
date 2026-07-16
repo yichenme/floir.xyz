@@ -58,13 +58,10 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
         float dist = std::hypot(tx - prev_x, ty - prev_y);
         int steps = std::max(1, (int)std::ceil(dist / 50.0f));
         float cx = prev_x, cy = prev_y;
-        // Small extra margin so the body is kept a touch clear of blocked
-        // terrain instead of just grazing the polygon edge (stricter hitbox).
-        constexpr float TERRAIN_MARGIN = 6.0f;
         for (int s = 1; s <= steps; ++s) {
             cx = prev_x + (tx - prev_x) * s / steps;
             cy = prev_y + (ty - prev_y) * s / steps;
-            Tilemap::push_circle(cx, cy, r + TERRAIN_MARGIN);
+            Tilemap::push_circle(cx, cy, r);
         }
         ent.set_x(cx);
         ent.set_y(cy);

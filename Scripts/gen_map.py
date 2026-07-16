@@ -485,46 +485,9 @@ def write_tilemap_header(layers, W, H):
                 raw[i] = p
                 break
 
-    # Seam fill: where two blocking cells touch, the shared edge must be solid.
-    # If a blocking cell's fill doesn't reach an edge it shares with a blocking
-    # neighbour, promote that cell to a full square so the "touching" strip is
-    # unreachable -- and black on the minimap, which samples this same data.
-    BLOCK = {1, 2, 3, 4, 5, 6, 15}
-    SAMP = [40, 130, 250, 370, 460]
-
-    def _in(px, py, poly):
-        inside = False
-        n = len(poly)
-        j = n - 1
-        for k in range(n):
-            xi, yi = poly[k]
-            xj, yj = poly[j]
-            if ((yi > py) != (yj > py)) and (px < (xj - xi) * (py - yi) / (yj - yi) + xi):
-                inside = not inside
-            j = k
-        return inside
-
-    promote = [False] * (W * H)
-    for r in range(H):
-        for c in range(W):
-            i = r * W + c
-            if terrain[i] not in BLOCK or raw[i] is None or raw[i] is FULL:
-                continue
-            edges = [
-                (c + 1 < W and terrain[i + 1] in BLOCK,  [(498, s) for s in SAMP]),  # E
-                (c - 1 >= 0 and terrain[i - 1] in BLOCK, [(2,   s) for s in SAMP]),  # W
-                (r - 1 >= 0 and terrain[i - W] in BLOCK, [(s,   2) for s in SAMP]),  # N
-                (r + 1 < H and terrain[i + W] in BLOCK,  [(s, 498) for s in SAMP]),  # S
-            ]
-            # Promote only when an ENTIRE wall-facing edge is uncovered by the
-            # fill -- a genuine full-width seam (grass strip wedged between two
-            # blocking tiles). Partially-covered edges are real shaped shorelines
-            # against open ground and are left alone.
-            for nb_block, pts in edges:
-                if nb_block and all(not _in(px, py, raw[i]) for px, py in pts):
-                    promote[i] = True
-                    break
-
+    # Collision is exactly each tile's fill polygon so it matches the tmj tiles
+    # (and thus the minimap, which samples this). No full-cell "seam fill" -- that
+    # over-blocked walkable parts of shaped edge tiles.
     polys = []            # list of vert-lists in 0..500
     unique = {}           # rounded-tuple -> poly index (1-based)
     cell_poly = [0] * (W * H)
@@ -539,7 +502,7 @@ def write_tilemap_header(layers, W, H):
     for i in range(W * H):
         if raw[i] is None:
             continue
-        cell_poly[i] = add_poly(FULL if promote[i] else raw[i])
+        cell_poly[i] = add_poly(raw[i])
 
     # flatten polygon vertices
     verts = []
