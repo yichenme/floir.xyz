@@ -144,7 +144,7 @@ def main():
 # with the visible asset outline rather than the whole grid cell.
 LAYER_BLOCK_ID = {'water': 3, 'bush': 4, 'cliff': 5, 'dirt': 1, 'castle': 6}
 BLOCK_LAYERS = ('castle', 'dirt', 'cliff', 'bush', 'water')
-MASK_RES = 24   # per-cell collision-mask resolution -> ~21 world units/pixel
+MASK_RES = 50   # per-cell collision-mask resolution -> 10 world units/pixel
 FLIP_H_B, FLIP_V_B, FLIP_D_B = 0x80000000, 0x40000000, 0x20000000
 
 
