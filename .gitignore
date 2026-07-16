@@ -5,3 +5,10 @@ node_modules/
 .vscode/
 Server/floir-server.js
 Server/database.json
+Server/build-native/
+.DS_Store
+__pycache__/
+*.pyc
+.superpowers/
+.agents/
+.claude/
