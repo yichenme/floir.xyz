@@ -7,28 +7,28 @@ Please download the latest version of [Emscripten](https://emscripten.org/docs/g
 ## Native server (more performant):
 **Accounts and inventory persistence require the WASM/Node server** (see [Accounts & Inventory](#accounts--inventory)). The native server is for local simulation only — it compiles and runs without `database.json`, but register/login/session-restore will fail and loadouts/inventory are not persisted across restarts.
 ```
-> git clone --recurse-submodules https://github.com/trigonal-bacon/gardn.git
+> git clone --recurse-submodules https://github.com/trigonal-bacon/floir.xyz.git
 ```
 You will need to compile uWebSockets first. For in-depth complation options please visit the [uWebSockets installation page](https://github.com/uNetworking/uWebSockets/tree/master).
 ```
-> cd gardn/Server/uWebSockets
+> cd floir.xyz/Server/uWebSockets
 > make
 ```
 Then,
 ```
-> cd gardn/Server
+> cd floir.xyz/Server
 > mkdir build
 > cd build
 > cmake ..
 > make
-> ./gardn-server
+> ./floir-server
 ```
 
 ## WebAssembly Server (doesn't require uWebSockets, but requires [Node.js](https://nodejs.org/en/download))
 This is the server to use if you want working accounts/inventory (see [Accounts & Inventory](#accounts--inventory)).
 ```
-> git clone https://github.com/trigonal-bacon/gardn.git
-> cd gardn/Server
+> git clone https://github.com/trigonal-bacon/floir.xyz.git
+> cd floir.xyz/Server
 > mkdir build
 > cd build
 > cmake .. -DWASM_SERVER=1
@@ -37,11 +37,11 @@ This is the server to use if you want working accounts/inventory (see [Accounts 
 > npm install ws
 > node run-server.js
 ```
-Run `run-server.js` (not `build/gardn-server.js` directly) — it loads `Account/database.js` first so the compiled server can read/write `Server/database.json`. The file is created automatically on first registration; delete it to reset all accounts.
+Run `run-server.js` (not `build/floir-server.js` directly) — it loads `Account/database.js` first so the compiled server can read/write `Server/database.json`. The file is created automatically on first registration; delete it to reset all accounts.
 
 ## Client:
 ```
-cd gardn/Client
+cd floir.xyz/Client
 mkdir build
 cd build
 cmake ..

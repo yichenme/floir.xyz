@@ -25,9 +25,8 @@ Element *Ui::make_settings_panel() {
             new Ui::ToggleButton(30, &Game::show_debug),
             new Ui::StaticText(16, "Debug stats")
         }, 0, 10, {.h_justify = Style::Left }),
-        new Ui::StaticText(12, "Made by bismuth (trigonal-bacon)"),
-        new Ui::StaticText(12, "Asset credits: M28 and affiliates")
-    }, 20, 10, { 
+        new Ui::StaticText(12, "made by yichennn")
+    }, 20, 10, {
         .fill = 0xff5a9fdb,
         .line_width = 7,
         .round_radius = 3,

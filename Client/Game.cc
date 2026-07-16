@@ -57,7 +57,7 @@ void Game::init() {
     reset();
     title_ui_window.add_child(
         [](){ 
-            Ui::Element *elt = new Ui::StaticText(60, "floir");
+            Ui::Element *elt = new Ui::StaticText(60, "floir.xyz");
             elt->x = 0;
             elt->y = -270;
             return elt;
@@ -86,9 +86,6 @@ void Game::init() {
     );
     title_ui_window.add_child(
         Ui::make_changelog()
-    );
-    title_ui_window.add_child(
-        Ui::make_github_link_button()
     );
     game_ui_window.add_child(
         Ui::make_death_main_screen()
@@ -129,7 +126,7 @@ void Game::init() {
     );
     game_ui_window.add_child(
         new Ui::HContainer({
-            new Ui::StaticText(20, "floir")
+            new Ui::StaticText(20, "floir.xyz")
         }, 20, 0, { .h_justify = Ui::Style::Left, .v_justify = Ui::Style::Top })
     );
     Ui::make_petal_tooltips();

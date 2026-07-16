@@ -40,9 +40,13 @@ void Choose::refactor() {
     float anim1 = (float)children[1]->animation;
     float target_w = children[0]->width * anim0 + children[1]->width * anim1;
     float target_h = children[0]->height * anim0 + children[1]->height * anim1;
+    // On first show both children's animations are 0, so the weighted sum
+    // collapses to zero and the panel opens as an invisible sliver. Snap to
+    // the visible child's real target size — measured without depending on
+    // its own animation — the first time the container is laid out.
     if (width == 0 || height == 0 || style.no_animation) {
-        width = target_w;
-        height = target_h;
+        width = children[to_show]->get_target_width();
+        height = children[to_show]->get_target_height();
     } else {
         width = lerp(width, target_w, Ui::lerp_amount);
         height = lerp(height, target_h, Ui::lerp_amount);

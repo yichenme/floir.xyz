@@ -2,7 +2,7 @@ set(CMAKE_SYSTEM_NAME Generic)
 
 cmake_minimum_required(VERSION 3.16)
 
-project(gardn-client)
+project(floir-client)
 include_directories(..)
 
 set(SRCS
@@ -90,5 +90,5 @@ endif()
 add_link_options(-sEXPORTED_RUNTIME_METHODS=stringToNewUTF8)
 add_link_options(-sEXPORTED_FUNCTIONS=_main,_key_event,_mouse_event,_touch_event,_wheel_event,_clipboard_event,_loop,_on_message)
 
-add_executable(gardn-client ${SRCS})
+add_executable(floir-client ${SRCS})
 set(CMAKE_EXECUTABLE_SUFFIX ".js")

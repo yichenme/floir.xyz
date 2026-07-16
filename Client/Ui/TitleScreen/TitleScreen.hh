@@ -68,5 +68,4 @@ namespace Ui {
     Element *make_mob_gallery();
     Element *make_changelog();
     Element *make_debug_stats();
-    Element *make_github_link_button();
 }
