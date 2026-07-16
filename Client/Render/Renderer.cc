@@ -343,45 +343,19 @@ void Renderer::draw_image(Renderer &ctx) {
     }, id, ctx.id, -ctx.width / 2, -ctx.height / 2);
 }
 
-void Renderer::draw_map(float wl, float wt, float wr, float wb, float mapW, float mapH) {
-    // Blit only the visible world sub-rectangle of the composite map. The SVG
-    // is rasterized *once* into a 2x offscreen canvas (crisp source, no
-    // per-frame vector re-raster); each frame we copy just the on-screen slice
-    // canvas->canvas. (wl,wt,wr,wb) is the visible world rect; (mapW,mapH) the
-    // map's world footprint. No-op until the source image has loaded.
+void Renderer::draw_map(float x, float y, float w, float h) {
+    // Blit the composite map SVG directly at its world footprint. The camera
+    // transform is already applied, so the browser rasterizes the visible slice
+    // of the *vector* art at display resolution each frame -- crisp at any zoom.
+    // No-op until the source image has loaded.
     EM_ASM({
         const img = Module.mapImage;
         if (!img || !img.complete || img.naturalWidth === 0) return;
-        if (!Module.mapCanvas) {
-            let oc = null;
-            for (let s = 2; s >= 1; --s) {
-                try {
-                    oc = new OffscreenCanvas(img.naturalWidth * s, img.naturalHeight * s);
-                    oc.getContext('2d').drawImage(img, 0, 0, oc.width, oc.height);
-                    break;
-                } catch (e) { oc = null; }
-            }
-            Module.mapCanvas = oc || img;
-        }
-        const src = Module.mapCanvas;
-        const nw = src.width || src.naturalWidth;
-        const nh = src.height || src.naturalHeight;
-        const mw = $5;
-        const mh = $6;
-        const cl = Math.max(0, $1);
-        const ct = Math.max(0, $2);
-        const cr = Math.min(mw, $3);
-        const cb = Math.min(mh, $4);
-        if (cr <= cl || cb <= ct) return;
-        const sx = cl / mw * nw;
-        const sy = ct / mh * nh;
-        const sw = (cr - cl) / mw * nw;
-        const sh = (cb - ct) / mh * nh;
         const ctx = Module.ctxs[$0];
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(src, sx, sy, sw, sh, cl, ct, cr - cl, cb - ct);
-    }, id, wl, wt, wr, wb, mapW, mapH);
+        ctx.drawImage(img, $1, $2, $3, $4);
+    }, id, x, y, w, h);
 }
 
 void Renderer::fill_text(char const *text) {

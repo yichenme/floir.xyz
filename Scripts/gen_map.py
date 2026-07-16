@@ -139,31 +139,25 @@ def main():
 
 
 # --- Collision/minimap terrain grid ---------------------------------------
-# Only the SOLID (center) tile of each blocking biome actually blocks, so the
-# collision boundary follows the solid colour mass instead of the full grid
-# cell + invisible autotile corners. Edge/fringe tiles stay walkable.
-SOLID_BLOCK_GID = {'water': 36, 'bush': 104, 'cliff': 112, 'dirt': 25, 'castle': 20}
-TERRAIN_ENUM = ['kGrass', 'kDirt', 'kBush', 'kWater', 'kJungle',
-                'kCliff', 'kCastle', 'kStone']
-# id used per blocking layer when its solid tile is present
+# A cell is blocked if ANY tile of a blocking biome layer sits on it (florr-style
+# hard walls); the edge-based collision in Motion.cc stops the body at the tile.
+# id per blocking layer.
 LAYER_BLOCK_ID = {'water': 3, 'bush': 4, 'cliff': 5, 'dirt': 1, 'castle': 6}
 
 
 def write_tilemap_header(layers, W, H):
-    def masked(name, i):
-        g = layers.get(name, [0] * (W * H))[i]
-        return g & 0x1FFFFFFF
+    def present(name, i):
+        return (layers.get(name, [0] * (W * H))[i] & 0x1FFFFFFF) != 0
 
     terrain = []
     for i in range(W * H):
         t = 0  # grass / walkable default
-        # blocking layers, high-priority first; only solid-center tiles block
         for name in ('castle', 'dirt', 'cliff', 'bush', 'water'):
-            if masked(name, i) == SOLID_BLOCK_GID[name]:
+            if present(name, i):
                 t = LAYER_BLOCK_ID[name]
                 break
         else:
-            if not masked('bg', i):
+            if not present('bg', i):
                 t = 15  # void (outside arena)
         terrain.append(t)
 

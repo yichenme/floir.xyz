@@ -30,9 +30,23 @@ void Game::render_game() {
     RenderContext context(&renderer);
     DEBUG_ONLY(assert(simulation.ent_exists(camera_id));)
     Entity const &camera = simulation.get_ent(camera_id);
+    // Clamp the view to the map edges: the camera follows the player until the
+    // viewport would show the blank outside the arena, then it stops so the edge
+    // sits flush with the screen edge (player drifts off-centre near borders).
+    {
+        float const view_scale = Ui::scale * camera.get_fov();
+        float const half_w = (renderer.width  / 2) / view_scale;
+        float const half_h = (renderer.height / 2) / view_scale;
+        float const map_w = Tilemap::GRID_W * Tilemap::CELL_SIZE;
+        float const map_h = Tilemap::GRID_H * Tilemap::CELL_SIZE;
+        float cx = camera.get_camera_x();
+        float cy = camera.get_camera_y();
+        Game::view_cam_x = (map_w > 2 * half_w) ? fclamp(cx, half_w, map_w - half_w) : map_w / 2;
+        Game::view_cam_y = (map_h > 2 * half_h) ? fclamp(cy, half_h, map_h - half_h) : map_h / 2;
+    }
     renderer.translate(renderer.width / 2, renderer.height / 2);
     renderer.scale(Ui::scale * camera.get_fov());
-    renderer.translate(-camera.get_camera_x(), -camera.get_camera_y());
+    renderer.translate(-Game::view_cam_x, -Game::view_cam_y);
     if (alive()) {
         Entity const &player = simulation.get_ent(player_id);
         if (Game::timestamp - player.last_damaged_time < 150) {
@@ -56,15 +70,15 @@ void Game::render_game() {
     }
     {
         RenderContext context(&renderer);
+        // Draw the whole composite backdrop at its world footprint; the camera
+        // transform + browser clipping keep only the visible vector slice crisp.
+        renderer.draw_map(0, 0, Tilemap::GRID_W * Tilemap::CELL_SIZE,
+                                Tilemap::GRID_H * Tilemap::CELL_SIZE);
         float scale = 1 / (2 * camera.get_fov() * Ui::scale);
-        float leftX   = camera.get_camera_x() - renderer.width  * scale;
-        float rightX  = camera.get_camera_x() + renderer.width  * scale;
-        float topY    = camera.get_camera_y() - renderer.height * scale;
-        float bottomY = camera.get_camera_y() + renderer.height * scale;
-        // Blit only the visible slice of the composite backdrop.
-        renderer.draw_map(leftX, topY, rightX, bottomY,
-                          Tilemap::GRID_W * Tilemap::CELL_SIZE,
-                          Tilemap::GRID_H * Tilemap::CELL_SIZE);
+        float leftX   = Game::view_cam_x - renderer.width  * scale;
+        float rightX  = Game::view_cam_x + renderer.width  * scale;
+        float topY    = Game::view_cam_y - renderer.height * scale;
+        float bottomY = Game::view_cam_y + renderer.height * scale;
         int32_t c0 = std::max(0, (int32_t) std::floor(leftX   / Tilemap::CELL_SIZE));
         int32_t c1 = std::min<int32_t>(Tilemap::GRID_W, (int32_t) std::ceil (rightX  / Tilemap::CELL_SIZE));
         int32_t r0 = std::max(0, (int32_t) std::floor(topY    / Tilemap::CELL_SIZE));

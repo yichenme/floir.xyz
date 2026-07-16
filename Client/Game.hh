@@ -34,6 +34,10 @@ namespace Game {
     extern float overlevel_timer;
     extern float slot_indicator_opacity;
     extern float transition_circle;
+    // Camera position actually used for the view (player pos clamped to the map
+    // edges so the blank outside never shows). Shared by render + mouse aim.
+    extern float view_cam_x;
+    extern float view_cam_y;
 
     extern uint32_t respawn_level;
 

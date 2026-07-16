@@ -40,6 +40,8 @@ namespace Game {
     float overlevel_timer = 0;
     float slot_indicator_opacity = 0;
     float transition_circle = 0;
+    float view_cam_x = 0;
+    float view_cam_y = 0;
 
     uint32_t respawn_level = 1;
 
@@ -330,8 +332,18 @@ void Game::tick(double time) {
             Input::game_inputs.x = 300 * (Input::keys_held.contains('D') - Input::keys_held.contains('A') + Input::keys_held.contains(39) - Input::keys_held.contains(37));
             Input::game_inputs.y = 300 * (Input::keys_held.contains('S') - Input::keys_held.contains('W') + Input::keys_held.contains(40) - Input::keys_held.contains(38));
         } else {
-           Input::game_inputs.x = (Input::mouse_x - renderer.width / 2) / Ui::scale;
-           Input::game_inputs.y = (Input::mouse_y - renderer.height / 2) / Ui::scale;
+           // Aim relative to the player's on-screen position, which drifts from
+           // centre when the camera is clamped at a map edge.
+           float px_screen = renderer.width / 2;
+           float py_screen = renderer.height / 2;
+           if (alive() && simulation.ent_exists(camera_id)) {
+               Entity const &player = simulation.get_ent(player_id);
+               float view_scale = Ui::scale * simulation.get_ent(camera_id).get_fov();
+               px_screen += (player.get_x() - Game::view_cam_x) * view_scale;
+               py_screen += (player.get_y() - Game::view_cam_y) * view_scale;
+           }
+           Input::game_inputs.x = (Input::mouse_x - px_screen) / Ui::scale;
+           Input::game_inputs.y = (Input::mouse_y - py_screen) / Ui::scale;
         }
         uint8_t attack = Input::keys_held.contains(' ') || BitMath::at(Input::mouse_buttons_state, Input::LeftMouse);
         uint8_t defend = Input::keys_held.contains('\x10') || BitMath::at(Input::mouse_buttons_state, Input::RightMouse);
