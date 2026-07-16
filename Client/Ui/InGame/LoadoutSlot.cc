@@ -36,20 +36,20 @@ void UiLoadoutSlot::on_render(Renderer &ctx) {
     }
 }
 
-UiDeleteSlot::UiDeleteSlot() : UiLoadoutSlot(2 * MAX_SLOT_COUNT) {
-    style.fill = 0xffcf8888;
-    delete_text_opacity.set(0);
+UiStoreSlot::UiStoreSlot() : UiLoadoutSlot(2 * MAX_SLOT_COUNT) {
+    style.fill = 0xff5a9fdb;
+    store_text_opacity.set(0);
     style.animate = [&](Element *, Renderer &) {
-        delete_text_opacity.set(Ui::UiLoadout::num_petals_selected != 0 || Ui::UiLoadout::selected_with_keys != MAX_SLOT_COUNT);
-        delete_text_opacity.step(Ui::lerp_amount);
+        store_text_opacity.set(Ui::UiLoadout::num_petals_selected != 0 || Ui::UiLoadout::selected_with_keys != MAX_SLOT_COUNT);
+        store_text_opacity.step(Ui::lerp_amount);
     };
 }
 
-void UiDeleteSlot::on_render(Renderer &ctx) {
+void UiStoreSlot::on_render(Renderer &ctx) {
     UiLoadoutSlot::on_render(ctx);
-    if ((float) delete_text_opacity > 0.01) {
-        ctx.set_global_alpha((float) delete_text_opacity);
-        ctx.draw_text("Delete", { .size = height / 4});
+    if ((float) store_text_opacity > 0.01) {
+        ctx.set_global_alpha((float) store_text_opacity);
+        ctx.draw_text("Store", { .size = height / 4});
     }
 }
 
@@ -63,7 +63,7 @@ Element *Ui::make_loadout_backgrounds() {
             (new Ui::HContainer(
                 Ui::make_range(MAX_SLOT_COUNT, 2*MAX_SLOT_COUNT+1, 
                     [](uint32_t i){ 
-                        if (i == 2*MAX_SLOT_COUNT) return (Element *) new Ui::UiDeleteSlot();
+                        if (i == 2*MAX_SLOT_COUNT) return (Element *) new Ui::UiStoreSlot();
                         else return (Element *) (new Ui::UiLoadoutSlot(i)); 
                     })
                 , 10, 15, { .layer = 1 }

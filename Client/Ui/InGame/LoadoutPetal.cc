@@ -45,8 +45,8 @@ static uint8_t static_to_dynamic(uint8_t static_pos) {
         return static_pos;
 }
 
-void Ui::ui_delete_petal(uint8_t static_pos) {
-    Game::delete_petal(static_pos);
+void Ui::ui_store_petal(uint8_t static_pos) {
+    Game::store_petal(static_pos);
     Ui::UiLoadout::petal_slots[static_pos]->curr_pos = 2 * MAX_SLOT_COUNT;
 }
 
@@ -152,7 +152,7 @@ UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
             if (potential_swap != ((uint8_t)-1) && potential_swap != static_to_dynamic(static_pos)) {
                 if (released) {
                     if (potential_swap == 2 * MAX_SLOT_COUNT)
-                        ui_delete_petal(static_pos);
+                        ui_store_petal(static_pos);
                     else {
                         //find static pos of both
                         potential_swap = dynamic_to_static(potential_swap);

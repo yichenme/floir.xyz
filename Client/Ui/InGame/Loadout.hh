@@ -14,10 +14,10 @@ namespace Ui {
         virtual void on_render(Renderer &) override;
     };
 
-    class UiDeleteSlot final : public UiLoadoutSlot {
+    class UiStoreSlot final : public UiLoadoutSlot {
     public:
-        UiDeleteSlot();
-        LerpFloat delete_text_opacity;
+        UiStoreSlot();
+        LerpFloat store_text_opacity;
         virtual void on_render(Renderer &) override;
     };
 
@@ -63,6 +63,6 @@ namespace Ui {
 
     void forward_secondary_select();
     void backward_secondary_select();
-    void ui_delete_petal(uint8_t);
+    void ui_store_petal(uint8_t);
     void ui_swap_petals(uint8_t, uint8_t);
 }

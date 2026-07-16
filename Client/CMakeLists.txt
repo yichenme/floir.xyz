@@ -33,6 +33,7 @@ set(SRCS
     StaticData.cc
     Storage.cc
     Ui/InGame/InputFreeze.cc
+    Ui/InGame/Inventory.cc
     Ui/InGame/Leaderboard.cc
     Ui/InGame/LevelBar.cc
     Ui/InGame/LoadoutPetal.cc

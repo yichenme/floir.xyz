@@ -92,10 +92,19 @@ void Game::spawn_in() {
     } else Game::on_game_screen = 0;
 }
 
-void Game::delete_petal(uint8_t pos) {
+void Game::store_petal(uint8_t pos) {
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
     if (!Game::alive()) return;
     writer.write<uint8_t>(Serverbound::kPetalStore);
+    writer.write<uint8_t>(pos);
+    socket.send(writer.packet, writer.at - writer.packet);
+}
+
+void Game::equip_petal(uint32_t inv_index, uint8_t pos) {
+    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
+    if (!Game::alive()) return;
+    writer.write<uint8_t>(Serverbound::kEquipPetal);
+    writer.write<uint32_t>(inv_index);
     writer.write<uint8_t>(pos);
     socket.send(writer.packet, writer.at - writer.packet);
 }

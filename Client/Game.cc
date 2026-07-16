@@ -103,6 +103,12 @@ void Game::init() {
         Ui::make_loadout_backgrounds()
     );
     game_ui_window.add_child(
+        Ui::make_inventory_button()
+    );
+    game_ui_window.add_child(
+        Ui::make_inventory_panel()
+    );
+    game_ui_window.add_child(
         Ui::make_mobile_joystick()
     );
     game_ui_window.add_child(
@@ -293,7 +299,7 @@ void Game::tick(double time) {
         if (Ui::UiLoadout::selected_with_keys < MAX_SLOT_COUNT 
             && Game::cached_loadout[Game::loadout_count + Ui::UiLoadout::selected_with_keys] != PetalID::kNone) {
             if (Input::keys_held_this_tick.contains('T')) {
-                Ui::ui_delete_petal(Ui::UiLoadout::selected_with_keys + Game::loadout_count);
+                Ui::ui_store_petal(Ui::UiLoadout::selected_with_keys + Game::loadout_count);
                 Ui::forward_secondary_select();
             } else {
                 for (uint8_t i = 0; i < Game::loadout_count; ++i) {

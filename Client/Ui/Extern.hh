@@ -11,13 +11,15 @@ namespace Ui {
             kAccount,
             kPetals,
             kMobs,
-            kChangelog
+            kChangelog,
+            kInventory
         };
         extern Element *settings;
         extern Element *account;
         extern Element *petal_gallery;
         extern Element *mob_gallery;
         extern Element *changelog;
+        extern Element *inventory;
     }
     extern double dt;
     extern double window_width;
