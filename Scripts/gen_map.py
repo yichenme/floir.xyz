@@ -144,7 +144,7 @@ def main():
 # with the visible asset outline rather than the whole grid cell.
 LAYER_BLOCK_ID = {'water': 3, 'bush': 4, 'cliff': 5, 'dirt': 1, 'castle': 6}
 BLOCK_LAYERS = ('castle', 'dirt', 'cliff', 'bush', 'water')
-COLL_SUB = 5   # sub-cells per cell -> 100 world units each
+MASK_RES = 24   # per-cell collision-mask resolution -> ~21 world units/pixel
 FLIP_H_B, FLIP_V_B, FLIP_D_B = 0x80000000, 0x40000000, 0x20000000
 
 
@@ -225,19 +225,18 @@ _MASK_CACHE = {}
 
 
 def _tile_mask(svg_name):
-    # Rasterize a tile's fill shape into a COLL_SUB x COLL_SUB coverage mask.
+    # Rasterize a tile's fill shape into a MASK_RES x MASK_RES coverage mask
+    # (supersampled 3x for a clean outline).
     if svg_name in _MASK_CACHE:
         return _MASK_CACHE[svg_name]
     from PIL import Image, ImageDraw
-    path = os.path.join(TILES, svg_name)
-    txt = open(path).read()
-    RES = 40  # rasterize at 40x40 then downsample to COLL_SUB
+    txt = open(os.path.join(TILES, svg_name)).read()
+    RES = MASK_RES * 3
     img = Image.new('1', (RES, RES), 0)
     dr = ImageDraw.Draw(img)
     if '<rect' in txt and 'fill=' in txt.split('<rect', 1)[1][:60]:
         dr.rectangle([0, 0, RES, RES], fill=1)
     else:
-        # use the opaque fill path (the one with fill="#...", not opacity=".1")
         m = re.search(r'<path fill="#[0-9a-fA-F]+"[^>]*d="([^"]+)"', txt)
         if not m:
             m = re.search(r'd="([^"]+)"', txt)
@@ -248,20 +247,17 @@ def _tile_mask(svg_name):
             else:
                 dr.rectangle([0, 0, RES, RES], fill=1)
         except Exception:
-            # unparseable path (e.g. packed arc flags): block the whole cell
-            dr.rectangle([0, 0, RES, RES], fill=1)
+            dr.rectangle([0, 0, RES, RES], fill=1)   # unparseable: block whole cell
     px = img.load()
     mask = []
-    step = RES / COLL_SUB
-    for sr in range(COLL_SUB):
+    for sr in range(MASK_RES):
         row = []
-        for sc in range(COLL_SUB):
-            # sub-cell covered if the majority of its pixels are filled
-            cnt = 0; tot = 0
-            for yy in range(int(sr * step), int((sr + 1) * step)):
-                for xx in range(int(sc * step), int((sc + 1) * step)):
-                    tot += 1; cnt += px[xx, yy]
-            row.append(1 if cnt * 2 >= tot else 0)
+        for sc in range(MASK_RES):
+            cnt = 0
+            for yy in range(sr * 3, sr * 3 + 3):
+                for xx in range(sc * 3, sc * 3 + 3):
+                    cnt += px[xx, yy]
+            row.append(1 if cnt >= 5 else 0)   # majority of the 9 samples
         mask.append(row)
     _MASK_CACHE[svg_name] = mask
     return mask
@@ -270,7 +266,7 @@ def _tile_mask(svg_name):
 def _flip_mask(mask, g):
     m = mask
     if g & FLIP_D_B:
-        m = [[m[c][r] for c in range(COLL_SUB)] for r in range(COLL_SUB)]  # transpose
+        m = [[m[c][r] for c in range(MASK_RES)] for r in range(MASK_RES)]  # transpose
     if g & FLIP_H_B:
         m = [list(reversed(r)) for r in m]
     if g & FLIP_V_B:
@@ -294,10 +290,13 @@ def write_tilemap_header(layers, W, H):
                 t = 15  # void (outside arena)
         terrain.append(t)
 
-    # Fine collision mask: for each cell, the top blocking tile's rasterized
-    # (flip-applied) shape marks the solid sub-cells.
-    CW, CH = W * COLL_SUB, H * COLL_SUB
-    coll = [0] * (CW * CH)
+    # Per-cell collision mask: each blocking cell references a deduped
+    # MASK_RES^2 shape mask (flip already baked in). cell_mask[i] == 0 means
+    # walkable. solid_at() samples the referenced mask, giving collision at the
+    # tile-asset outline (not the grid).
+    unique = {}          # flat-tuple -> index (1-based)
+    masks = []           # list of flat lists
+    cell_mask = [0] * (W * H)
     for r in range(H):
         for c in range(W):
             i = r * W + c
@@ -307,13 +306,14 @@ def write_tilemap_header(layers, W, H):
                     continue
                 svg = GID_TO_SVG.get(g & 0x1FFFFFFF, LAYER_FALLBACK.get(name))
                 if not svg or not os.path.exists(os.path.join(TILES, svg)):
-                    m = [[1] * COLL_SUB for _ in range(COLL_SUB)]
+                    flat = tuple([1] * (MASK_RES * MASK_RES))
                 else:
                     m = _flip_mask(_tile_mask(svg), g)
-                for sr in range(COLL_SUB):
-                    for sc in range(COLL_SUB):
-                        if m[sr][sc]:
-                            coll[(r * COLL_SUB + sr) * CW + (c * COLL_SUB + sc)] = 1
+                    flat = tuple(v for row in m for v in row)
+                if flat not in unique:
+                    unique[flat] = len(masks) + 1
+                    masks.append(flat)
+                cell_mask[i] = unique[flat]
                 break
 
     lines = [
@@ -338,14 +338,19 @@ def write_tilemap_header(layers, W, H):
         lines.append('        ' + ','.join(str(v) for v in terrain[r * W:(r + 1) * W]) + ',')
     lines += [
         '    };', '',
-        f'    inline constexpr uint32_t COLL_SUB = {COLL_SUB};',
-        '    inline constexpr uint32_t COLL_W = GRID_W * COLL_SUB;',
-        '    inline constexpr uint32_t COLL_H = GRID_H * COLL_SUB;',
-        '    inline constexpr float    COLL_CELL = CELL_SIZE / COLL_SUB;',
-        '    inline constexpr uint8_t COLLISION[COLL_W * COLL_H] = {',
+        f'    inline constexpr uint32_t MASK_RES = {MASK_RES};',
+        f'    inline constexpr uint32_t NUM_MASKS = {len(masks)};',
+        '    // Deduped tile-shape masks (1 = solid). Index 0 is walkable (no mask).',
+        '    inline constexpr uint8_t TILE_MASKS[NUM_MASKS][MASK_RES * MASK_RES] = {',
     ]
-    for r in range(CH):
-        lines.append('        ' + ','.join(str(v) for v in coll[r * CW:(r + 1) * CW]) + ',')
+    for flat in masks:
+        lines.append('        {' + ','.join(str(v) for v in flat) + '},')
+    lines += [
+        '    };', '',
+        '    inline constexpr uint8_t CELL_MASK[GRID_W * GRID_H] = {',
+    ]
+    for r in range(H):
+        lines.append('        ' + ','.join(str(v) for v in cell_mask[r * W:(r + 1) * W]) + ',')
     lines += [
         '    };', '',
         '    inline uint8_t terrain_at(float x, float y) {',
@@ -368,21 +373,31 @@ def write_tilemap_header(layers, W, H):
         '                return false;',
         '        }',
         '    }', '',
-        '    // Fine collision test against the actual tile-asset shape.',
+        '    // True when (x,y) lands on the solid part of a blocking tile asset',
+        '    // (its actual outline), sampled at MASK_RES within the cell.',
         '    inline bool solid_at(float x, float y) {',
         '        if (x < 0 || y < 0) return false;',
-        '        uint32_t c = (uint32_t)(x / COLL_CELL);',
-        '        uint32_t r = (uint32_t)(y / COLL_CELL);',
-        '        if (c >= COLL_W || r >= COLL_H) return false;',
-        '        return COLLISION[r * COLL_W + c] != 0;',
+        '        uint32_t c = (uint32_t)(x / CELL_SIZE);',
+        '        uint32_t r = (uint32_t)(y / CELL_SIZE);',
+        '        if (c >= GRID_W || r >= GRID_H) return false;',
+        '        uint8_t mi = CELL_MASK[r * GRID_W + c];',
+        '        if (mi == 0) return false;',
+        '        float lx = (x - c * CELL_SIZE) / CELL_SIZE;',
+        '        float ly = (y - r * CELL_SIZE) / CELL_SIZE;',
+        '        uint32_t mx = (uint32_t)(lx * MASK_RES); if (mx >= MASK_RES) mx = MASK_RES - 1;',
+        '        uint32_t my = (uint32_t)(ly * MASK_RES); if (my >= MASK_RES) my = MASK_RES - 1;',
+        '        return TILE_MASKS[mi - 1][my * MASK_RES + mx] != 0;',
         '    }',
+        '',
+        '    // Effective collision-cell size, used to step the resolver.',
+        '    inline constexpr float COLL_CELL = CELL_SIZE / MASK_RES;',
         '}', '',
     ]
     out = os.path.join(ROOT, 'Shared/Tilemap.hh')
     open(out, 'w').write('\n'.join(lines))
     from collections import Counter
     print('Tilemap.hh terrain dist:', dict(Counter(terrain)))
-    print('COLLISION solid sub-cells:', sum(coll), '/', CW * CH)
+    print(f'collision masks: {len(masks)} unique, {sum(1 for v in cell_mask if v)} blocking cells')
 
 
 if __name__ == '__main__':
