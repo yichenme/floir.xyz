@@ -1,5 +1,10 @@
 #include <Server/EntityFunctions.hh>
 
+#include <Server/Client.hh>
+#include <Server/EntityFunctions/InventoryOps.hh>
+#include <Server/Game.hh>
+#include <Server/Server.hh>
+
 #include <Shared/Simulation.hh>
 #include <Shared/Entity.hh>
 
@@ -20,18 +25,8 @@ static bool _should_interact(Entity const &ent1, Entity const &ent2) {
 static void _pickup_drop(Simulation *sim, Entity &player, Entity &drop) {
     if (!sim->ent_alive(player.get_parent())) return;
     if (drop.immunity_ticks > 0) return;
-
-    for (uint32_t i = 0; i <  player.get_loadout_count() + MAX_SLOT_COUNT; ++i) {
-        if (player.get_loadout_ids(i) != PetalID::kNone) continue;
-        player.set_loadout_ids(i, drop.get_drop_id());
-        player.set_loadout_rarities(i, drop.get_drop_rarity());
-        drop.set_x(player.get_x());
-        drop.set_y(player.get_y());
-        BitMath::unset(drop.flags, EntityFlags::kIsDespawning);
-        sim->request_delete(drop.id);
-        //peaceful transfer, no petal tracking needed
-        return;
-    }
+    Client *client = Server::game.client_for_camera(player.get_parent());
+    InventoryOps::pickup_drop(sim, client, player, drop);
 }
 
 #define NO(component) (!ent1.has_component(component) && !ent2.has_component(component))

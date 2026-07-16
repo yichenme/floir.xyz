@@ -111,6 +111,12 @@ void GameInstance::add_client(Client *client) {
     client->seen_arena = 0;
 }
 
+Client *GameInstance::client_for_camera(EntityID const &camera) {
+    for (Client *client : clients)
+        if (client->camera == camera) return client;
+    return nullptr;
+}
+
 void GameInstance::remove_client(Client *client) {
     DEBUG_ONLY(assert(client->game == this);)
     clients.erase(client);

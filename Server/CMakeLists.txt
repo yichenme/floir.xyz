@@ -9,6 +9,7 @@ set(SOURCES
     EntityFunctions/Damage.cc
     EntityFunctions/Death.cc
     EntityFunctions/Detection.cc
+    EntityFunctions/InventoryOps.cc
     EntityFunctions/Misc.cc
     Process/Ai.cc
     Process/Camera.cc

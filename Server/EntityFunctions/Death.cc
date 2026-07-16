@@ -1,13 +1,16 @@
 #include <Server/EntityFunctions.hh>
 
+#include <Server/Client.hh>
+#include <Server/EntityFunctions/InventoryOps.hh>
+#include <Server/Game.hh>
 #include <Server/PetalTracker.hh>
+#include <Server/Server.hh>
 #include <Server/Spawn.hh>
 
 #include <Shared/Entity.hh>
 #include <Shared/Map.hh>
 #include <Shared/Simulation.hh>
 
-#include <algorithm>
 #include <iostream>
 
 static void _alloc_drops(Simulation *sim, std::vector<PetalID::T> &success_drops, float x, float y) {
@@ -88,64 +91,28 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
         if (ent.get_petal_id() == PetalID::kWeb || ent.get_petal_id() == PetalID::kTriweb)
             alloc_web(sim, 100, ent);
     } else if (ent.has_component(kFlower)) {
-        std::vector<PetalID::T> potential = {};
+        // No death loss: petals leave the ECS world here, but nothing is
+        // dropped or reshuffled — they're persisted onto the account instead
+        // (see InventoryOps::persist_account_petals) and restored unchanged
+        // on next spawn via InventoryOps::apply_account_loadout_to_camera.
         for (uint32_t i = 0; i < ent.get_loadout_count() + MAX_SLOT_COUNT; ++i) {
             DEBUG_ONLY(assert(ent.get_loadout_ids(i) < PetalID::kNumPetals));
             PetalTracker::remove_petal(sim, ent.get_loadout_ids(i));
-            if (ent.get_loadout_ids(i) != PetalID::kNone && ent.get_loadout_ids(i) != PetalID::kBasic && frand() < 0.95)
-                potential.push_back(ent.get_loadout_ids(i));
         }
-        std::sort(potential.begin(), potential.end(), [](PetalID::T a, PetalID::T b) {
-            return PETAL_DATA[a].rarity < PETAL_DATA[b].rarity;
-        });
-
-        std::vector<PetalID::T> success_drops = {};
-        uint32_t numDrops = potential.size();
-        if (numDrops > 3)
-            numDrops = 3;
-        for (uint32_t i = 0; i < numDrops; ++i) {
-            PetalID::T p_id = potential.back();
-            if (PETAL_DATA[p_id].rarity >= RarityID::kRare && frand() < 0.05) p_id = PetalID::kPollen;
-            success_drops.push_back(p_id);
-            potential.pop_back();
-        }
-        _alloc_drops(sim, success_drops, ent.get_x(), ent.get_y());
-        //if the camera is the one that disconnects
-        //no need to re-add the petals to the petal tracker
+        // ent.get_parent() (the camera) may already be gone on disconnect, in
+        // which case there's no live Client; fall back to the account_name
+        // that was stamped onto the flower at spawn so persistence still
+        // happens for a disconnecting player.
+        Client *client = sim->ent_alive(ent.get_parent()) ?
+            Server::game.client_for_camera(ent.get_parent()) : nullptr;
+        InventoryOps::persist_account_petals(client, sim->get_ent(ent.id));
         if (!sim->ent_alive(ent.get_parent()))
             return;
         Entity &camera = sim->get_ent(ent.get_parent());
-        //reset all reloads and stuff
-        uint32_t num_left = potential.size();
-        //set respawn level
+        //set respawn level; loadout/inventory contents are untouched
         uint32_t respawn_level = div_round_up(3 * score_to_level(ent.get_score()), 4);
         if (respawn_level > MAX_LEVEL) respawn_level = MAX_LEVEL;
         camera.set_respawn_level(respawn_level);
-        uint32_t max_possible = MAX_SLOT_COUNT + loadout_slots_at_level(respawn_level);
-        num_left = std::min(num_left, max_possible);
-        //fill petals
-        for (uint32_t i = 0; i < 2 * MAX_SLOT_COUNT; ++i) {
-            camera.set_inventory(i, PetalID::kNone); //force reset
-            camera.set_inventory_rarity(i, 0);
-        }
-        for (uint32_t i = 0; i < num_left; ++i) {
-            DEBUG_ONLY(assert(potential.back() < PetalID::kNumPetals));
-            PetalTracker::add_petal(sim, potential.back());
-            camera.set_inventory(i, potential.back());
-            camera.set_inventory_rarity(i, PETAL_DATA[potential.back()].rarity);
-            potential.pop_back();
-        }
-        //only track up to max_possible
-        for (uint32_t i = num_left; i < max_possible; ++i) {
-            camera.set_inventory(i, PetalID::kNone); //don't track kNone
-            camera.set_inventory_rarity(i, 0);
-        }
-        //fill with basics
-        for (uint32_t i = num_left; i < loadout_slots_at_level(respawn_level); ++i) {
-            PetalTracker::add_petal(sim, PetalID::kBasic);
-            camera.set_inventory(i, PetalID::kBasic);
-            camera.set_inventory_rarity(i, PETAL_DATA[PetalID::kBasic].rarity);
-        }
     } else if (ent.has_component(kDrop)) {
         if (BitMath::at(ent.flags, EntityFlags::kIsDespawning))
             PetalTracker::remove_petal(sim, ent.get_drop_id());

@@ -1,8 +1,8 @@
 #include <Server/Client.hh>
 
 #include <Server/Account/Auth.hh>
+#include <Server/EntityFunctions/InventoryOps.hh>
 #include <Server/Game.hh>
-#include <Server/PetalTracker.hh>
 #include <Server/Server.hh>
 #include <Server/Spawn.hh>
 
@@ -11,10 +11,8 @@
 #include <Shared/Binary.hh>
 #include <Shared/Config.hh>
 
-#include <array>
 #include <iostream>
 
-constexpr std::array<uint32_t, RarityID::kNumRarities> RARITY_TO_XP = { 2, 10, 50, 200, 1000, 5000, 0 };
 // Wire-safety caps for auth packet strings; AccountValidation.hh enforces the
 // tighter, business-level bounds once the bytes are actually read.
 constexpr uint32_t MAX_AUTH_FIELD_LENGTH = 32;
@@ -136,27 +134,33 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             if (client->check_invalid(UTF8Parser::is_valid_utf8(name))) return;
             Simulation *simulation = &client->game->simulation;
             Entity &camera = simulation->get_ent(client->camera);
+            InventoryOps::apply_account_loadout_to_camera(client, camera);
             Entity &player = alloc_player(simulation, camera.get_team());
             player_spawn(simulation, camera, player);
             player.set_name(name);
+            player.set_account_name(client->username);
             break;
         }
         case Serverbound::kPetalStore: {
             if (!client->alive()) break;
+            if (client->check_invalid(validator.validate_uint8())) return;
+            uint8_t pos = reader.read<uint8_t>();
             Simulation *simulation = &client->game->simulation;
             Entity &camera = simulation->get_ent(client->camera);
             Entity &player = simulation->get_ent(camera.get_player());
-            if (client->check_invalid(validator.validate_uint8())) return;
+            InventoryOps::store_from_loadout(client, player, pos);
+            break;
+        }
+        case Serverbound::kEquipPetal:
+        case Serverbound::kInventorySwap: {
+            if (!client->alive()) break;
+            if (client->check_invalid(validator.validate_uint32() && validator.validate_uint8())) return;
+            uint32_t inv_index = reader.read<uint32_t>();
             uint8_t pos = reader.read<uint8_t>();
-            if (pos >= MAX_SLOT_COUNT + player.get_loadout_count()) break;
-            PetalID::T old_id = player.get_loadout_ids(pos);
-            PetalTracker::remove_petal(simulation, old_id);
-            if (old_id != PetalID::kNone && old_id != PetalID::kBasic) {
-                uint8_t rarity = PETAL_DATA[old_id].rarity;
-                player.set_score(player.get_score() + RARITY_TO_XP[rarity]);
-            }
-            player.set_loadout_ids(pos, PetalID::kNone);
-            player.set_loadout_rarities(pos, 0);
+            Simulation *simulation = &client->game->simulation;
+            Entity &camera = simulation->get_ent(client->camera);
+            Entity &player = simulation->get_ent(camera.get_player());
+            InventoryOps::equip_to_loadout(client, player, inv_index, pos);
             break;
         }
         case Serverbound::kPetalSwap: {

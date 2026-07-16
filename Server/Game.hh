@@ -18,4 +18,7 @@ public:
     void tick();
     void add_client(Client *);
     void remove_client(Client *);
+    // Resolves the Client owning a camera without a second registry; used by
+    // Collision/Death to reach account state from ECS entities.
+    Client *client_for_camera(EntityID const &);
 };
