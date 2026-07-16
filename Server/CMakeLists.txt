@@ -46,7 +46,7 @@ set(SOURCES
 )
 
 if(WASM_SERVER)
-    set(SOURCES ${SOURCES} Wasm.cc)
+    set(SOURCES ${SOURCES} Wasm.cc Account/DatabaseWasm.cc)
 else()
     set(SOURCES ${SOURCES} Native.cc)
 endif()
