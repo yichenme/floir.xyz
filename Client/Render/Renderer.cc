@@ -343,6 +343,16 @@ void Renderer::draw_image(Renderer &ctx) {
     }, id, ctx.id, -ctx.width / 2, -ctx.height / 2);
 }
 
+void Renderer::draw_map(float x, float y, float w, float h) {
+    // Blit the preloaded composite SVG (index.html -> Module.mapImage) as the
+    // world backdrop. No-op until the image finishes loading.
+    EM_ASM({
+        const img = Module.mapImage;
+        if (img && img.complete && img.naturalWidth > 0)
+            Module.ctxs[$0].drawImage(img, $1, $2, $3, $4);
+    }, id, x, y, w, h);
+}
+
 void Renderer::fill_text(char const *text) {
     EM_ASM({
         Module.ctxs[$0].fillText(Module.TextDecoder.decode(HEAPU8.subarray($1, $1+$2)),0,0);

@@ -91,6 +91,7 @@ public:
     void clip_rect(float, float, float, float);
 
     void draw_image(Renderer &);
+    void draw_map(float, float, float, float);
 
     void fill_text(char const *);
     void stroke_text(char const *);

@@ -56,54 +56,20 @@ void Game::render_game() {
     }
     {
         RenderContext context(&renderer);
+        // Blit the pre-rendered composite tilemap SVG as the world backdrop.
+        // The image is 50x51 tile-cells; draw at its world footprint.
+        renderer.draw_map(0, 0, Tilemap::GRID_W * Tilemap::CELL_SIZE,
+                                Tilemap::GRID_H * Tilemap::CELL_SIZE);
+
         float scale = 1 / (2 * camera.get_fov() * Ui::scale);
         float leftX   = camera.get_camera_x() - renderer.width  * scale;
         float rightX  = camera.get_camera_x() + renderer.width  * scale;
         float topY    = camera.get_camera_y() - renderer.height * scale;
         float bottomY = camera.get_camera_y() + renderer.height * scale;
-
-        // Tilemap draw. Merge same-terrain runs along each visible row into a
-        // single fill_rect to keep call count sane at zoomed-out FOVs.
         int32_t c0 = std::max(0, (int32_t) std::floor(leftX   / Tilemap::CELL_SIZE));
         int32_t c1 = std::min<int32_t>(Tilemap::GRID_W, (int32_t) std::ceil (rightX  / Tilemap::CELL_SIZE));
         int32_t r0 = std::max(0, (int32_t) std::floor(topY    / Tilemap::CELL_SIZE));
         int32_t r1 = std::min<int32_t>(Tilemap::GRID_H, (int32_t) std::ceil (bottomY / Tilemap::CELL_SIZE));
-        for (int32_t r = r0; r < r1; ++r) {
-            int32_t start = c0;
-            uint8_t cur = Tilemap::TERRAIN[r * Tilemap::GRID_W + c0];
-            for (int32_t c = c0 + 1; c <= c1; ++c) {
-                uint8_t t = c < c1 ? Tilemap::TERRAIN[r * Tilemap::GRID_W + c] : 255;
-                if (t != cur) {
-                    if (cur != Tilemap::TerrainID::kVoid) {
-                        renderer.set_fill(Tilemap::COLORS[cur]);
-                        renderer.fill_rect(start * Tilemap::CELL_SIZE, r * Tilemap::CELL_SIZE,
-                                           (c - start) * Tilemap::CELL_SIZE, Tilemap::CELL_SIZE);
-                    }
-                    cur = t;
-                    start = c;
-                }
-            }
-        }
-
-        // Per-cell grid labels: "col,row" on top, terrain id below. Debug aid
-        // for identifying which cell needs a different terrain assignment.
-        for (int32_t r = r0; r < r1; ++r) {
-            for (int32_t c = c0; c < c1; ++c) {
-                uint8_t t = Tilemap::TERRAIN[r * Tilemap::GRID_W + c];
-                if (t == Tilemap::TerrainID::kVoid) continue;
-                float cx = (c + 0.5f) * Tilemap::CELL_SIZE;
-                float cy = (r + 0.5f) * Tilemap::CELL_SIZE;
-                char coord[16];
-                char terrain_s[8];
-                std::snprintf(coord, sizeof(coord), "%d,%d", c, r);
-                std::snprintf(terrain_s, sizeof(terrain_s), "T%u", (unsigned) t);
-                RenderContext lctx(&renderer);
-                renderer.translate(cx, cy - 50);
-                renderer.draw_text(coord, { .fill = 0xffffffff, .stroke = 0xff000000, .size = 90, .stroke_scale = 0.15f });
-                renderer.translate(0, 110);
-                renderer.draw_text(terrain_s, { .fill = 0xffffffff, .stroke = 0xff000000, .size = 70, .stroke_scale = 0.15f });
-            }
-        }
 
         // Difficulty darkening on top of biome tiles, per MAP_DATA zone.
         uint32_t player_grade = Map::difficulty_at_level(score_to_level(Game::score));
