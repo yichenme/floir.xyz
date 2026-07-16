@@ -12,6 +12,9 @@ static std::string format_compact(uint64_t count, uint64_t divisor, char suffix)
     if (tenths >= 10) {
         return "x" + std::to_string(whole + 1) + suffix;
     }
+    if (tenths == 0) {
+        return "x" + std::to_string(whole) + suffix;
+    }
     return "x" + std::to_string(whole) + "." + std::to_string(tenths) + suffix;
 }
 

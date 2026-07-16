@@ -17,8 +17,10 @@ int main() {
     assert(format_stack_count(1) == "");
     assert(format_stack_count(99) == "x99");
     assert(format_stack_count(1000) == "x1k");
+    assert(format_stack_count(1001) == "x1k");
     assert(format_stack_count(1500) == "x1.5k");
     assert(format_stack_count(1000000) == "x1m");
+    assert(format_stack_count(1000001) == "x1m");
     assert(format_stack_count(1200000) == "x1.2m");
     std::cout << "ok\n";
     return 0;
