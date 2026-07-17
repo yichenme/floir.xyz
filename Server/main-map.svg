@@ -4052,13 +4052,13 @@
 <use href="#t_desert_b_0_svg" x="957.0" y="1789.0" width="70.0" height="70.0"/>
 <use href="#t_desert_b_0_svg" x="1021.0" y="1789.0" width="70.0" height="70.0"/>
 <g transform="translate(1760.0 1824.0) matrix(0 1 -1 0 0 0) translate(-35.0 -35.0)"><use href="#t_grass2_t_0_svg" width="70.0" height="70.0"/></g>
-<g transform="translate(1824.0 2272.0) matrix(-1 0 0 -1 0 0) translate(-35.0 -35.0)"><use href="#t_desert_r_0_svg" width="70.0" height="70.0"/></g>
-<g transform="translate(1824.0 2336.0) matrix(-1 0 0 -1 0 0) translate(-35.0 -35.0)"><use href="#t_desert_r_0_svg" width="70.0" height="70.0"/></g>
-<g transform="translate(1824.0 2400.0) matrix(-1 0 0 -1 0 0) translate(-35.0 -35.0)"><use href="#t_desert_r_0_svg" width="70.0" height="70.0"/></g>
-<use href="#t_desert_l_0_svg" x="1789.0" y="2429.0" width="70.0" height="70.0"/>
-<g transform="translate(1952.0 3040.0) matrix(-1 0 0 -1 0 0) translate(-35.0 -35.0)"><use href="#t_desert_r_0_svg" width="70.0" height="70.0"/></g>
-<g transform="translate(1952.0 3104.0) matrix(-1 0 0 -1 0 0) translate(-35.0 -35.0)"><use href="#t_desert_r_0_svg" width="70.0" height="70.0"/></g>
-<use href="#t_desert_l_0_svg" x="1917.0" y="3133.0" width="70.0" height="70.0"/>
+<use href="#t_desert_b_0_svg" x="1789.0" y="2237.0" width="70.0" height="70.0"/>
+<use href="#t_desert_b_0_svg" x="1789.0" y="2301.0" width="70.0" height="70.0"/>
+<use href="#t_desert_b_0_svg" x="1789.0" y="2365.0" width="70.0" height="70.0"/>
+<use href="#t_desert_b_0_svg" x="1789.0" y="2429.0" width="70.0" height="70.0"/>
+<use href="#t_desert_b_0_svg" x="1917.0" y="3005.0" width="70.0" height="70.0"/>
+<use href="#t_desert_b_0_svg" x="1917.0" y="3069.0" width="70.0" height="70.0"/>
+<use href="#t_desert_b_0_svg" x="1917.0" y="3133.0" width="70.0" height="70.0"/>
 <g transform="translate(2528.0 32.0) matrix(-1 0 0 1 0 0) translate(-32.0 -32.0)"><use href="#t_water_l_0_svg" width="64.0" height="64.0"/></g>
 <g transform="translate(2592.0 32.0) matrix(1 0 0 -1 0 0) translate(-32.0 -32.0)"><use href="#t_water_c_0_svg" width="64.0" height="64.0"/></g>
 <use href="#t_water_c_0_svg" x="2624.0" y="0.0" width="64.0" height="64.0"/>

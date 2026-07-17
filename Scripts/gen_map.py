@@ -127,36 +127,6 @@ def main():
                 bleed = BLEED if name in ('bg', 'transitions') else 0.0
                 sz = CELL + 2 * bleed
                 h_, v_, dg = bool(g & FLIP_H), bool(g & FLIP_V), bool(g & FLIP_D)
-                # gid 47 (desert_b, desert-on-bottom) is placed on several
-                # jungle<->desert boundaries with the wrong orientation. Rotate it
-                # per-cell so the desert faces whichever side the desert bg is on
-                # (bottom = as-is, top = 180, left = 90cw, right = 270cw). Top/
-                # bottom take priority so corner cells read as a horizontal edge.
-                if gid == 47:
-                    bgl = layers['bg']
-                    def _isD(cc2, rr2):
-                        b = (bgl[rr2 * W + cc2] & 0x1FFFFFFF) if (0 <= cc2 < W and 0 <= rr2 < H) else 0
-                        return 1 <= b <= 5
-                    if _isD(c, r + 1) and _isD(c - 1, r):
-                        # bottom-right desert corner (desert on left AND below):
-                        # use the desert_l (desert-on-left) asset directly, no
-                        # rotation, per request.
-                        svg = 'desert_l_0.svg'
-                        sid = f't_{svg.replace(".", "_")}'
-                        h_, v_, dg = False, False, False
-                    elif _isD(c, r + 1):    # desert below -> keep desert_b
-                        h_, v_, dg = False, False, False
-                    elif _isD(c, r - 1):    # desert above -> 180
-                        h_, v_, dg = True, True, False
-                    elif _isD(c - 1, r):
-                        # desert on left (vertical desert<->jungle boundary): use
-                        # the desert_r asset rotated 180deg (desert-on-right ->
-                        # desert-on-left), per request.
-                        svg = 'desert_r_0.svg'
-                        sid = f't_{svg.replace(".", "_")}'
-                        h_, v_, dg = True, True, False
-                    elif _isD(c + 1, r):    # desert right -> 270 cw
-                        h_, v_, dg = False, True, True
                 if not (h_ or v_ or dg):
                     out.append(f'<use href="#{sid}" x="{x-bleed}" y="{y-bleed}" width="{sz}" height="{sz}"/>')
                 else:
@@ -526,7 +496,7 @@ def _sync_collision_editor(gm, GW, GH):
                 buf[idx >> 3] |= 1 << (idx & 7)
     b64 = base64.b64encode(bytes(buf)).decode()
 
-    targets = [os.path.join(ROOT, 'collision-editor.html'),
+    targets = [os.path.join(ROOT, 'docs/collision-editor.html'),
                os.path.expanduser('~/Desktop/floir-collision-editor.html')]
     for path in targets:
         if not os.path.exists(path):
@@ -605,6 +575,26 @@ def write_tilemap_header(layers, W, H):
         gm = bytearray(1 if v else 0 for v in im.getdata())
     except Exception as e:
         print('seam close skipped:', e)
+
+    # Fill isolated walkable pockets (the stray "white dots"): any small enclosed
+    # walkable region unreachable from the main play area becomes solid.
+    try:
+        import numpy as np
+        from scipy import ndimage
+        arr = np.frombuffer(bytes(gm), dtype=np.uint8).reshape(GH, GW).copy()
+        lbl, n = ndimage.label(arr == 0)          # 4-connected walkable regions
+        if n > 1:
+            sizes = ndimage.sum(np.ones_like(lbl), lbl, range(1, n + 1))
+            filled = 0
+            for i in range(1, n + 1):
+                if sizes[i - 1] < 3000:            # < ~1 tile of area -> pocket
+                    arr[lbl == i] = 1
+                    filled += 1
+            gm = bytearray(arr.tobytes())
+            if filled:
+                print(f'filled {filled} isolated walkable pocket(s)')
+    except Exception as e:
+        print('pocket fill skipped:', e)
 
     _sync_collision_editor(gm, GW, GH)
 

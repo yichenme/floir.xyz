@@ -74,6 +74,10 @@ WebSocketServer::WebSocketServer() {
                     encodeType = "image/svg+xml";
                     file = "grass_bg.svg";
                     break;
+                case "/floir.webp":
+                    encodeType = "image/webp";
+                    file = "floir.webp";
+                    break;
                 default:
                     file = "";
                     break;

@@ -206,6 +206,25 @@ int setup_canvas() {
         // the emscripten-internal object, distinct from the global Module the
         // page script can reach. draw_map reads this same object.
         Module.mapImage = new Image();
+        // Pre-rasterize the composite map SVG to a bitmap canvas ONCE. Blitting an
+        // SVG <img> re-rasterizes the whole vector every frame (~16ms at zoom);
+        // blitting a cached bitmap is ~1ms. Rasterize at ~2x the SVG viewBox
+        // (128px/tile) for crispness, capped smaller on mobile to bound memory.
+        Module.mapImage.onload = function() {
+            const nw = Module.mapImage.naturalWidth;
+            const nh = Module.mapImage.naturalHeight;
+            if (!nw || !nh) return;
+            const mobile = /iPhone|iPad|iPod|Android|BlackBerry/i.test(navigator.userAgent);
+            const scale = mobile ? 1.25 : 2.0;
+            const c = document.createElement('canvas');
+            c.width = Math.round(nw * scale);
+            c.height = Math.round(nh * scale);
+            const cx = c.getContext('2d');
+            cx.imageSmoothingEnabled = true;
+            cx.imageSmoothingQuality = 'high';
+            cx.drawImage(Module.mapImage, 0, 0, c.width, c.height);
+            Module.mapCanvas = c;
+        };
         Module.mapImage.src = 'main-map.svg';
         // Grass tile for the animated title-screen backdrop.
         Module.grassImage = new Image();

@@ -349,12 +349,15 @@ void Renderer::draw_map(float x, float y, float w, float h) {
     // of the *vector* art at display resolution each frame -- crisp at any zoom.
     // No-op until the source image has loaded.
     EM_ASM({
-        const img = Module.mapImage;
-        if (!img || !img.complete || img.naturalWidth === 0) return;
+        // Prefer the pre-rasterized bitmap canvas (fast); fall back to the SVG
+        // <img> only until that canvas is ready.
+        const src = Module.mapCanvas ||
+            (Module.mapImage && Module.mapImage.complete && Module.mapImage.naturalWidth ? Module.mapImage : null);
+        if (!src) return;
         const ctx = Module.ctxs[$0];
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, $1, $2, $3, $4);
+        ctx.drawImage(src, $1, $2, $3, $4);
     }, id, x, y, w, h);
 }
 
