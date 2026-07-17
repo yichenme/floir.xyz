@@ -1,5 +1,6 @@
 #include <Server/EntityFunctions.hh>
 
+#include <Server/Account/Database.hh>
 #include <Server/Client.hh>
 #include <Server/EntityFunctions/InventoryOps.hh>
 #include <Server/Game.hh>
@@ -129,6 +130,18 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
         if (respawn_level < 1) respawn_level = 1;
         if (respawn_level > MAX_LEVEL) respawn_level = MAX_LEVEL;
         camera.set_respawn_level(respawn_level);
+        // Persist the peak level/XP onto the account too, so progress survives
+        // across sessions (a fresh connection), not just across deaths within
+        // one connection (camera.respawn_level alone only lives as long as the
+        // camera entity does). Same username fallback as persist_account_petals.
+        {
+            std::string const username = client != nullptr ? client->username : ent.get_account_name();
+            if (!username.empty()) {
+                uint32_t const peak_xp = std::max(ent.get_score(), level_to_score(respawn_level));
+                AccountDB::write_progress(username, (uint8_t)respawn_level, peak_xp);
+                AccountDB::save();
+            }
+        }
     } else if (ent.has_component(kDrop)) {
         if (BitMath::at(ent.flags, EntityFlags::kIsDespawning))
             PetalTracker::remove_petal(sim, ent.get_drop_id());

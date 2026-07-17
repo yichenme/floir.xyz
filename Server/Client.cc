@@ -1,6 +1,7 @@
 #include <Server/Client.hh>
 
 #include <Server/Account/Auth.hh>
+#include <Server/Account/Database.hh>
 #include <Server/EntityFunctions/InventoryOps.hh>
 #include <Server/Game.hh>
 #include <Server/Server.hh>
@@ -139,6 +140,13 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             Simulation *simulation = &client->game->simulation;
             Entity &camera = simulation->get_ent(client->camera);
             InventoryOps::apply_account_loadout_to_camera(client, camera);
+            // Restore the account's saved peak level so progress survives a
+            // fresh connection too, not just deaths within one connection (see
+            // EntityFunctions/Death.cc's write_progress for the save side).
+            uint8_t saved_level = 0; uint32_t saved_xp = 0;
+            if (AccountDB::read_progress(client->username, saved_level, saved_xp)
+                && saved_level > camera.get_respawn_level())
+                camera.set_respawn_level(saved_level);
             Entity &player = alloc_player(simulation, camera.get_team());
             player_spawn(simulation, camera, player);
             player.set_name(name);
