@@ -81,8 +81,9 @@ void Minimap::on_render(Renderer &ctx) {
     ctx.translate(-view_l, -view_t);
 
     // Paint the actual hitboxes black (walkable = white), so the minimap matches
-    // the collision. Sample per cell centre -- hitboxes are centre-tile shaped.
-    float const step = Tilemap::CELL_SIZE;
+    // the collision. Sample at 4x the cell resolution (16 units per cell) for a
+    // more accurate outline of the shaped hitboxes.
+    float const step = Tilemap::CELL_SIZE / 4;
     int32_t sc0 = std::max(0, (int32_t)std::floor(view_l / step));
     int32_t sc1 = (int32_t)std::ceil((view_l + view_w) / step);
     int32_t sr0 = std::max(0, (int32_t)std::floor(view_t / step));
