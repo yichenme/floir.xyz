@@ -218,6 +218,7 @@ Entity &alloc_cpu_camera(Simulation *sim, EntityID const team) {
 
     ent.set_fov(BASE_FOV);
     ent.set_respawn_level(frand() * 30);
+    ent.set_respawn_score(level_to_score(ent.get_respawn_level()));
     ent.set_team(team);
     ent.set_color(ColorID::kGray);
     
@@ -264,7 +265,7 @@ void player_spawn(Simulation *sim, Entity &camera, Entity &player) {
     camera.set_camera_y(spawn_y);
     player.set_x(spawn_x);
     player.set_y(spawn_y);
-    player.set_score(level_to_score(camera.get_respawn_level()));
+    player.set_score(camera.get_respawn_score());
     player.set_loadout_count(loadout_slots_at_level(camera.get_respawn_level()));
     player.health = player.max_health = hp_at_level(camera.get_respawn_level());
     for (uint32_t i = 0; i < player.get_loadout_count(); ++i) {

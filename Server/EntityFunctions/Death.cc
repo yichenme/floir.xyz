@@ -122,13 +122,17 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
         if (!sim->ent_alive(ent.get_parent()))
             return;
         Entity &camera = sim->get_ent(ent.get_parent());
-        // No death loss: respawn at the peak level ever reached (level only
-        // grows, never drops) so XP and the whole loadout are preserved.
-        uint32_t respawn_level = score_to_level(ent.get_score());
-        if (respawn_level < camera.get_respawn_level())
-            respawn_level = camera.get_respawn_level();
+        // No death loss: preserve the EXACT peak score ever reached, so even
+        // partial XP within a level survives death (respawn restores this score,
+        // not the level's base). Score only grows, never drops.
+        uint32_t respawn_score = std::max(ent.get_score(), camera.get_respawn_score());
+        uint32_t respawn_level = score_to_level(respawn_score);
         if (respawn_level < 1) respawn_level = 1;
-        if (respawn_level > MAX_LEVEL) respawn_level = MAX_LEVEL;
+        if (respawn_level > MAX_LEVEL) {
+            respawn_level = MAX_LEVEL;
+            respawn_score = std::min(respawn_score, level_to_score(MAX_LEVEL));
+        }
+        camera.set_respawn_score(respawn_score);
         camera.set_respawn_level(respawn_level);
         // Persist the peak level/XP onto the account too, so progress survives
         // across sessions (a fresh connection), not just across deaths within
@@ -137,8 +141,7 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
         {
             std::string const username = client != nullptr ? client->username : ent.get_account_name();
             if (!username.empty()) {
-                uint32_t const peak_xp = std::max(ent.get_score(), level_to_score(respawn_level));
-                AccountDB::write_progress(username, (uint8_t)respawn_level, peak_xp);
+                AccountDB::write_progress(username, (uint8_t)respawn_level, respawn_score);
                 AccountDB::save();
             }
         }

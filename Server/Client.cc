@@ -144,9 +144,16 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             // fresh connection too, not just deaths within one connection (see
             // EntityFunctions/Death.cc's write_progress for the save side).
             uint8_t saved_level = 0; uint32_t saved_xp = 0;
-            if (AccountDB::read_progress(client->username, saved_level, saved_xp)
-                && saved_level > camera.get_respawn_level())
-                camera.set_respawn_level(saved_level);
+            if (AccountDB::read_progress(client->username, saved_level, saved_xp)) {
+                // Restore the exact peak score (partial XP included). Fall back to
+                // the level's base if an older account only had a level saved.
+                uint32_t peak = std::max((uint32_t)saved_xp, level_to_score(saved_level));
+                if (peak > camera.get_respawn_score()) {
+                    camera.set_respawn_score(peak);
+                    uint32_t lvl = score_to_level(peak);
+                    camera.set_respawn_level(lvl < 1 ? 1 : lvl);
+                }
+            }
             Entity &player = alloc_player(simulation, camera.get_team());
             player_spawn(simulation, camera, player);
             player.set_name(name);

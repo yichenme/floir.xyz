@@ -97,6 +97,7 @@ void GameInstance::add_client(Client *client) {
     
     ent.set_fov(BASE_FOV);
     ent.set_respawn_level(1);
+    ent.set_respawn_score(level_to_score(1));
     for (uint32_t i = 0; i < loadout_slots_at_level(ent.get_respawn_level()); ++i) {
         ent.set_inventory(i, PetalID::kBasic);
         ent.set_inventory_rarity(i, PETAL_DATA[PetalID::kBasic].rarity);
