@@ -18,7 +18,7 @@ void render_health(Renderer &ctx, Entity const &ent) {
         // Name + rarity line sits just above the bar, still below the model.
         ctx.translate(0, w + 15 - 16);
         ctx.draw_text(MOB_DATA[ent.get_mob_id()].name,
-                       { .size = 14, .fill = RARITY_COLORS[ent.get_mob_rarity()] });
+                       { .fill = RARITY_COLORS[ent.get_mob_rarity()], .size = 14 });
         ctx.translate(-w, 16);
     } else {
         ctx.translate(-w, w + 15);
