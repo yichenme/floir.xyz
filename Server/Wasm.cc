@@ -66,10 +66,6 @@ WebSocketServer::WebSocketServer() {
                     encodeType = "application/wasm";
                     file = "floir-client.wasm";
                     break;
-                case "/main-map.svg":
-                    encodeType = "image/svg+xml";
-                    file = "main-map.svg";
-                    break;
                 case "/grass_bg.svg":
                     encodeType = "image/svg+xml";
                     file = "grass_bg.svg";

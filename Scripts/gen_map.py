@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-"""Composite the Tiled map (main.tmj) + tiles/*.svg into one static SVG the
-client blits as the world backdrop (Server/main-map.svg).
-
-GID -> SVG mapping is maintained by hand here since we have no tileset.tsj.
-Re-run after editing GID_TO_SVG or the tiles. Honours Tiled flip bits
-(horizontal/vertical/diagonal) so rotated autotile pieces face correctly.
+"""Read the Tiled map (main.tmj) + tileset (tiles/tileset.tsj) and emit the two
+things the game needs:
+  - Server/map-data.json: per-tile Path2D drawings + placements + landmark
+    objects, which the client renders as vector each frame (florr.io style).
+  - Shared/Tilemap.hh: the collision mask (from the tileset objectgroups).
+Re-run after editing the map or the tiles. Honours Tiled flip bits.
 """
 import json, base64, gzip, re, os, shutil, math
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TILES = os.path.join(ROOT, 'tiles')
 TMJ = os.path.join(ROOT, 'main.tmj')
-OUTS = [os.path.join(ROOT, 'docs/main-map-render.svg'),
-        os.path.join(ROOT, 'Server/main-map.svg'),
-        os.path.expanduser('~/Desktop/floir-map-render.svg')]
 
 # --- Tileset (authoritative): gid -> image AND per-tile collision shapes -------
 # main.tmj references tiles/tileset.tsj at firstgid 1, so gid = tile_id + 1. Each
@@ -94,36 +91,7 @@ LAYER_FALLBACK = {
     'bush': 'bush_c_0.svg', 'cliff': 'scliff_c_0.svg', 'castle': 'castle_c_0.svg',
     'transitions': 'grass2_t_0.svg',
 }
-# 64px/cell gives the composite a 3200x3264 native raster (vs 1600) so tiles
-# stay crisp when the client upscales the backdrop across the 25k world.
-CELL = 64
-# Per-tile outward bleed (native SVG px) so neighbouring tiles overlap and no
-# anti-aliased seam ("white gap line") shows between cells after the client
-# upscales the backdrop.
-BLEED = 3.0
 FLIP_H, FLIP_V, FLIP_D = 0x80000000, 0x40000000, 0x20000000
-
-
-def load_symbol(name):
-    p = os.path.join(TILES, name)
-    if not os.path.exists(p):
-        return None
-    txt = re.sub(r'<\?xml[^>]*\?>\s*', '', open(p).read())
-    m = re.search(r'<svg[^>]*viewBox="([^"]+)"[^>]*>(.*)</svg>', txt, re.DOTALL)
-    return None if not m else (
-        f'<symbol id="t_{name.replace(".","_")}" viewBox="{m.group(1)}" '
-        f'preserveAspectRatio="none">{m.group(2)}</symbol>')
-
-
-def flip_matrix(h, v, dg):
-    a, b, c, d = 1, 0, 0, 1
-    if dg:
-        a, b, c, d = 0, 1, 1, 0   # transpose
-    if h:
-        a, c = -a, -c
-    if v:
-        b, d = -b, -d
-    return a, b, c, d
 
 
 def main():
@@ -139,86 +107,6 @@ def main():
     layers = {l['name']: decode(l) for l in d['layers'] if l.get('type') == 'tilelayer'}
     objgroups = {l['name']: l.get('objects', [])
                  for l in d['layers'] if l.get('type') == 'objectgroup'}
-    symbols = {f: load_symbol(f) for f in os.listdir(TILES) if f.endswith('.svg')}
-    symbols = {k: v for k, v in symbols.items() if v}
-
-    w_px, h_px = W * CELL, H * CELL
-    out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w_px} {h_px}" '
-           f'width="{w_px}" height="{h_px}">', '<defs>']
-    out += list(symbols.values())
-    out += ['</defs>', '<rect width="100%" height="100%" fill="#3d2a1e"/>']
-
-    from collections import Counter
-    unknown = {n: Counter() for n in LAYER_ORDER}
-    placements = 0
-    for name in LAYER_ORDER:
-        if name not in layers:
-            continue
-        for r in range(H):
-            for c in range(W):
-                g = layers[name][r * W + c]
-                if not g:
-                    continue
-                gid = g & 0x1FFFFFFF
-                svg = GID_TO_SVG.get(gid)
-                if svg is None:
-                    unknown[name][gid] += 1
-                    svg = LAYER_FALLBACK[name]
-                if svg not in symbols:
-                    continue
-                sid = f't_{svg.replace(".","_")}'
-                x, y = c * CELL, r * CELL
-                # Bleed ONLY the walkable ground layers (bg + transitions) so the
-                # ground has no hairline seams. Blocking tiles (water/bush/cliff/
-                # dirt/castle) are NEVER bled: bleeding them pushed their visible
-                # edge ~10 world units past the collision polygon, leaving a
-                # walkable strip of visible water/wall. Un-bled, their visual edge
-                # matches the collision outline exactly.
-                bleed = BLEED if name in ('bg', 'transitions') else 0.0
-                sz = CELL + 2 * bleed
-                h_, v_, dg = bool(g & FLIP_H), bool(g & FLIP_V), bool(g & FLIP_D)
-                if not (h_ or v_ or dg):
-                    out.append(f'<use href="#{sid}" x="{x-bleed}" y="{y-bleed}" width="{sz}" height="{sz}"/>')
-                else:
-                    a, b, cc, dd = flip_matrix(h_, v_, dg)
-                    cx, cy = x + CELL / 2, y + CELL / 2
-                    out.append(f'<g transform="translate({cx} {cy}) matrix({a} {b} {cc} {dd} 0 0) '
-                               f'translate({-sz/2} {-sz/2})"><use href="#{sid}" '
-                               f'width="{sz}" height="{sz}"/></g>')
-                placements += 1
-
-    # Landmark image objects (sewer_entrance / pyramid / factory_entrance), drawn
-    # on top of the tiles. Tiled tile-objects anchor at the BOTTOM-left corner,
-    # so the top edge is y - height. tmj is 512 px/cell; the render is CELL px.
-    sc = CELL / 512.0
-    for o in objgroups.get('img', []):
-        g = o.get('gid')
-        if not g:
-            continue
-        gid = g & 0x1FFFFFFF
-        svg = GID_TO_SVG.get(gid)
-        if not svg or svg not in symbols:
-            continue
-        sid = f't_{svg.replace(".", "_")}'
-        ox, oy = o['x'] * sc, (o['y'] - o.get('height', 0)) * sc
-        ow, oh = o.get('width', 0) * sc, o.get('height', 0) * sc
-        hf, vf, df = bool(g & FLIP_H), bool(g & FLIP_V), bool(g & FLIP_D)
-        if not (hf or vf or df):
-            out.append(f'<use href="#{sid}" x="{ox}" y="{oy}" width="{ow}" height="{oh}"/>')
-        else:
-            a, b, cc, dd = flip_matrix(hf, vf, df)
-            mcx, mcy = ox + ow / 2, oy + oh / 2
-            out.append(f'<g transform="translate({mcx} {mcy}) matrix({a} {b} {cc} {dd} 0 0) '
-                       f'translate({-ow/2} {-oh/2})"><use href="#{sid}" '
-                       f'width="{ow}" height="{oh}"/></g>')
-        placements += 1
-
-    out.append('</svg>')
-    svg = '\n'.join(out)
-    for p in OUTS:
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        open(p, 'w').write(svg)
-
     # Client render asset: per-tile Path2D shapes + culled placements + landmark
     # objects. The client draws these as vector each frame (florr.io style).
     import json as _json
@@ -260,11 +148,6 @@ def main():
         _json.dumps(map_data, separators=(',', ':')))
     print(f'map-data.json: {len(map_tiles)} tiles, {len(map_placements)} placements, '
           f'{len(map_objects)} objects')
-
-    print(f'placements={placements}, mapped GIDs={len(GID_TO_SVG)}')
-    for n, c in unknown.items():
-        if c:
-            print(f'  still-unknown {n}: {dict(sorted(c.items()))}')
 
     write_tilemap_header(layers, objgroups, W, H)
 
