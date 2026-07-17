@@ -12,3 +12,4 @@ __pycache__/
 .superpowers/
 .agents/
 .claude/
+.worktrees/
