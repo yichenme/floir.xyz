@@ -1,5 +1,6 @@
 #include <Shared/RarityScale.hh>
 #include <Helpers/Math.hh>
+#include <algorithm>
 #include <cmath>
 
 static float const HP_STEP[8] = {5,5,5,5,10,45,30,5};
@@ -20,8 +21,11 @@ float mob_hp_mult(uint8_t r) {
     return m;
 }
 float mob_size_mult(uint8_t r) {
-    // 1.75x per rarity tier, compounding (1.0x at Common).
-    return std::pow(1.75f, (float)r);
+    // 1.75x per rarity tier, compounding (1.0x at Common), but capped: an
+    // uncapped 1.75^8 = 88x at Unique produces map-spanning mobs that blow up
+    // the spatial hash / collision resolution (15s+ ticks). 5x (~= the old 1.2^8
+    // ceiling that the engine handled fine) keeps high tiers performant.
+    return std::min(std::pow(1.75f, (float)r), 5.0f);
 }
 
 // Rarity of a dropped item given the MOB's rarity, or DROP_NOTHING for no drop.
