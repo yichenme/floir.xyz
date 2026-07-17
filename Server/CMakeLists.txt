@@ -41,6 +41,7 @@ set(SOURCES
     ../Shared/Map.cc
     ../Shared/Simulation.cc
     ../Shared/StaticData.cc
+    ../Shared/RarityScale.cc
     ../Shared/StackFormat.cc
     ../Shared/AccountValidation.cc
 )
