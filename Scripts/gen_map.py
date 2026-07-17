@@ -15,32 +15,40 @@ OUTS = [os.path.join(ROOT, 'docs/main-map-render.svg'),
         os.path.join(ROOT, 'Server/main-map.svg'),
         os.path.expanduser('~/Desktop/floir-map-render.svg')]
 
-GID_TO_SVG = {
-    # bg / desert SW
-    1: 'desert_c_0.svg', 2: 'desert_c_1.svg', 3: 'desert_c_2.svg',
-    4: 'desert_c_3.svg', 5: 'desert_c_4.svg',
-    # bg / grass north
-    6: 'grass_c_0.svg', 7: 'grass_c_1.svg', 8: 'grass_c_2.svg', 9: 'grass_c_0.svg',
-    # bg / grass2 SE jungle floor
-    66: 'grass2_c_0.svg', 67: 'grass2_c_1.svg', 68: 'grass2_c_2.svg', 69: 'grass2_c_3.svg',
-    # dirt
-    22: 'dirt_l_0.svg', 23: 'dirt_tl_0.svg', 24: 'dirt_tri_0.svg', 25: 'dirt_c_0.svg',
-    # water
-    33: 'water_l_0.svg', 34: 'water_tl_0.svg', 35: 'water_tri_0.svg', 36: 'water_c_0.svg',
-    # castle
-    18: 'castle_l_0.svg', 19: 'castle_tl_0.svg', 20: 'castle_c_0.svg', 21: 'castle_tri_0.svg',
-    # bush
-    104: 'bush_c_0.svg', 105: 'bush_t_0.svg', 106: 'bush_tl_0.svg', 107: 'bush_tri_0.svg',
-    # cliff
-    112: 'scliff_c_0.svg', 113: 'scliff_l_0.svg', 114: 'scliff_tl_0.svg', 115: 'scliff_tli_0.svg',
-    # transitions (biome-boundary edges)
-    46: 'desert_r_0.svg', 70: 'desert_t_0.svg', 87: 'grass2_t_0.svg',
-    48: 'desert_b_0.svg', 47: 'desert_b_0.svg',
-}
+# --- Tileset (authoritative): gid -> image AND per-tile collision shapes -------
+# main.tmj references tiles/tileset.tsj at firstgid 1, so gid = tile_id + 1. Each
+# tile carries its image and, for solid tiles, an objectgroup with the exact
+# collision shape(s) the map author drew (rects + polygons, in 0..256 tile space).
+def _load_tileset():
+    ts = json.load(open(os.path.join(TILES, 'tileset.tsj')))
+    FIRST = 1
+    img, coll = {}, {}
+    for t in ts['tiles']:
+        gid = t['id'] + FIRST
+        if t.get('image'):
+            img[gid] = t['image']
+        og = t.get('objectgroup')
+        if og:
+            shapes = []
+            for o in og['objects']:
+                ox, oy = o.get('x', 0.0), o.get('y', 0.0)
+                if 'polygon' in o:
+                    shapes.append([(ox + p['x'], oy + p['y']) for p in o['polygon']])
+                elif 'polyline' in o:
+                    shapes.append([(ox + p['x'], oy + p['y']) for p in o['polyline']])
+                else:
+                    w, h = o.get('width', 0), o.get('height', 0)
+                    if w > 0 and h > 0:
+                        shapes.append([(ox, oy), (ox + w, oy), (ox + w, oy + h), (ox, oy + h)])
+            if shapes:
+                coll[gid] = shapes
+    return img, coll
 
-# Draw order must match the .tmj (bottom -> top): transitions sit just above bg,
-# below water/bush/cliff/dirt/castle. Drawing them last overlaid foliage/dirt.
-LAYER_ORDER = ['bg', 'transitions', 'water', 'bush', 'cliff', 'dirt', 'castle']  # holes/warps skipped
+GID_TO_SVG, TILE_COLL = _load_tileset()
+
+# Draw order must match the .tmj (bottom -> top). Object 'img' sprites (sewer/
+# pyramid/factory landmarks) are drawn on top of the tiles, after this list.
+LAYER_ORDER = ['bg', 'transitions', 'holes', 'water', 'bush', 'cliff', 'dirt', 'castle']
 LAYER_FALLBACK = {
     'bg': 'grass_c_0.svg', 'dirt': 'dirt_c_0.svg', 'water': 'water_c_0.svg',
     'bush': 'bush_c_0.svg', 'cliff': 'scliff_c_0.svg', 'castle': 'castle_c_0.svg',
@@ -89,6 +97,8 @@ def main():
         return [int.from_bytes(raw[i:i+4], 'little') for i in range(0, len(raw), 4)]
 
     layers = {l['name']: decode(l) for l in d['layers'] if l.get('type') == 'tilelayer'}
+    objgroups = {l['name']: l.get('objects', [])
+                 for l in d['layers'] if l.get('type') == 'objectgroup'}
     symbols = {f: load_symbol(f) for f in os.listdir(TILES) if f.endswith('.svg')}
     symbols = {k: v for k, v in symbols.items() if v}
 
@@ -136,6 +146,33 @@ def main():
                                f'translate({-sz/2} {-sz/2})"><use href="#{sid}" '
                                f'width="{sz}" height="{sz}"/></g>')
                 placements += 1
+
+    # Landmark image objects (sewer_entrance / pyramid / factory_entrance), drawn
+    # on top of the tiles. Tiled tile-objects anchor at the BOTTOM-left corner,
+    # so the top edge is y - height. tmj is 512 px/cell; the render is CELL px.
+    sc = CELL / 512.0
+    for o in objgroups.get('img', []):
+        g = o.get('gid')
+        if not g:
+            continue
+        gid = g & 0x1FFFFFFF
+        svg = GID_TO_SVG.get(gid)
+        if not svg or svg not in symbols:
+            continue
+        sid = f't_{svg.replace(".", "_")}'
+        ox, oy = o['x'] * sc, (o['y'] - o.get('height', 0)) * sc
+        ow, oh = o.get('width', 0) * sc, o.get('height', 0) * sc
+        hf, vf, df = bool(g & FLIP_H), bool(g & FLIP_V), bool(g & FLIP_D)
+        if not (hf or vf or df):
+            out.append(f'<use href="#{sid}" x="{ox}" y="{oy}" width="{ow}" height="{oh}"/>')
+        else:
+            a, b, cc, dd = flip_matrix(hf, vf, df)
+            mcx, mcy = ox + ow / 2, oy + oh / 2
+            out.append(f'<g transform="translate({mcx} {mcy}) matrix({a} {b} {cc} {dd} 0 0) '
+                       f'translate({-ow/2} {-oh/2})"><use href="#{sid}" '
+                       f'width="{ow}" height="{oh}"/></g>')
+        placements += 1
+
     out.append('</svg>')
     svg = '\n'.join(out)
     for p in OUTS:
@@ -146,7 +183,7 @@ def main():
         if c:
             print(f'  still-unknown {n}: {dict(sorted(c.items()))}')
 
-    write_tilemap_header(layers, W, H)
+    write_tilemap_header(layers, objgroups, W, H)
 
 
 # --- Collision/minimap terrain grid ---------------------------------------
@@ -511,7 +548,7 @@ def _sync_collision_editor(gm, GW, GH):
     print(f'synced collision editor: {UW}x{UH} units ({EDITOR_UNIT} world u/cell)')
 
 
-def write_tilemap_header(layers, W, H):
+def write_tilemap_header(layers, objgroups, W, H):
     def present(name, i):
         return (layers.get(name, [0] * (W * H))[i] & 0x1FFFFFFF) != 0
 
@@ -530,41 +567,82 @@ def write_tilemap_header(layers, W, H):
                     t = 15
             terrain.append(t)
 
-    # ---- global collision mask: rasterise the WHOLE block layer together ----
-    # Each block tile's opaque coverage (the UNION of all its fill shapes, via
-    # _tile_mask) is stamped into one global bitmask at SUB sub-cells/cell =
-    # 10 world units/pixel. Adjacent walls merge into a single shape, so there
-    # is no per-tile seam. A morphological close then seals hairline gaps where
-    # two tiles' opaque parts stop a pixel short of the shared edge, without
-    # growing the exposed (walkable-facing) outline.
+    # ---- global collision mask: authoritative per-tile shapes from the tileset --
+    # Every placed tile that carries a collision objectgroup contributes its exact
+    # author-drawn shape(s) (rects + polygons, flip baked in). The `collision`
+    # object rectangles and the landmark `img` sprites (sewer/pyramid/factory) add
+    # their shapes too. All rasterised into one mask at SUB sub-cells/cell.
     SUB = MASK_RES                       # 50 sub-cells per 500 cell -> 10 u/px
     GW, GH = W * SUB, H * SUB
-    gm = bytearray(GW * GH)
-    full_mask = [[1] * SUB for _ in range(SUB)]
+    from PIL import Image, ImageDraw
+    gimg = Image.new('1', (GW, GH), 0)
+    gdraw = ImageDraw.Draw(gimg)
+    T2M = SUB / 256.0                    # tile-space (0..256) -> mask px within a cell
+    PX2M = SUB / 512.0                   # tmj px (512/cell) -> mask px
+
+    def _flip_pt(x, y, g):               # tile-space flip; matches _flip_poly order
+        if g & FLIP_D_B: x, y = y, x
+        if g & FLIP_H_B: x = 256 - x
+        if g & FLIP_V_B: y = 256 - y
+        return x, y
+
+    # per-tile collision across every tile layer (bg/transitions carry none)
+    for name in LAYER_ORDER:
+        lay = layers.get(name)
+        if not lay:
+            continue
+        for r in range(H):
+            for c in range(W):
+                g = lay[r * W + c]
+                shapes = TILE_COLL.get(g & 0x1FFFFFFF)
+                if not shapes:
+                    continue
+                ox, oy = c * SUB, r * SUB
+                for sh in shapes:
+                    pts = [(ox + fx * T2M, oy + fy * T2M)
+                           for fx, fy in (_flip_pt(px, py, g) for px, py in sh)]
+                    if len(pts) >= 3:
+                        gdraw.polygon(pts, fill=1)
+
+    # void (outside the map) blocks
     for r in range(H):
         for c in range(W):
             i = r * W + c
-            masks = []
             if terrain[i] == 15 and not present('bg', i):
-                masks.append(full_mask)          # void outside the map blocks
-            for name in BLOCK_LAYERS:
-                g = layers.get(name, [0] * (W * H))[i]
-                if not (g & 0x1FFFFFFF):
-                    continue
-                svg = GID_TO_SVG.get(g & 0x1FFFFFFF, LAYER_FALLBACK.get(name))
-                if svg and os.path.exists(os.path.join(TILES, svg)):
-                    masks.append(_flip_mask(_tile_mask(svg), g))
-                else:
-                    masks.append(full_mask)
-            if not masks:
-                continue
-            for sy in range(SUB):
-                base = (r * SUB + sy) * GW + c * SUB
-                for m in masks:
-                    mr = m[sy]
-                    for sx in range(SUB):
-                        if mr[sx]:
-                            gm[base + sx] = 1
+                gdraw.rectangle([c * SUB, r * SUB, c * SUB + SUB, r * SUB + SUB], fill=1)
+
+    # `collision` object layer -> explicit rectangles / polygons (tmj px)
+    for o in objgroups.get('collision', []):
+        if 'polygon' in o:
+            pts = [((o['x'] + p['x']) * PX2M, (o['y'] + p['y']) * PX2M) for p in o['polygon']]
+            if len(pts) >= 3:
+                gdraw.polygon(pts, fill=1)
+        else:
+            x, y = o['x'] * PX2M, o['y'] * PX2M
+            w, h = o.get('width', 0) * PX2M, o.get('height', 0) * PX2M
+            if w > 0 and h > 0:
+                gdraw.rectangle([x, y, x + w, y + h], fill=1)
+
+    # landmark `img` sprites -> collision shape scaled to the sprite (y = bottom)
+    for o in objgroups.get('img', []):
+        g = o.get('gid')
+        if not g:
+            continue
+        shapes = TILE_COLL.get(g & 0x1FFFFFFF)
+        if not shapes:
+            continue
+        ow, oh = o.get('width', 0), o.get('height', 0)
+        otop = o['y'] - oh
+        for sh in shapes:
+            pts = []
+            for px, py in sh:
+                fx, fy = _flip_pt(px, py, g)
+                pts.append(((o['x'] + fx / 256.0 * ow) * PX2M,
+                            (otop + fy / 256.0 * oh) * PX2M))
+            if len(pts) >= 3:
+                gdraw.polygon(pts, fill=1)
+
+    gm = bytearray(1 if v else 0 for v in gimg.getdata())
 
     # seal hairline seams (close = dilate then erode: fills gaps <= ~2px / 20u
     # without growing the outer boundary)
