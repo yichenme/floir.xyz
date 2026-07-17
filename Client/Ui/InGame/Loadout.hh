@@ -24,6 +24,7 @@ namespace Ui {
     class UiLoadoutPetal final : public Element {
     public:
         LerpFloat reload;
+        LerpFloat health;
         uint32_t persistent_touch_id;
         uint8_t static_pos;
         uint8_t curr_pos;

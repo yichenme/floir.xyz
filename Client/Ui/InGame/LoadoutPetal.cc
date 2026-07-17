@@ -66,6 +66,7 @@ UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
     static_pos(pos), no_change_ticks(0), petal_id(PetalID::kNone), last_id(PetalID::kNone) 
 {
     reload = 1;
+    health = 1;
     style.should_render = [&](){
         if (!Game::alive()) return false;
         //coincidentally also works for trashing
@@ -87,15 +88,28 @@ UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
                 if (old > reload) reload.set(old);
                 else reload = old;
             }
+            if (player.get_state_loadout_healths(static_pos)) {
+                // Opposite of reload's snap direction: taking damage animates
+                // smoothly down, but healing/respawning fresh snaps instantly
+                // to full (no drawn-out "regen" look for an instant refill).
+                float new_health = player.get_loadout_healths(static_pos) / 255.0f;
+                if (new_health < health) health.set(new_health);
+                else health = new_health;
+            }
         }
-        else
+        else {
             reload = 0;
+            health = 1;
+        }
         if ((no_change_ticks == 0 && petal_id == PetalID::kNone) || last_id == PetalID::kNone) return false;
         return true;
     };
     style.animate = [&](Element *elt, Renderer &ctx) {
         float lerp_amt = Ui::lerp_amount * 0.75;
         reload.step(lerp_amt);
+        // Fixed ~0.1s characteristic time regardless of framerate, distinct
+        // from the slower general-purpose lerp_amt above.
+        health.step(1 - powf(0.1f, Ui::dt / 100.0f));
         if (curr_pos != 2 * MAX_SLOT_COUNT) 
             curr_pos = static_to_dynamic(static_pos);
         
@@ -179,7 +193,7 @@ void UiLoadoutPetal::on_render(Renderer &ctx) {
     if (last_id == PetalID::kNone) return;
     ctx.scale(width / 60);
     if (static_pos < Game::loadout_count && PETAL_DATA[last_id].count != 0)
-        draw_loadout_background(ctx, last_id, (float) reload);
+        draw_loadout_background(ctx, last_id, (float) reload, (float) health);
     else
         draw_loadout_background(ctx, last_id);
 }

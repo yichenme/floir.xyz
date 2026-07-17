@@ -925,7 +925,7 @@ void draw_static_petal(PetalID::T id, Renderer &ctx) {
     }
 }
 
-void draw_loadout_background(Renderer &ctx, uint8_t id, float reload) {
+void draw_loadout_background(Renderer &ctx, uint8_t id, float reload, float health) {
     RenderContext c(&ctx);
     ctx.set_fill(Renderer::HSV(RARITY_COLORS[PETAL_DATA[id].rarity], 0.8));
     ctx.round_line_join();
@@ -938,6 +938,18 @@ void draw_loadout_background(Renderer &ctx, uint8_t id, float reload) {
     ctx.rect(-25, -25, 50, 50);
     ctx.fill();
     ctx.clip();
+    if (health < 1) {
+        // Same darken used for reload, but a flat band from the top sized to
+        // the missing HP fraction -- at 90% HP the top 10% is dark, and at 0
+        // HP the whole card is dark, meeting the reload wedge's own all-dark
+        // starting state so the two connect smoothly when a petal breaks.
+        float missing = 1 - (float) health;
+        RenderContext context(&ctx);
+        ctx.set_fill(0x40000000);
+        ctx.begin_path();
+        ctx.rect(-25, -25, 50, missing * 50);
+        ctx.fill();
+    }
     if (reload < 1) {
         float rld =  1 - (float) reload;
         {

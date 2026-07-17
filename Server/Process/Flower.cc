@@ -148,9 +148,15 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
         //if overleveled timer too large
         if (player.get_overlevel_timer() >= PETAL_DISABLE_DELAY * TPS) {
             player.set_loadout_reloads(i, 0);
+            player.set_loadout_healths(i, 0);
             continue;
         }
         float min_reload = 1;
+        // Worst-case (lowest) health among this slot's currently-alive petal
+        // instances, mirroring how min_reload takes the least-ready instance.
+        // Stays at 1 (no darken) if every instance is mid-reload right now --
+        // the reload wedge already covers that case on its own.
+        float min_health = 1;
         for (uint32_t j = 0; j < slot.size(); ++j) {
             LoadoutPetal &petal_slot = slot.petals[j];
             if (!sim->ent_alive(petal_slot.ent_id)) {
@@ -172,8 +178,10 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
             }
             if (sim->ent_alive(petal_slot.ent_id)) {
                 Entity &petal = sim->get_ent(petal_slot.ent_id);
+                if (petal.has_component(kHealth))
+                    min_health = std::min(min_health, (float) petal.get_health_ratio());
                 //only do this if petal not despawning
-                if (petal.has_component(kPetal) && 
+                if (petal.has_component(kPetal) &&
                     !BitMath::at(petal.flags, EntityFlags::kIsDespawning) &&
                     !BitMath::at(petal.flags, EntityFlags::kIsDetached)) {
                     //petal rotation behavior
@@ -243,6 +251,7 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
         //clump
         if (petal_data.attributes.clump_radius > 0) ++rot_pos;
         player.set_loadout_reloads(i, min_reload * 255);
+        player.set_loadout_healths(i, min_health * 255);
     };
     if (BitMath::at(player.input, InputFlags::kAttacking)) 
         player.set_face_flags(player.get_face_flags() | (1 << FaceFlags::kAttacking));
