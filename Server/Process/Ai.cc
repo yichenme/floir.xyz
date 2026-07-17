@@ -433,7 +433,7 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
                 behind *= ent.get_radius();
                 Entity &spawned = alloc_mob(
                     sim, MobID::kSoldierAnt, ent.get_x() + behind.x, ent.get_y() + behind.y, 
-                    ent.get_team(), RarityID::kCommon, [](Entity &mob) {
+                    ent.get_team(), inherited_spawn_rarity(ent), [](Entity &mob) {
                     BitMath::set(mob.flags, EntityFlags::kHasCulling);
                 });
                 entity_set_despawn_tick(spawned, 10 * TPS);

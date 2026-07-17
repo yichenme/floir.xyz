@@ -6,6 +6,12 @@
 
 class Simulation;
 
+/* rarity for a mob spawned as a side effect of another entity (anthole
+waves, digger spawns, queen ant reinforcements, petal-summoned mobs):
+rolls off the parent's zone if it was itself a zone spawn, else inherits
+the parent's mob rarity, else falls back to Common. */
+uint8_t inherited_spawn_rarity(Entity const &parent);
+
 Entity &alloc_drop(Simulation *, PetalID::T, uint8_t rarity);
 Entity &alloc_mob(
     Simulation *, MobID::T, float, float, 

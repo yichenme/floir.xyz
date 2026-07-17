@@ -96,7 +96,7 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             EntityID team = NULL_ENTITY;
             if (sim->ent_exists(ent.last_damaged_by))
                 team = sim->get_ent(ent.last_damaged_by).get_team();
-            alloc_mob(sim, MobID::kDigger, ent.get_x(), ent.get_y(), team, RarityID::kCommon);
+            alloc_mob(sim, MobID::kDigger, ent.get_x(), ent.get_y(), team, inherited_spawn_rarity(ent));
         }
 
     } else if (ent.has_component(kPetal)) {

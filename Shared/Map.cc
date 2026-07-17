@@ -5,6 +5,7 @@
 #ifdef SERVERSIDE
 #include <Server/Spawn.hh>
 #include <Shared/Entity.hh>
+#include <Shared/RarityScale.hh>
 #endif
 
 #include <cmath>
@@ -55,7 +56,8 @@ void Map::spawn_random_mob(Simulation *sim, float x, float y) {
         if (sum <= 0) {
             // Reject if the chosen mob's body would overlap any wall/water.
             if (Tilemap::solid_circle(x, y, MOB_DATA[s.id].radius.upper)) return;
-            Entity &ent = alloc_mob(sim, s.id, x, y, NULL_ENTITY, RarityID::kCommon, [&](Entity &mob){
+            uint8_t rarity = roll_spawn_rarity((uint8_t)zone.difficulty);
+            Entity &ent = alloc_mob(sim, s.id, x, y, NULL_ENTITY, rarity, [&](Entity &mob){
                 mob.zone = zone_id;
                 mob.immunity_ticks = TPS;
                 BitMath::set(mob.flags, EntityFlags::kSpawnedFromZone);

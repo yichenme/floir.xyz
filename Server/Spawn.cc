@@ -12,6 +12,13 @@
 
 #include <cmath>
 
+uint8_t inherited_spawn_rarity(Entity const &parent) {
+    if (BitMath::at(parent.flags, EntityFlags::kSpawnedFromZone))
+        return roll_spawn_rarity((uint8_t)MAP_DATA[parent.zone].difficulty);
+    if (parent.has_component(kMob)) return parent.get_mob_rarity();
+    return RarityID::kCommon;
+}
+
 Entity &alloc_drop(Simulation *sim, PetalID::T drop_id, uint8_t rarity) {
     DEBUG_ONLY(assert(drop_id < PetalID::kNumPetals);)
     PetalTracker::add_petal(sim, drop_id);
