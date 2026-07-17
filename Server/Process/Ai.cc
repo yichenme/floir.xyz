@@ -3,6 +3,7 @@
 #include <Server/EntityFunctions.hh>
 #include <Server/Spawn.hh>
 #include <Shared/Entity.hh>
+#include <Shared/RarityScale.hh>
 #include <Shared/Simulation.hh>
 #include <Shared/StaticData.hh>
 
@@ -157,9 +158,11 @@ static void tick_hornet_aggro(Simulation *sim, Entity &ent) {
         if (ent.ai_tick >= 1.5 * TPS && dist < 800) {
             ent.ai_tick = 0;
 
-            Entity &missile = alloc_petal(sim, PetalID::kMissile, ent);
-            missile.damage = 10;
-            missile.health = missile.max_health = 10;
+            Entity &missile = alloc_petal(sim, PetalID::kMissile, ent, ent.get_mob_rarity());
+            float missile_damage = MOB_DATA[ent.get_mob_id()].attributes.missile_damage
+                * mob_body_damage_mult(ent.get_mob_rarity());
+            missile.damage = missile_damage;
+            missile.health = missile.max_health = missile_damage;
             missile.friction = DEFAULT_FRICTION;
 
             entity_set_despawn_tick(missile, 3 * TPS);
@@ -430,8 +433,7 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
                 behind *= ent.get_radius();
                 Entity &spawned = alloc_mob(
                     sim, MobID::kSoldierAnt, ent.get_x() + behind.x, ent.get_y() + behind.y, 
-                    ent.get_team(), [](Entity &mob) {
-                    mob.score_reward = MOB_DATA[mob.get_mob_id()].xp;
+                    ent.get_team(), RarityID::kCommon, [](Entity &mob) {
                     BitMath::set(mob.flags, EntityFlags::kHasCulling);
                 });
                 entity_set_despawn_tick(spawned, 10 * TPS);

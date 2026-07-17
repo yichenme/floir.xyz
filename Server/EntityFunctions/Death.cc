@@ -13,7 +13,7 @@
 
 #include <iostream>
 
-static void _alloc_drops(Simulation *sim, std::vector<PetalID::T> &success_drops, float x, float y) {
+static void _alloc_drops(Simulation *sim, std::vector<PetalID::T> &success_drops, float x, float y, uint8_t rarity) {
     #ifdef DEBUG
     for (PetalID::T id : success_drops)
         assert(id != PetalID::kNone && id < PetalID::kNumPetals);
@@ -30,13 +30,13 @@ static void _alloc_drops(Simulation *sim, std::vector<PetalID::T> &success_drops
     DEBUG_ONLY(assert(success_drops.size() == count);)
     if (count > 1) {
         for (size_t i = 0; i < count; ++i) {
-            Entity &drop = alloc_drop(sim, success_drops[i]);
+            Entity &drop = alloc_drop(sim, success_drops[i], rarity);
             drop.set_x(x);
             drop.set_y(y);
             drop.velocity.unit_normal(i * 2 * M_PI / count).set_magnitude(25);
         }
     } else if (count == 1) {
-        Entity &drop = alloc_drop(sim, success_drops[0]);
+        Entity &drop = alloc_drop(sim, success_drops[0], rarity);
         drop.set_x(x);
         drop.set_y(y);
     }
@@ -88,7 +88,7 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             StaticArray<float, MAX_DROPS_PER_MOB> const &drop_chances = MOB_DROP_CHANCES[ent.get_mob_id()];
             for (uint32_t i = 0; i < mob_data.drops.size(); ++i) 
                 if (frand() < drop_chances[i]) success_drops.push_back(mob_data.drops[i]);
-            _alloc_drops(sim, success_drops, ent.get_x(), ent.get_y());
+            _alloc_drops(sim, success_drops, ent.get_x(), ent.get_y(), ent.get_mob_rarity());
         }
         if (ent.get_mob_id() == MobID::kAntHole && 
             BitMath::at(ent.flags, EntityFlags::kSpawnedFromZone) && 
@@ -96,7 +96,7 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             EntityID team = NULL_ENTITY;
             if (sim->ent_exists(ent.last_damaged_by))
                 team = sim->get_ent(ent.last_damaged_by).get_team();
-            alloc_mob(sim, MobID::kDigger, ent.get_x(), ent.get_y(), team);
+            alloc_mob(sim, MobID::kDigger, ent.get_x(), ent.get_y(), team, RarityID::kCommon);
         }
 
     } else if (ent.has_component(kPetal)) {

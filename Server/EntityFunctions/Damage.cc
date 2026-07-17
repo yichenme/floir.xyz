@@ -45,8 +45,7 @@ void inflict_damage(Simulation *sim, EntityID const atk_id, EntityID const def_i
                 Entity &child = alloc_mob(
                     sim, mob_id, 
                     defender.get_x(), defender.get_y(), 
-                    defender.get_team(), [](Entity &mob) {
-                    mob.score_reward = MOB_DATA[mob.get_mob_id()].xp;
+                    defender.get_team(), RarityID::kCommon, [](Entity &mob) {
                     BitMath::set(mob.flags, EntityFlags::kHasCulling);
                 });
                 child.set_parent(defender.id);

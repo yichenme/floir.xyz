@@ -817,7 +817,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
             PetalID::kDandelion, PetalID::kMissile, PetalID::kWing, PetalID::kBubble, PetalID::kAntennae
         },
         .attributes = {
-            .aggro_radius = 600
+            .aggro_radius = 600,
+            .missile_damage = 10
         }
     },
     {

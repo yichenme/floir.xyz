@@ -72,7 +72,8 @@ SINGLE(Health, health_ratio, Float) \
 SINGLE(Health, damaged, StickyFlag)
 
 #define FIELDS_Mob \
-SINGLE(Mob, mob_id, MobID::T)
+SINGLE(Mob, mob_id, MobID::T) \
+SINGLE(Mob, mob_rarity, uint8_t)
 
 #define FIELDS_Drop \
 SINGLE(Drop, drop_id, PetalID::T) \

@@ -240,6 +240,8 @@ struct MobAttributes {
     uint8_t segments = 1;
     uint8_t stationary;
     struct PoisonDamage poison_damage;
+    float armor = 0;
+    float missile_damage = 0;
 };
 
 struct MobData {

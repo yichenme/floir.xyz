@@ -5,13 +5,14 @@
 #include <Server/Server.hh>
 
 #include <Shared/Map.hh>
+#include <Shared/RarityScale.hh>
 #include <Shared/Simulation.hh>
 #include <Shared/StaticData.hh>
 #include <Shared/Tilemap.hh>
 
 #include <cmath>
 
-Entity &alloc_drop(Simulation *sim, PetalID::T drop_id) {
+Entity &alloc_drop(Simulation *sim, PetalID::T drop_id, uint8_t rarity) {
     DEBUG_ONLY(assert(drop_id < PetalID::kNumPetals);)
     PetalTracker::add_petal(sim, drop_id);
     Entity &drop = sim->alloc_ent();
@@ -25,15 +26,15 @@ Entity &alloc_drop(Simulation *sim, PetalID::T drop_id) {
 
     drop.add_component(kDrop);
     drop.set_drop_id(drop_id);
-    drop.set_drop_rarity(PETAL_DATA[drop_id].rarity);
-    entity_set_despawn_tick(drop, 10 * (2 + PETAL_DATA[drop_id].rarity) * TPS);
+    drop.set_drop_rarity(rarity);
+    entity_set_despawn_tick(drop, 10 * (2 + rarity) * TPS);
     drop.immunity_ticks = TPS / 3;
     return drop;
 }
 
 static Entity &__alloc_mob(
     Simulation *sim, MobID::T mob_id, float x, float y, 
-    EntityID const team, std::function<void(Entity &)> on_spawn
+    EntityID const team, uint8_t rarity, std::function<void(Entity &)> on_spawn
 ) {
     DEBUG_ONLY(assert(mob_id < MobID::kNumMobs);)
     struct MobData const &data = MOB_DATA[mob_id];
@@ -55,15 +56,20 @@ static Entity &__alloc_mob(
 
     mob.add_component(kMob);
     mob.set_mob_id(mob_id);
+    mob.set_mob_rarity(rarity);
 
     mob.add_component(kHealth);
-    mob.health = mob.max_health = data.health.get_single(seed);
-    mob.damage = data.damage;
+    float hp_m = mob_hp_mult(rarity);
+    float dmg_m = mob_body_damage_mult(rarity);
+    float arm_m = mob_armor_mult(rarity);
+    mob.health = mob.max_health = data.health.get_single(seed) * hp_m;
+    mob.damage = data.damage * dmg_m;
+    mob.armor = data.attributes.armor * arm_m;
     mob.poison_damage = data.attributes.poison_damage;
     mob.set_health_ratio(1);
 
     mob.detection_radius = data.attributes.aggro_radius;
-    //mob.score_reward = data.xp;
+    mob.score_reward = (uint32_t)(data.xp * mob_xp_mult(rarity) + 0.5f);
 
     mob.add_component(kName);
     mob.set_name(data.name);
@@ -81,11 +87,11 @@ static Entity &__alloc_mob(
 
 Entity &alloc_mob(
     Simulation *sim, MobID::T mob_id, float x, float y, 
-    EntityID const team, std::function<void(Entity &)> on_spawn
+    EntityID const team, uint8_t rarity, std::function<void(Entity &)> on_spawn
 ) {
     struct MobData const &data = MOB_DATA[mob_id];
     if (data.attributes.segments <= 1) {
-        Entity &ent = __alloc_mob(sim, mob_id, x, y, team, on_spawn);
+        Entity &ent = __alloc_mob(sim, mob_id, x, y, team, rarity, on_spawn);
         if (mob_id == MobID::kAntHole) {
             std::vector<MobID::T> const spawns = { 
                 MobID::kBabyAnt, MobID::kBabyAnt, MobID::kBabyAnt, 
@@ -93,18 +99,18 @@ Entity &alloc_mob(
             };
             for (MobID::T mob_id : spawns) {
                 Vector rand = Vector::rand(ent.get_radius() * 2);
-                Entity &ant = __alloc_mob(sim, mob_id, x + rand.x, y + rand.y, team, on_spawn);
+                Entity &ant = __alloc_mob(sim, mob_id, x + rand.x, y + rand.y, team, rarity, on_spawn);
                 ant.set_parent(ent.id);
             }
         }
         return ent;
     }
     else {
-        Entity &head = __alloc_mob(sim, mob_id, x, y, team, on_spawn);
+        Entity &head = __alloc_mob(sim, mob_id, x, y, team, rarity, on_spawn);
         //head.add_component(kSegmented);
         Entity *curr = &head;
         for (uint32_t i = 1; i < data.attributes.segments; ++i) {
-            Entity &seg = __alloc_mob(sim, mob_id, x, y, team, on_spawn);
+            Entity &seg = __alloc_mob(sim, mob_id, x, y, team, rarity, on_spawn);
             seg.add_component(kSegmented);
             seg.seg_head = curr->id;
             seg.set_angle(curr->get_angle() + frand() * 0.1 - 0.05);
@@ -144,7 +150,7 @@ Entity &alloc_player(Simulation *sim, EntityID const team) {
     return player;
 }
 
-Entity &alloc_petal(Simulation *sim, PetalID::T petal_id, Entity const &parent) {
+Entity &alloc_petal(Simulation *sim, PetalID::T petal_id, Entity const &parent, uint8_t rarity) {
     DEBUG_ONLY(assert(petal_id < PetalID::kNumPetals);)
     struct PetalData const &petal_data = PETAL_DATA[petal_id];
     Entity &petal = sim->alloc_ent();
@@ -166,8 +172,8 @@ Entity &alloc_petal(Simulation *sim, PetalID::T petal_id, Entity const &parent) 
     petal.set_petal_id(petal_id);
     petal.set_split_projectile(petal_data.attributes.split_projectile);
     petal.add_component(kHealth);
-    petal.health = petal.max_health = petal_data.health;
-    petal.damage = petal_data.damage;
+    petal.health = petal.max_health = petal_data.health * petal_hp_mult(rarity);
+    petal.damage = petal_data.damage * petal_damage_mult(rarity);
     petal.set_health_ratio(1);
     petal.poison_damage = petal_data.attributes.poison_damage;
     petal.armor = petal_data.attributes.armor;
