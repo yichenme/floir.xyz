@@ -3,6 +3,7 @@
 #include <Client/DOM.hh>
 #include <Client/Game.hh>
 #include <Client/Input.hh>
+#include <Client/Render/MapRenderer.hh>
 #include <Client/Storage.hh>
 
 #include <unordered_map>
@@ -230,6 +231,7 @@ int setup_canvas() {
         Module.grassImage = new Image();
         Module.grassImage.src = 'grass_bg.svg';
     });
+    Ui::MapRenderer::load();
     return 0;
 }
 

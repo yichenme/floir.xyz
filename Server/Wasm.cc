@@ -78,6 +78,10 @@ WebSocketServer::WebSocketServer() {
                     encodeType = "image/webp";
                     file = "floir.webp";
                     break;
+                case "/map-data.json":
+                    encodeType = "application/json";
+                    file = "map-data.json";
+                    break;
                 default:
                     file = "";
                     break;

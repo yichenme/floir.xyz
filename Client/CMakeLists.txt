@@ -18,6 +18,7 @@ set(SRCS
     Render/RenderPetal.cc
     Render/RenderWeb.cc
     Render/Renderer.cc
+    Render/MapRenderer.cc
     Account.cc
     Debug.cc
     DOM.cc
