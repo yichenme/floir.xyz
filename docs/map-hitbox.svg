@@ -4055,10 +4055,10 @@
 <g transform="translate(1824.0 2272.0) matrix(0 1 -1 0 0 0) translate(-33.25 -33.25)"><use href="#t_desert_b_0_svg" width="66.5" height="66.5"/></g>
 <g transform="translate(1824.0 2336.0) matrix(0 1 -1 0 0 0) translate(-33.25 -33.25)"><use href="#t_desert_b_0_svg" width="66.5" height="66.5"/></g>
 <g transform="translate(1824.0 2400.0) matrix(0 1 -1 0 0 0) translate(-33.25 -33.25)"><use href="#t_desert_b_0_svg" width="66.5" height="66.5"/></g>
-<g transform="translate(1824.0 2464.0) matrix(0 1 -1 0 0 0) translate(-33.25 -33.25)"><use href="#t_desert_b_0_svg" width="66.5" height="66.5"/></g>
+<use href="#t_desert_b_0_svg" x="1790.75" y="2430.75" width="66.5" height="66.5"/>
 <g transform="translate(1952.0 3040.0) matrix(0 1 -1 0 0 0) translate(-33.25 -33.25)"><use href="#t_desert_b_0_svg" width="66.5" height="66.5"/></g>
 <g transform="translate(1952.0 3104.0) matrix(0 1 -1 0 0 0) translate(-33.25 -33.25)"><use href="#t_desert_b_0_svg" width="66.5" height="66.5"/></g>
-<g transform="translate(1952.0 3168.0) matrix(0 1 -1 0 0 0) translate(-33.25 -33.25)"><use href="#t_desert_b_0_svg" width="66.5" height="66.5"/></g>
+<use href="#t_desert_b_0_svg" x="1918.75" y="3134.75" width="66.5" height="66.5"/>
 <g transform="translate(2528.0 32.0) matrix(-1 0 0 1 0 0) translate(-32.0 -32.0)"><use href="#t_water_l_0_svg" width="64.0" height="64.0"/></g>
 <g transform="translate(2592.0 32.0) matrix(1 0 0 -1 0 0) translate(-32.0 -32.0)"><use href="#t_water_c_0_svg" width="64.0" height="64.0"/></g>
 <use href="#t_water_c_0_svg" x="2624.0" y="0.0" width="64.0" height="64.0"/>

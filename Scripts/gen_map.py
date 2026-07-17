@@ -127,12 +127,24 @@ def main():
                 bleed = BLEED if name in ('bg', 'transitions') else 0.0
                 sz = CELL + 2 * bleed
                 h_, v_, dg = bool(g & FLIP_H), bool(g & FLIP_V), bool(g & FLIP_D)
-                # gid 47 (desert_b) is placed on the VERTICAL jungle<->desert
-                # boundary but is a horizontal transition, so its wave sits
-                # sideways (toothed edge). Rotate it 90deg CW so desert is on the
-                # left and the wave faces the jungle.
+                # gid 47 (desert_b, desert-on-bottom) is placed on several
+                # jungle<->desert boundaries with the wrong orientation. Rotate it
+                # per-cell so the desert faces whichever side the desert bg is on
+                # (bottom = as-is, top = 180, left = 90cw, right = 270cw). Top/
+                # bottom take priority so corner cells read as a horizontal edge.
                 if gid == 47:
-                    h_, v_, dg = True, False, True
+                    bgl = layers['bg']
+                    def _isD(cc2, rr2):
+                        b = (bgl[rr2 * W + cc2] & 0x1FFFFFFF) if (0 <= cc2 < W and 0 <= rr2 < H) else 0
+                        return 1 <= b <= 5
+                    if _isD(c, r + 1):      # desert below -> keep desert_b
+                        h_, v_, dg = False, False, False
+                    elif _isD(c, r - 1):    # desert above -> 180
+                        h_, v_, dg = True, True, False
+                    elif _isD(c - 1, r):    # desert left -> 90 cw
+                        h_, v_, dg = True, False, True
+                    elif _isD(c + 1, r):    # desert right -> 270 cw
+                        h_, v_, dg = False, True, True
                 if not (h_ or v_ or dg):
                     out.append(f'<use href="#{sid}" x="{x-bleed}" y="{y-bleed}" width="{sz}" height="{sz}"/>')
                 else:
