@@ -46,9 +46,49 @@ def _load_tileset():
 
 GID_TO_SVG, TILE_COLL = _load_tileset()
 
+
+def _tile_shapes(svg_name):
+    # Ordered opaque shapes of a tile as {d, fill, stroke, sw}, back->front, for
+    # the client to build Path2D. All tiles are flat-fill (no gradients/filters).
+    txt = open(os.path.join(TILES, svg_name)).read()
+
+    def attr(el, name):
+        m = re.search(name + r'="([^"]*)"', el)
+        return m.group(1) if m else None
+
+    out = []
+    for el in re.findall(r'<(?:rect|path|polygon|polyline)\b[^>]*?/?>', txt):
+        fill = attr(el, 'fill')
+        stroke = attr(el, 'stroke')
+        if (not fill or fill == 'none') and (not stroke or stroke == 'none'):
+            continue
+        sw = float(attr(el, 'stroke-width') or 0)
+        if el.startswith('<rect'):
+            x = float(attr(el, 'x') or 0); y = float(attr(el, 'y') or 0)
+            w = float(attr(el, 'width') or 0); h = float(attr(el, 'height') or 0)
+            d = f'M{x} {y}h{w}v{h}h{-w}Z'
+        elif el.startswith('<path'):
+            d = attr(el, 'd')
+        else:  # polygon / polyline
+            pts = attr(el, 'points') or ''
+            nums = [float(v) for v in re.findall(r'-?\d*\.?\d+', pts)]
+            if len(nums) < 6:
+                continue
+            d = 'M' + ' '.join(f'{nums[k]} {nums[k+1]}' for k in range(0, len(nums) - 1, 2))
+            if el.startswith('<polygon'):
+                d += 'Z'
+        if not d:
+            continue
+        out.append({'d': d,
+                    'fill': (fill if fill and fill != 'none' else None),
+                    'stroke': (stroke if stroke and stroke != 'none' else None),
+                    'sw': sw})
+    return out
+
+
 # Draw order must match the .tmj (bottom -> top). Object 'img' sprites (sewer/
 # pyramid/factory landmarks) are drawn on top of the tiles, after this list.
-LAYER_ORDER = ['bg', 'transitions', 'holes', 'water', 'bush', 'cliff', 'dirt', 'castle']
+LAYER_ORDER = ['bg', 'transitions', 'water', 'bush', 'cliff', 'dirt', 'castle']
 LAYER_FALLBACK = {
     'bg': 'grass_c_0.svg', 'dirt': 'dirt_c_0.svg', 'water': 'water_c_0.svg',
     'bush': 'bush_c_0.svg', 'cliff': 'scliff_c_0.svg', 'castle': 'castle_c_0.svg',
@@ -178,6 +218,49 @@ def main():
     for p in OUTS:
         os.makedirs(os.path.dirname(p), exist_ok=True)
         open(p, 'w').write(svg)
+
+    # Client render asset: per-tile Path2D shapes + culled placements + landmark
+    # objects. The client draws these as vector each frame (florr.io style).
+    import json as _json
+    used = set()
+    map_placements = []
+    for li, name in enumerate(LAYER_ORDER):
+        lay = layers.get(name)
+        if not lay:
+            continue
+        for r in range(H):
+            for c in range(W):
+                g = lay[r * W + c]
+                gid = g & 0x1FFFFFFF
+                if not gid:
+                    continue
+                used.add(gid)
+                map_placements.append({'l': li, 'c': c, 'r': r, 'gid': gid,
+                                       'flip': g & (FLIP_H | FLIP_V | FLIP_D)})
+    map_objects = []
+    W2 = 500.0 / 512.0                       # tmj px -> world
+    for o in objgroups.get('img', []):
+        g = o.get('gid')
+        if not g:
+            continue
+        gid = g & 0x1FFFFFFF
+        used.add(gid)
+        map_objects.append({'gid': gid,
+                            'x': o['x'] * W2, 'y': (o['y'] - o.get('height', 0)) * W2,
+                            'w': o.get('width', 0) * W2, 'h': o.get('height', 0) * W2,
+                            'flip': g & (FLIP_H | FLIP_V | FLIP_D)})
+    map_tiles = {}
+    for gid in sorted(used):
+        svg_name = GID_TO_SVG.get(gid)
+        if svg_name and os.path.exists(os.path.join(TILES, svg_name)):
+            map_tiles[str(gid)] = _tile_shapes(svg_name)
+    map_data = {'cell': 500, 'tileSize': 256, 'layers': LAYER_ORDER,
+                'tiles': map_tiles, 'placements': map_placements, 'objects': map_objects}
+    open(os.path.join(ROOT, 'Server/map-data.json'), 'w').write(
+        _json.dumps(map_data, separators=(',', ':')))
+    print(f'map-data.json: {len(map_tiles)} tiles, {len(map_placements)} placements, '
+          f'{len(map_objects)} objects')
+
     print(f'placements={placements}, mapped GIDs={len(GID_TO_SVG)}')
     for n, c in unknown.items():
         if c:
