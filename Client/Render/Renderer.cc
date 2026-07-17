@@ -155,6 +155,14 @@ void Renderer::center_text_align() {
     }, id);
 }
 
+void Renderer::left_text_align() {
+    EM_ASM({ Module.ctxs[$0].textAlign = "left"; }, id);
+}
+
+void Renderer::right_text_align() {
+    EM_ASM({ Module.ctxs[$0].textAlign = "right"; }, id);
+}
+
 void Renderer::center_text_baseline() {
     EM_ASM({
     Module.ctxs[$0].textBaseline = "middle";

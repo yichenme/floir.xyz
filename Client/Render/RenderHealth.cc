@@ -15,17 +15,32 @@ void render_health(Renderer &ctx, Entity const &ent) {
     // always visible (so their strength is readable before engaging), fading
     // only on death like everything else.
     if (!is_mob && ent.healthbar_opacity < 0.01) return;
-    float w = ent.get_radius() * 1.33;
+    float const rad = ent.get_radius();
+    // Mob HP bar = 75% of the model's horizontal length (diameter); w is half.
+    float const w = rad * (is_mob ? 0.75f : 1.33f);
     ctx.set_global_alpha((1 - ent.deletion_animation) * (is_mob ? 1.0f : ent.healthbar_opacity));
     ctx.scale(1 + 0.5 * ent.deletion_animation);
     if (is_mob) {
-        // Name + rarity line sits just above the bar, still below the model.
-        ctx.translate(0, w + 15 - 16);
-        ctx.draw_text(MOB_DATA[ent.get_mob_id()].name,
-                       { .fill = RARITY_COLORS[ent.get_mob_rarity()], .size = 14 });
-        ctx.translate(-w, 16);
+        float const bar_y = rad + 20;   // bar sits just below the model
+        uint8_t const rarity = ent.get_mob_rarity();
+        // Name: white + black outline, above the bar, left-aligned to its left edge.
+        {
+            RenderContext c(&ctx);
+            ctx.left_text_align();
+            ctx.translate(-w, bar_y - 11);
+            ctx.draw_text(MOB_DATA[ent.get_mob_id()].name, { .fill = 0xffffffff, .size = 13 });
+        }
+        // Rarity: rarity colour + black outline, below the bar, right-aligned to its right edge.
+        {
+            RenderContext c(&ctx);
+            ctx.right_text_align();
+            ctx.translate(w, bar_y + 11);
+            ctx.draw_text(RARITY_NAMES[rarity], { .fill = RARITY_COLORS[rarity], .size = 11 });
+        }
+        ctx.center_text_align();   // restore for later draws
+        ctx.translate(-w, bar_y);
     } else {
-        ctx.translate(-w, w + 15);
+        ctx.translate(-w, rad + 15);
     }
     ctx.round_line_cap();
     ctx.set_stroke(0xff222222);
