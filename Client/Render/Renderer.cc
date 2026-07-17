@@ -1,5 +1,6 @@
 #include <Client/Render/Renderer.hh>
 
+#include <Client/Render/MapRenderer.hh>
 #include <Helpers/Macros.hh>
 #include <Helpers/Math.hh>
 #include <Helpers/UTF8.hh>
@@ -343,22 +344,10 @@ void Renderer::draw_image(Renderer &ctx) {
     }, id, ctx.id, -ctx.width / 2, -ctx.height / 2);
 }
 
-void Renderer::draw_map(float x, float y, float w, float h) {
-    // Blit the composite map SVG directly at its world footprint. The camera
-    // transform is already applied, so the browser rasterizes the visible slice
-    // of the *vector* art at display resolution each frame -- crisp at any zoom.
-    // No-op until the source image has loaded.
-    EM_ASM({
-        // Prefer the pre-rasterized bitmap canvas (fast); fall back to the SVG
-        // <img> only until that canvas is ready.
-        const src = Module.mapCanvas ||
-            (Module.mapImage && Module.mapImage.complete && Module.mapImage.naturalWidth ? Module.mapImage : null);
-        if (!src) return;
-        const ctx = Module.ctxs[$0];
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(src, $1, $2, $3, $4);
-    }, id, x, y, w, h);
+void Renderer::draw_map(int c0, int c1, int r0, int r1) {
+    // Draw the visible map tiles as cached vector (Path2D) under the camera
+    // transform -- crisp at any zoom. See Client/Render/MapRenderer.cc.
+    Ui::MapRenderer::draw(id, c0, c1, r0, r1);
 }
 
 void Renderer::draw_grass_bg(float ox, float oy, float tile, float w, float h) {

@@ -91,7 +91,7 @@ public:
     void clip_rect(float, float, float, float);
 
     void draw_image(Renderer &);
-    void draw_map(float, float, float, float);
+    void draw_map(int, int, int, int);
     void draw_grass_bg(float ox, float oy, float tile, float w, float h);
 
     void fill_text(char const *);

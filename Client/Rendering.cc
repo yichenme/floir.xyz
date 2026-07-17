@@ -71,10 +71,8 @@ void Game::render_game() {
     }
     {
         RenderContext context(&renderer);
-        // Draw the whole composite backdrop at its world footprint; the camera
-        // transform + browser clipping keep only the visible vector slice crisp.
-        renderer.draw_map(0, 0, Tilemap::GRID_W * Tilemap::CELL_SIZE,
-                                Tilemap::GRID_H * Tilemap::CELL_SIZE);
+        // Vector map: compute the visible cell range, then draw only those tiles
+        // (culled, cached Path2D under the camera transform -- crisp at any zoom).
         float scale = 1 / (2 * camera.get_fov() * Ui::scale);
         float leftX   = Game::view_cam_x - renderer.width  * scale;
         float rightX  = Game::view_cam_x + renderer.width  * scale;
@@ -84,6 +82,7 @@ void Game::render_game() {
         int32_t c1 = std::min<int32_t>(Tilemap::GRID_W, (int32_t) std::ceil (rightX  / Tilemap::CELL_SIZE));
         int32_t r0 = std::max(0, (int32_t) std::floor(topY    / Tilemap::CELL_SIZE));
         int32_t r1 = std::min<int32_t>(Tilemap::GRID_H, (int32_t) std::ceil (bottomY / Tilemap::CELL_SIZE));
+        renderer.draw_map(c0, c1, r0, r1);
 
         if (Input::show_grid) {
             // Fine grid (normal outline).
