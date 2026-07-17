@@ -128,7 +128,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kRock, 80000 },
             { MobID::kBeetle, 50000 },
             { MobID::kEvilCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 0, .color = 0xff3a8f4a, .name = "Jungle · Common"
@@ -142,7 +141,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kRock, 80000 },
             { MobID::kBeetle, 50000 },
             { MobID::kEvilCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 1, .color = 0xff348243, .name = "Jungle · Uncommon"
@@ -156,7 +154,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kRock, 80000 },
             { MobID::kBeetle, 50000 },
             { MobID::kEvilCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 2, .color = 0xff2f753c, .name = "Jungle · Rare"
@@ -170,7 +167,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kRock, 80000 },
             { MobID::kBeetle, 50000 },
             { MobID::kEvilCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 3, .color = 0xff2a6836, .name = "Jungle · Epic"
@@ -184,7 +180,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kRock, 80000 },
             { MobID::kBeetle, 50000 },
             { MobID::kEvilCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 4, .color = 0xff255b2f, .name = "Jungle · Legendary"
@@ -198,7 +193,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kRock, 80000 },
             { MobID::kBeetle, 50000 },
             { MobID::kEvilCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 5, .color = 0xff1f4e28, .name = "Jungle · Mythic"
@@ -212,7 +206,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kRock, 80000 },
             { MobID::kBeetle, 50000 },
             { MobID::kEvilCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 6, .color = 0xff1a4122, .name = "Jungle · Ultra"
@@ -226,7 +219,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kSandstorm, 50000 },
             { MobID::kScorpion, 50000 },
             { MobID::kDesertCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -241,7 +233,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kSandstorm, 50000 },
             { MobID::kScorpion, 50000 },
             { MobID::kDesertCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -256,7 +247,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kSandstorm, 50000 },
             { MobID::kScorpion, 50000 },
             { MobID::kDesertCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -271,7 +261,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kSandstorm, 50000 },
             { MobID::kScorpion, 50000 },
             { MobID::kDesertCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -286,7 +275,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kSandstorm, 50000 },
             { MobID::kScorpion, 50000 },
             { MobID::kDesertCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -301,7 +289,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kSandstorm, 50000 },
             { MobID::kScorpion, 50000 },
             { MobID::kDesertCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -316,7 +303,6 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kSandstorm, 50000 },
             { MobID::kScorpion, 50000 },
             { MobID::kDesertCentipede, 10000 },
-            { MobID::kAntHole, 2000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },

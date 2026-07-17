@@ -78,8 +78,11 @@ void MapRenderer::draw(int ctx_id, int c0, int c1, int r0, int r1) {
                     const shapes = tiles[p["gid"]];
                     if (!shapes) continue;
                     ctx.save();
-                    ctx.translate(c * cell, r * cell);
-                    ctx.scale(s, s);
+                    // Slight bleed so adjacent tiles (castle walls, etc.) don't
+                    // show hairline chops between cells under camera zoom.
+                    const pad = 2;
+                    ctx.translate(c * cell - pad, r * cell - pad);
+                    ctx.scale((cell + 2 * pad) / ts, (cell + 2 * pad) / ts);
                     paint(shapes, p["flip"]);
                     ctx.restore();
                 }
