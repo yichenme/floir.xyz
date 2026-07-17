@@ -119,7 +119,7 @@ void tick_petal_behavior(Simulation *sim, Entity &petal) {
                 petal.heading_angle = spray_angle;
                 entity_set_despawn_tick(petal, 1.0 * TPS);
                 for (uint32_t i = 1; i < petal_data.count; ++i) {
-                    Entity &new_petal = alloc_petal(sim, petal.get_petal_id(), player, RarityID::kCommon);
+                    Entity &new_petal = alloc_petal(sim, petal.get_petal_id(), player, petal.get_petal_rarity());
                     new_petal.friction = DEFAULT_FRICTION;
                     new_petal.set_x(petal.get_x());
                     new_petal.set_y(petal.get_y());
