@@ -30,7 +30,8 @@ namespace PetalID {
         kNone,
         kBasic,
         kLight,
-        kHeavy,
+        kHeavyLegacy, // retired: merged into kHeavy (was "Heaviest"); kept only
+                      // to preserve petal-ID numbering for saved accounts.
         kStinger,
         kLeaf,
         kTwin,
@@ -60,7 +61,7 @@ namespace PetalID {
         kTriweb,
         kAntennae,
         kTricac,
-        kHeaviest,
+        kHeavy, // formerly "Heaviest"; the old kHeavy is now kHeavyLegacy.
         kThirdEye,
         kObserver,
         kPoisonCactus,

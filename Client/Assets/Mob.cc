@@ -18,6 +18,9 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
     switch(mob_id) {
         case MobID::kBabyAnt:
             SET_BASE_COLOR(0xff555555)
+            // Scale the whole model by rarity size so the mandibles keep the
+            // same insertion depth into the body as at base (common) size.
+            ctx.scale(radius / 14.0f);
             ctx.set_stroke(0xff292929);
             ctx.set_line_width(7);
             ctx.round_line_cap();
@@ -30,12 +33,14 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.set_fill(base_color);
             ctx.set_stroke(Renderer::HSV(base_color, 0.8));
             ctx.begin_path();
-            ctx.arc(0,0,radius);
+            ctx.arc(0,0,14);
             ctx.fill();
             ctx.stroke();
             break;
         case MobID::kWorkerAnt:
             SET_BASE_COLOR(0xff555555)
+            // Uniform rarity scaling so head + mandibles keep their base ratio.
+            ctx.scale(radius / 14.0f);
             ctx.set_fill(base_color);
             ctx.set_stroke(Renderer::HSV(base_color, 0.8));
             ctx.set_line_width(7);
@@ -54,12 +59,14 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.set_fill(base_color);
             ctx.set_stroke(Renderer::HSV(base_color, 0.8));
             ctx.begin_path();
-            ctx.arc(4,0,radius);
+            ctx.arc(4,0,14);
             ctx.fill();
             ctx.stroke();
             break;
         case MobID::kSoldierAnt:
             SET_BASE_COLOR(0xff555555)
+            // Uniform rarity scaling so head, wing-plates + mandibles keep ratio.
+            ctx.scale(radius / 14.0f);
             ctx.set_fill(base_color);
             ctx.set_stroke(Renderer::HSV(base_color, 0.8));
             ctx.set_line_width(7);
@@ -97,7 +104,7 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.set_fill(base_color);
             ctx.set_stroke(Renderer::HSV(base_color, 0.8));
             ctx.begin_path();
-            ctx.arc(4,0,radius);
+            ctx.arc(4,0,14);
             ctx.fill();
             ctx.stroke();
             break;
@@ -433,6 +440,9 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             break;
         case MobID::kSpider:
             SET_BASE_COLOR(0xff4f412e);
+            // Scale the whole model by rarity size so the legs keep the same
+            // length + body-insertion ratio as at base (common) size.
+            ctx.scale(radius / 15.0f);
             ctx.set_fill(base_color);
             ctx.set_stroke(0xff333333);
             ctx.set_line_width(5);
@@ -456,7 +466,7 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             #undef draw_leg
             ctx.stroke();
             ctx.begin_path();
-            ctx.arc(0,0,radius);
+            ctx.arc(0,0,15);
             ctx.fill();
             ctx.set_stroke(Renderer::HSV(base_color, 0.8));
             ctx.set_line_width(5);

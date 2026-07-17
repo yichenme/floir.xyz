@@ -35,11 +35,13 @@ static Element *make_scroll() {
     // Grouped by rarity, highest rarity at the top (matches the reference layout).
     // Every petal is shown at every rarity.
     for (int r = RarityID::kNumRarities - 1; r >= 0; --r) {
-        elt->add_child(new Ui::StaticText(15, RARITY_NAMES[r], { .fill = RARITY_COLORS[r] }));
         for (PetalID::T i = PetalID::kBasic; i < PetalID::kNumPetals;) {
             Element *row = new Ui::HContainer({}, 0, 8, { .v_justify = Style::Top });
-            for (uint8_t j = 0; j < 5 && i < PetalID::kNumPetals; ++j, ++i)
+            for (uint8_t j = 0; j < 5 && i < PetalID::kNumPetals;) {
+                if (i == PetalID::kHeavyLegacy) { ++i; continue; }  // retired petal
                 row->add_child(new GalleryPetal(i, 52, (uint8_t) r));
+                ++j; ++i;
+            }
             row->refactor();
             elt->add_child(row);
         }

@@ -484,7 +484,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         }
     },
     {
-        .name = "Heaviest",
+        .name = "Heavy",
         .description = "This thing is so heavy that nothing gets in the way",
         .health = 200.0,
         .damage = 10.0,
@@ -845,7 +845,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {10.0, 25.0},
         .xp = 1,
         .drops = {
-            PetalID::kHeavy, PetalID::kLight, PetalID::kRock
+            PetalID::kLight, PetalID::kRock
         },
         .attributes = {
             .stationary = 1

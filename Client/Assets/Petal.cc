@@ -30,7 +30,7 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.fill();
             ctx.stroke();
             break;
-        case PetalID::kHeavy:
+        case PetalID::kHeavyLegacy:
             ctx.set_fill(0xffbbbbbb);
             ctx.set_stroke(0xff8d8d8d);
             ctx.set_line_width(3);
@@ -487,7 +487,7 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.arc(0,0,1.74);
             ctx.fill();
             break;
-        case PetalID::kHeaviest:
+        case PetalID::kHeavy:
             ctx.begin_path();
             ctx.arc(0,0,16);
             ctx.set_fill(0xff333333);

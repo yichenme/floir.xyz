@@ -32,6 +32,18 @@ static Element *make_entries(std::initializer_list<std::string const> contents) 
 
 static Element *make_changelog_contents() {
     Element *elt = new Ui::VContainer({
+        make_date("July 18th 2026"),
+        make_entries({
+            "Fixed the lag: the server now holds a full 20 ticks per second even on a busy map",
+            "Item drops now roll their rarity from the mob's rarity, and mobs grow larger with rarity",
+            "Ants and spiders keep their proportions at every rarity (mouth and legs scale with the body)",
+            "Mob health bars now span the mob's full width; the name and rarity labels scale to fit",
+            "Petal tooltips show the item's real rarity and its rarity-scaled Health and Damage",
+            "Merged the Heavy and Heaviest petals into a single Heavy",
+            "Petals are no longer disabled in low-level zones, and you never lose petals on death",
+            "Players can no longer damage each other, and cleaned up the petal gallery"
+        }),
+        make_divider(),
         make_date("July 16th 2026"),
         make_entries({
             "Brand new hand-crafted biome map with exact terrain collision",
