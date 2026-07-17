@@ -102,6 +102,8 @@ def main():
     layers = {l['name']: decode(l) for l in d['layers'] if l.get('type') == 'tilelayer'}
     objgroups = {l['name']: l.get('objects', [])
                  for l in d['layers'] if l.get('type') == 'objectgroup'}
+    terrain = compute_terrain(layers, W, H)
+    shadows = compute_shadows(terrain, W, H)
     # Client render asset: per-tile Path2D shapes + culled placements + landmark
     # objects. The client draws these as vector each frame (florr.io style).
     import json as _json
@@ -138,13 +140,14 @@ def main():
         if svg_name and os.path.exists(os.path.join(TILES, svg_name)):
             map_tiles[str(gid)] = _tile_shapes(svg_name)
     map_data = {'cell': 500, 'tileSize': 256, 'layers': LAYER_ORDER,
-                'tiles': map_tiles, 'placements': map_placements, 'objects': map_objects}
+                'tiles': map_tiles, 'placements': map_placements, 'objects': map_objects,
+                'shadows': shadows}
     open(os.path.join(ROOT, 'Server/map-data.json'), 'w').write(
         _json.dumps(map_data, separators=(',', ':')))
     print(f'map-data.json: {len(map_tiles)} tiles, {len(map_placements)} placements, '
-          f'{len(map_objects)} objects')
+          f'{len(map_objects)} objects, {len(shadows)} shadow bands')
 
-    write_tilemap_header(layers, objgroups, W, H)
+    write_tilemap_header(layers, objgroups, W, H, terrain)
 
 
 # --- Collision/minimap terrain grid ---------------------------------------
@@ -509,11 +512,11 @@ def _sync_collision_editor(gm, GW, GH):
     print(f'synced collision editor: {UW}x{UH} units ({EDITOR_UNIT} world u/cell)')
 
 
-def write_tilemap_header(layers, objgroups, W, H):
+def compute_terrain(layers, W, H):
+    # Coarse per-cell terrain id: minimap colours, and (via BLOCKING_TERRAIN_IDS)
+    # which cells synthesized shadows treat as solid.
     def present(name, i):
         return (layers.get(name, [0] * (W * H))[i] & 0x1FFFFFFF) != 0
-
-    # ---- coarse per-cell terrain (minimap colours) ----
     terrain = []
     for r in range(H):
         for c in range(W):
@@ -527,6 +530,55 @@ def write_tilemap_header(layers, objgroups, W, H):
                 if not present('bg', i):
                     t = 15
             terrain.append(t)
+    return terrain
+
+
+BLOCKING_TERRAIN_IDS = {1, 2, 3, 4, 5, 6}   # kDirt,kBush,kWater,kJungle,kCliff,kCastle
+SHADOW_DEPTH = 18     # world units each shadow band extends into the open neighbor
+SHADOW_BANDS = (0.25, 0.15, 0.08)   # alpha per band, closest-to-the-edge first
+
+
+def compute_shadows(terrain, W, H):
+    # Synthesize a soft drop-shadow/AO band on the OPEN side of every blocking-cell
+    # edge that borders open ground. Baked once here (map is static) so the client
+    # never computes neighbor adjacency per frame -- just draws flat rects.
+    def blocking(c, r):
+        if c < 0 or r < 0 or c >= W or r >= H:
+            return True
+        return terrain[r * W + c] in BLOCKING_TERRAIN_IDS
+
+    shadows = []
+    for r in range(H):
+        for c in range(W):
+            if not blocking(c, r):
+                continue
+            x0, y0 = c * 500, r * 500
+            if not blocking(c, r - 1):          # open to the north
+                for i, a in enumerate(SHADOW_BANDS):
+                    shadows.append({'x': x0, 'y': y0 - (i + 1) * SHADOW_DEPTH,
+                                     'w': 500, 'h': SHADOW_DEPTH,
+                                     'fill': f'rgba(0,0,0,{a})'})
+            if not blocking(c, r + 1):          # open to the south
+                for i, a in enumerate(SHADOW_BANDS):
+                    shadows.append({'x': x0, 'y': y0 + 500 + i * SHADOW_DEPTH,
+                                     'w': 500, 'h': SHADOW_DEPTH,
+                                     'fill': f'rgba(0,0,0,{a})'})
+            if not blocking(c - 1, r):          # open to the west
+                for i, a in enumerate(SHADOW_BANDS):
+                    shadows.append({'x': x0 - (i + 1) * SHADOW_DEPTH, 'y': y0,
+                                     'w': SHADOW_DEPTH, 'h': 500,
+                                     'fill': f'rgba(0,0,0,{a})'})
+            if not blocking(c + 1, r):          # open to the east
+                for i, a in enumerate(SHADOW_BANDS):
+                    shadows.append({'x': x0 + 500 + i * SHADOW_DEPTH, 'y': y0,
+                                     'w': SHADOW_DEPTH, 'h': 500,
+                                     'fill': f'rgba(0,0,0,{a})'})
+    return shadows
+
+
+def write_tilemap_header(layers, objgroups, W, H, terrain):
+    def present(name, i):
+        return (layers.get(name, [0] * (W * H))[i] & 0x1FFFFFFF) != 0
 
     # ---- global collision mask: authoritative per-tile shapes from the tileset --
     # Every placed tile that carries a collision objectgroup contributes its exact

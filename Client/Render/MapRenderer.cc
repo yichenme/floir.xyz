@@ -30,6 +30,7 @@ void MapRenderer::load() {
             Module.mapTiles = tiles;
             Module.mapLayers = layerGrid;
             Module.mapObjects = d["objects"];
+            Module.mapShadows = d["shadows"];
             Module.mapLayerCount = NL;
             Module.mapCell = d["cell"];
             Module.mapTileSize = d["tileSize"];
@@ -56,20 +57,34 @@ void MapRenderer::draw(int ctx_id, int c0, int c1, int r0, int r1) {
         const r1 = $4;
         function paint(shapes, flip) {
             ctx.save();
-            // flip within the tile's own 256 box, matching the Tiled bits
+            // flip within the tile's own 256 box, matching the Tiled bits.
+            // ctx.transform() is cumulative: calling D, then H, then V applies
+            // them to a drawn point in REVERSE order (V first, D last). To match
+            // Scripts/gen_map.py's _flip_pt (D applied first, then H, then V --
+            // also the collision mask's ground truth), the calls must go in the
+            // opposite order: V, then H, then D last.
             const H = (flip & 0x80000000) !== 0;
             const V = (flip & 0x40000000) !== 0;
             const D = (flip & 0x20000000) !== 0;
-            if (D) ctx.transform(0, 1, 1, 0, 0, 0);
-            if (H) ctx.transform(-1, 0, 0, 1, ts, 0);
             if (V) ctx.transform(1, 0, 0, -1, 0, ts);
+            if (H) ctx.transform(-1, 0, 0, 1, ts, 0);
+            if (D) ctx.transform(0, 1, 1, 0, 0, 0);
             for (const sh of shapes) {
                 if (sh.fill) { ctx.fillStyle = sh.fill; ctx.fill(sh.path); }
                 if (sh.stroke) { ctx.strokeStyle = sh.stroke; ctx.lineWidth = sh.sw; ctx.lineJoin = 'round'; ctx.stroke(sh.path); }
             }
             ctx.restore();
         }
+        const shadows = Module.mapShadows;
         for (let l = 0; l < layers.length; l++) {
+            if (l === 1) {
+                for (let i = 0; i < shadows.length; i++) {
+                    const sh = shadows[i];
+                    if (sh["x"] + sh["w"] < c0 * cell || sh["x"] > c1 * cell || sh["y"] + sh["h"] < r0 * cell || sh["y"] > r1 * cell) continue;
+                    ctx.fillStyle = sh["fill"];
+                    ctx.fillRect(sh["x"], sh["y"], sh["w"], sh["h"]);
+                }
+            }
             const grid = layers[l];
             for (let r = r0; r < r1; r++) {
                 for (let c = c0; c < c1; c++) {
