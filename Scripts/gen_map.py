@@ -555,19 +555,42 @@ def write_tilemap_header(layers, W, H):
                 raw[i] = p
                 break
 
-    # Close 1-cell gaps: a walkable cell wedged between two hitbox cells (left+
-    # right OR top+bottom) becomes a full hitbox, so there's no walkable passage
-    # squeezing between two blocking tiles.
-    def _hb(c, r):
+    # Bridge seams between adjacent hitbox tiles. Where two solid tiles neighbour
+    # each other, their opaque fills often stop short of the shared cell edge,
+    # leaving a thin walkable slit a player can slip into. Extend each fill polygon
+    # out to that shared edge -- but only vertices already within BRIDGE units of
+    # it, and only on sides facing a solid neighbour. Exposed (walkable-facing)
+    # edges keep the exact visible outline; centre tiles are full squares already,
+    # so only the wavy edge/corner tiles gain a little to close the seam. Snapping
+    # only pushes coords outward (to 0 or 500), so a polygon can only grow.
+    BRIDGE = 150.0    # how far a vertex may reach to a solid-neighbour edge
+    CORNER = 90.0     # keep this far from a walkable-facing edge (protect corners)
+    def _solid(c, r):
         return 0 <= c < W and 0 <= r < H and raw[r * W + c] is not None
-    for _ in range(8):   # iterate so filling one gap closes any it exposes
-        gaps = [r * W + c for r in range(H) for c in range(W)
-                if raw[r * W + c] is None and
-                ((_hb(c - 1, r) and _hb(c + 1, r)) or (_hb(c, r - 1) and _hb(c, r + 1)))]
-        if not gaps:
-            break
-        for i in gaps:
-            raw[i] = FULL
+    bridged = list(raw)
+    for r in range(H):
+        for c in range(W):
+            p = raw[r * W + c]
+            if p is None:
+                continue
+            L, R = _solid(c - 1, r), _solid(c + 1, r)
+            U, D = _solid(c, r - 1), _solid(c, r + 1)
+            if not (L or R or U or D):
+                continue
+            np = []
+            for (x, y) in p:
+                # Snap toward a solid neighbour only when the vertex isn't hugging
+                # a walkable-facing perpendicular edge (that would over-block a
+                # visible corner).
+                free_y = (U and y <= CORNER) or (D and y >= 500 - CORNER)
+                free_x = (L and x <= CORNER) or (R and x >= 500 - CORNER)
+                if R and x >= 500 - BRIDGE and not free_y: x = 500.0
+                if L and x <= BRIDGE and not free_y:       x = 0.0
+                if D and y >= 500 - BRIDGE and not free_x: y = 500.0
+                if U and y <= BRIDGE and not free_x:       y = 0.0
+                np.append((x, y))
+            bridged[r * W + c] = np
+    raw = bridged
 
     # Sync the standalone collision editor: rasterise the exact live collision
     # (same point-in-polygon test the game's solid_at uses) into a fine bitmask
