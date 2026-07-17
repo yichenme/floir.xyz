@@ -192,10 +192,15 @@ UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
 void UiLoadoutPetal::on_render(Renderer &ctx) {
     if (last_id == PetalID::kNone) return;
     ctx.scale(width / 60);
+    // Use the equipped slot's actual rarity so the loadout tile colour matches
+    // the same petal shown in the inventory / as a ground drop.
+    uint8_t rarity = PETAL_DATA[last_id].rarity;
+    if (Game::alive() && static_pos < 2 * MAX_SLOT_COUNT)
+        rarity = Game::simulation.get_ent(Game::player_id).get_loadout_rarities(static_pos);
     if (static_pos < Game::loadout_count && PETAL_DATA[last_id].count != 0)
-        draw_loadout_background(ctx, last_id, (float) reload, (float) health);
+        draw_loadout_background(ctx, last_id, (float) reload, (float) health, rarity);
     else
-        draw_loadout_background(ctx, last_id);
+        draw_loadout_background(ctx, last_id, 1, 1, rarity);
 }
 
 void UiLoadoutPetal::on_render_skip(Renderer &ctx) {

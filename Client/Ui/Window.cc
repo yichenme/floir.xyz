@@ -44,6 +44,7 @@ void Window::on_render(Renderer &ctx) {
     static float release_anim = 0;   // >0 while playing the release travel
     static float rel_tx = 0, rel_ty = 0;
     static PetalID::T rel_type = PetalID::kNone;
+    static uint8_t rel_rarity = 255;
     static uint8_t was_dragging = 0;
 
     bool const dragging = Ui::dragging_inventory_index != -1 && Game::alive() &&
@@ -62,8 +63,9 @@ void Window::on_render(Renderer &ctx) {
         ctx.reset_transform();
         ctx.translate(pv_x, pv_y);
         ctx.scale(Ui::scale);
-        draw_loadout_background(ctx, Game::inventory_stacks[Ui::dragging_inventory_index].type);
+        draw_loadout_background(ctx, Game::inventory_stacks[Ui::dragging_inventory_index].type, 1, 1, Game::inventory_stacks[Ui::dragging_inventory_index].rarity);
         rel_type = Game::inventory_stacks[Ui::dragging_inventory_index].type;
+        rel_rarity = Game::inventory_stacks[Ui::dragging_inventory_index].rarity;
         was_dragging = 1;
     } else {
         if (was_dragging) {
@@ -87,7 +89,7 @@ void Window::on_render(Renderer &ctx) {
             ctx.reset_transform();
             ctx.translate(pv_x, pv_y);
             ctx.scale(Ui::scale * release_anim);
-            draw_loadout_background(ctx, rel_type);
+            draw_loadout_background(ctx, rel_type, 1, 1, rel_rarity);
         }
     }
     on_render_tooltip(ctx);

@@ -110,6 +110,9 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             break;
         case MobID::kBee:
             SET_BASE_COLOR(0xffffe763)
+            // Scale the model to the hitbox so it grows with rarity instead of
+            // staying a fixed size inside an enlarged collision circle.
+            ctx.scale(radius / 20.0f);
             ctx.set_fill(0xff333333);
             ctx.set_stroke(0xff292929);
             ctx.set_line_width(5);
@@ -303,6 +306,9 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             break;
         case MobID::kHornet:
             SET_BASE_COLOR(0xffffe763)
+            // Scale the model to the hitbox so it tracks the collision circle
+            // at every rarity instead of staying a fixed size.
+            ctx.scale(radius / 40.0f);
             ctx.set_fill(0xff333333);
             ctx.set_stroke(0xff292929);
             ctx.set_line_width(5);
@@ -404,6 +410,9 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             if (mob_id == MobID::kCentipede) SET_BASE_COLOR(0xff8ac255)
             else if (mob_id == MobID::kEvilCentipede) SET_BASE_COLOR(0xff905db0)
             else SET_BASE_COLOR(0xffd4c66e)
+            // Scale each segment to its hitbox so the body circle matches the
+            // collision radius (and segments stay connected) at every rarity.
+            ctx.scale(radius / 35.0f);
             ctx.set_fill(0xff333333);
             ctx.begin_path();
             ctx.arc(0,-30,15);

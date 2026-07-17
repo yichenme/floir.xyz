@@ -22,5 +22,5 @@ void render_drop(Renderer &ctx, Entity const &ent) {
     ctx.begin_path();
     ctx.round_rect(-33, -33, 66, 66, 4);
     ctx.fill();
-    draw_loadout_background(ctx, ent.get_drop_id());
+    draw_loadout_background(ctx, ent.get_drop_id(), 1, 1, ent.get_drop_rarity());
 }

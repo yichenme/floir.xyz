@@ -30,7 +30,7 @@ void TitlePetalSlot::on_render(Renderer &ctx) {
     uint8_t id = camera.get_inventory(pos);
     if (id == PetalID::kNone) return;
     ctx.scale(width / 60);
-    draw_loadout_background(ctx, id);
+    draw_loadout_background(ctx, id, 1, 1, camera.get_inventory_rarity(pos));
 }
 
 void TitlePetalSlot::on_event(uint8_t event) {

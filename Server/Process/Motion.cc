@@ -15,8 +15,10 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
         ent.speed_ratio *= 0.5;
         --ent.slow_ticks;
     }
-    // Players and mobs collide with impassable terrain (resolved after the move).
-    bool const terrain_collide = ent.has_component(kFlower) || ent.has_component(kMob);
+    // Players, mobs and drops collide with impassable terrain (resolved after
+    // the move). Drops are included so loot can't come to rest inside a blocked
+    // tile: it gets pushed out and settles beside the block instead.
+    bool const terrain_collide = ent.has_component(kFlower) || ent.has_component(kMob) || ent.has_component(kDrop);
     float const prev_x = ent.get_x();
     float const prev_y = ent.get_y();
     float const dt = (BASE_TPS / TPS);
