@@ -103,10 +103,11 @@ void Minimap::on_render(Renderer &ctx) {
         }
     }
 
-    // Player marker: zoomed-in dot 50% of the old size, zoomed-out 10% of it,
-    // black outlined. Sized in screen px then converted to world scale.
+    // Player marker: zoomed-in dot 50% of the old size, zoomed-out 15% of it
+    // (50% bigger than the previous 10%), black outlined. Sized in screen px
+    // then converted to world scale.
     if (Game::simulation.ent_exists(Game::camera_id)) {
-        float const dot_screen = lerp(size * 0.035f, size * 0.007f, e);
+        float const dot_screen = lerp(size * 0.035f, size * 0.0105f, e);
         float const dot = dot_screen * view_w / size;
         ctx.set_fill(0xffffe763);
         ctx.set_stroke(0xff000000);
