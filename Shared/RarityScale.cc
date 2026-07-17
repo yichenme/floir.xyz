@@ -20,8 +20,32 @@ float mob_hp_mult(uint8_t r) {
     return m;
 }
 float mob_size_mult(uint8_t r) {
-    // 1.2x per rarity tier, compounding (1.0x at Common, ~4.3x at Unique).
-    return std::pow(1.2f, (float)r);
+    // 1.75x per rarity tier, compounding (1.0x at Common).
+    return std::pow(1.75f, (float)r);
+}
+
+// Rarity of a dropped item given the MOB's rarity, or DROP_NOTHING for no drop.
+// (Unique mobs roll the Super row 10x -- handled by the caller.)
+uint8_t roll_drop_rarity(uint8_t mob_rarity) {
+    float const r = frand();
+    switch (mob_rarity) {
+        case RarityID::kCommon:    return r < 0.60f ? RarityID::kCommon : DROP_NOTHING;
+        case RarityID::kUncommon:  return r < 0.40f ? RarityID::kCommon
+                                        : (r < 0.80f ? RarityID::kUncommon : DROP_NOTHING);
+        case RarityID::kRare:      return r < 0.10f ? RarityID::kRare
+                                        : (r < 0.80f ? RarityID::kUncommon : RarityID::kCommon);
+        case RarityID::kEpic:      return r < 0.10f ? RarityID::kEpic
+                                        : (r < 0.80f ? RarityID::kRare : RarityID::kUncommon);
+        case RarityID::kLegendary: return r < 0.10f ? RarityID::kLegendary
+                                        : (r < 0.80f ? RarityID::kEpic : RarityID::kRare);
+        case RarityID::kMythic:    return r < 0.05f ? RarityID::kMythic
+                                        : (r < 0.80f ? RarityID::kLegendary : RarityID::kEpic);
+        case RarityID::kUltra:     return r < 0.05f ? RarityID::kUltra
+                                        : (r < 0.80f ? RarityID::kMythic : RarityID::kLegendary);
+        case RarityID::kSuper:     return r < 0.75f ? RarityID::kUltra : RarityID::kMythic;
+        case RarityID::kUnique:    return r < 0.75f ? RarityID::kUltra : RarityID::kMythic;
+        default:                   return DROP_NOTHING;
+    }
 }
 uint8_t roll_spawn_rarity(uint8_t band) {
     // band = Common..Ultra (0..6)

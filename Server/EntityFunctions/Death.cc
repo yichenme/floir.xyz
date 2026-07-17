@@ -10,36 +10,26 @@
 
 #include <Shared/Entity.hh>
 #include <Shared/Map.hh>
+#include <Shared/RarityScale.hh>
 #include <Shared/Simulation.hh>
 
 #include <iostream>
+#include <utility>
 
-static void _alloc_drops(Simulation *sim, std::vector<PetalID::T> &success_drops, float x, float y, uint8_t rarity) {
-    #ifdef DEBUG
-    for (PetalID::T id : success_drops)
-        assert(id != PetalID::kNone && id < PetalID::kNumPetals);
-    #endif
-    size_t count = success_drops.size();
-    for (size_t i = count; i > 0; --i) {
-        PetalID::T drop_id = success_drops[i - 1];
-        if (PETAL_DATA[drop_id].rarity == RarityID::kUnique && PetalTracker::get_count(sim, drop_id) > 0) {
-            success_drops[i - 1] = success_drops[count - 1];
-            --count;
-            success_drops.pop_back();
-        }
+static void _alloc_drops(Simulation *sim, std::vector<std::pair<PetalID::T, uint8_t>> &drops, float x, float y) {
+    // Keep only one Unique-tier petal of a kind in the world at a time.
+    for (size_t i = drops.size(); i > 0; --i) {
+        PetalID::T const id = drops[i - 1].first;
+        if (PETAL_DATA[id].rarity == RarityID::kUnique && PetalTracker::get_count(sim, id) > 0)
+            drops.erase(drops.begin() + (i - 1));
     }
-    DEBUG_ONLY(assert(success_drops.size() == count);)
-    if (count > 1) {
-        for (size_t i = 0; i < count; ++i) {
-            Entity &drop = alloc_drop(sim, success_drops[i], rarity);
-            drop.set_x(x);
-            drop.set_y(y);
-            drop.velocity.unit_normal(i * 2 * M_PI / count).set_magnitude(25);
-        }
-    } else if (count == 1) {
-        Entity &drop = alloc_drop(sim, success_drops[0], rarity);
+    size_t const count = drops.size();
+    for (size_t i = 0; i < count; ++i) {
+        Entity &drop = alloc_drop(sim, drops[i].first, drops[i].second);
         drop.set_x(x);
         drop.set_y(y);
+        if (count > 1)
+            drop.velocity.unit_normal(i * 2 * M_PI / count).set_magnitude(25);
     }
 }
 
@@ -85,11 +75,18 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             Map::remove_mob(sim, ent.zone);
         if (!natural_despawn && !(BitMath::at(ent.flags, EntityFlags::kNoDrops))) {
             struct MobData const &mob_data = MOB_DATA[ent.get_mob_id()];
-            std::vector<PetalID::T> success_drops = {};
-            StaticArray<float, MAX_DROPS_PER_MOB> const &drop_chances = MOB_DROP_CHANCES[ent.get_mob_id()];
-            for (uint32_t i = 0; i < mob_data.drops.size(); ++i) 
-                if (frand() < drop_chances[i]) success_drops.push_back(mob_data.drops[i]);
-            _alloc_drops(sim, success_drops, ent.get_x(), ent.get_y(), ent.get_mob_rarity());
+            // Each droppable item's rarity is rolled from the mob's rarity (see
+            // roll_drop_rarity). Unique mobs roll the Super row 10x -> ~10 items.
+            std::vector<std::pair<PetalID::T, uint8_t>> drops;
+            uint8_t const mob_rarity = ent.get_mob_rarity();
+            int const rolls = (mob_rarity == RarityID::kUnique) ? 10 : 1;
+            for (uint32_t i = 0; i < mob_data.drops.size(); ++i)
+                for (int k = 0; k < rolls; ++k) {
+                    uint8_t const rar = roll_drop_rarity(mob_rarity);
+                    if (rar != DROP_NOTHING)
+                        drops.push_back({mob_data.drops[i], rar});
+                }
+            _alloc_drops(sim, drops, ent.get_x(), ent.get_y());
         }
         if (ent.get_mob_id() == MobID::kAntHole && 
             BitMath::at(ent.flags, EntityFlags::kSpawnedFromZone) && 

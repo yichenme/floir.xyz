@@ -42,7 +42,7 @@ namespace Ui {
     namespace UiLoadout {
         extern UiLoadoutPetal *petal_slots[2 * MAX_SLOT_COUNT];
         extern UiLoadoutSlot *petal_backgrounds[2 * MAX_SLOT_COUNT + 1];
-        extern Element *petal_tooltips[PetalID::kNumPetals];
+        extern Element *petal_tooltips[PetalID::kNumPetals][RarityID::kNumRarities];
         extern uint8_t selected_with_keys;
         extern double last_key_select;
         extern uint32_t num_petals_selected;

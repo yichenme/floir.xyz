@@ -40,7 +40,7 @@ void TitlePetalSlot::on_event(uint8_t event) {
     uint8_t id = camera.get_inventory(pos);
     if (event != kFocusLost && id != PetalID::kNone) {
         rendering_tooltip = 1;
-        tooltip = Ui::UiLoadout::petal_tooltips[id];
+        tooltip = Ui::UiLoadout::petal_tooltips[id][camera.get_inventory_rarity(pos)];
     } else {
         rendering_tooltip = 0;
     }

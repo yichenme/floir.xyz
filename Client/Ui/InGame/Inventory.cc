@@ -99,7 +99,7 @@ void InventoryStackSlot::on_event(uint8_t event) {
     }
     if (event != kFocusLost && !selected) {
         rendering_tooltip = 1;
-        tooltip = Ui::UiLoadout::petal_tooltips[Game::inventory_stacks[real].type];
+        tooltip = Ui::UiLoadout::petal_tooltips[Game::inventory_stacks[real].type][Game::inventory_stacks[real].rarity];
     } else
         rendering_tooltip = 0;
 }

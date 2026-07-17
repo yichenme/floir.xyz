@@ -24,7 +24,7 @@ void GalleryPetal::on_render(Renderer &ctx) {
 void GalleryPetal::on_event(uint8_t event) {
     if (event != kFocusLost && id != PetalID::kNone) {
         rendering_tooltip = 1;
-        tooltip = Ui::UiLoadout::petal_tooltips[id];
+        tooltip = Ui::UiLoadout::petal_tooltips[id][rarity == 255 ? PETAL_DATA[id].rarity : rarity];
     } else
         rendering_tooltip = 0;
 }
@@ -38,12 +38,8 @@ static Element *make_scroll() {
         elt->add_child(new Ui::StaticText(15, RARITY_NAMES[r], { .fill = RARITY_COLORS[r] }));
         for (PetalID::T i = PetalID::kBasic; i < PetalID::kNumPetals;) {
             Element *row = new Ui::HContainer({}, 0, 8, { .v_justify = Style::Top });
-            for (uint8_t j = 0; j < 5 && i < PetalID::kNumPetals; ++j, ++i) {
-                row->add_child(new Ui::VContainer({
-                    new GalleryPetal(i, 55, (uint8_t) r),
-                    new Ui::StaticText(11, PETAL_DATA[i].name)
-                }, 0, 3, { .v_justify = Style::Top }));
-            }
+            for (uint8_t j = 0; j < 5 && i < PetalID::kNumPetals; ++j, ++i)
+                row->add_child(new GalleryPetal(i, 52, (uint8_t) r));
             row->refactor();
             elt->add_child(row);
         }

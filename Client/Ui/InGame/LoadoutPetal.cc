@@ -220,7 +220,13 @@ void UiLoadoutPetal::on_event(uint8_t event) {
     }
     if (event != kFocusLost && (!selected || Input::is_mobile) && last_id != PetalID::kNone) {
         rendering_tooltip = 1;
-        tooltip = Ui::UiLoadout::petal_tooltips[last_id];
-    } else 
+        uint8_t rarity = PETAL_DATA[last_id].rarity;
+        if (Game::alive()) {
+            Entity const &player = Game::simulation.get_ent(Game::player_id);
+            if (static_pos < 2 * MAX_SLOT_COUNT)
+                rarity = player.get_loadout_rarities(static_pos);
+        }
+        tooltip = Ui::UiLoadout::petal_tooltips[last_id][rarity];
+    } else
         rendering_tooltip = 0;
 }

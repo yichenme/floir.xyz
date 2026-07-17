@@ -10,3 +10,7 @@ float mob_armor_mult(uint8_t rarity);
 float mob_hp_mult(uint8_t rarity);
 float mob_size_mult(uint8_t rarity);
 uint8_t roll_spawn_rarity(uint8_t band_difficulty);
+
+// Drop-rarity table keyed on the mob's rarity; returns DROP_NOTHING for no drop.
+constexpr uint8_t DROP_NOTHING = 255;
+uint8_t roll_drop_rarity(uint8_t mob_rarity);

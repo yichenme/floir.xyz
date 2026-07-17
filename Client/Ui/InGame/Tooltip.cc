@@ -7,11 +7,13 @@
 
 #include <Client/Game.hh>
 
+#include <Shared/RarityScale.hh>
+
 #include <format>
 
 using namespace Ui;
 
-Element *Ui::UiLoadout::petal_tooltips[PetalID::kNumPetals] = {nullptr};
+Element *Ui::UiLoadout::petal_tooltips[PetalID::kNumPetals][RarityID::kNumRarities] = {{nullptr}};
 
 static float get_reload_factor() {
     if (!Game::alive()) return 1;
@@ -33,21 +35,25 @@ static float get_damage_factor() {
     return factor;
 }
 
-static Ui::Element *make_petal_stat_container(PetalID::T id) {
+static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     std::vector<Ui::Element *> stats = {new Ui::Element(0,10)};
     struct PetalData const &petal_data = PETAL_DATA[id];
     struct PetalAttributes const &attrs = petal_data.attributes;
+    // Health and damage scale with the petal's rarity (mirrors Server/Spawn.cc,
+    // which applies these exact multipliers when the petal is spawned).
+    float const hp_mult = petal_hp_mult(rarity);
+    float const dmg_mult = petal_damage_mult(rarity);
     if (petal_data.health > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Health:", { .fill = 0xff77ff77 }),
-            new Ui::StaticText(12, format_number(petal_data.health))
+            new Ui::StaticText(12, format_number(petal_data.health * hp_mult))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (petal_data.damage > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Damage:", { .fill = 0xffff7777 }),
-            new Ui::DynamicText(12, [&](){
-                return format_number(petal_data.damage * get_damage_factor());
+            new Ui::DynamicText(12, [&petal_data, dmg_mult](){
+                return format_number(petal_data.damage * dmg_mult * get_damage_factor());
             })
         }, 0, 5, { .h_justify = Style::Left }));
     }
@@ -144,31 +150,32 @@ static Ui::Element *make_petal_stat_container(PetalID::T id) {
     return new Ui::VContainer(stats, 0, 2, { .h_justify = Style::Left });
 }
 
-static void make_petal_tooltip(PetalID::T id) {
+static void make_petal_tooltip(PetalID::T id, uint8_t rarity) {
     Element *tooltip = new Ui::VContainer({
         new Ui::HFlexContainer(
             new Ui::StaticText(20, PETAL_DATA[id].name, { .fill = 0xffffffff, .h_justify = Style::Left }),
             new Ui::DynamicText(16, [=](){
                 float reload = PETAL_DATA[id].reload * get_reload_factor();
                 std::string rld_str = reload == 0 ? "" :
-                    PETAL_DATA[id].attributes.secondary_reload == 0 ? std::format("{:.1f}s ⟳", reload) : 
+                    PETAL_DATA[id].attributes.secondary_reload == 0 ? std::format("{:.1f}s ⟳", reload) :
                     std::format("{:.1f} + {:.1f}s ⟳", reload, PETAL_DATA[id].attributes.secondary_reload);
                 return rld_str;
             }, { .fill = 0xffffffff, .v_justify = Style::Top }),
             5, 10, {}
         ),
-        new Ui::StaticText(14, RARITY_NAMES[PETAL_DATA[id].rarity], { .fill = RARITY_COLORS[PETAL_DATA[id].rarity], .h_justify = Style::Left }),
+        new Ui::StaticText(14, RARITY_NAMES[rarity], { .fill = RARITY_COLORS[rarity], .h_justify = Style::Left }),
         new Ui::Element(0,8),
         new Ui::StaticText(12, PETAL_DATA[id].description, { .fill = 0xffffffff, .h_justify = Style::Left }),
-        make_petal_stat_container(id)
+        make_petal_stat_container(id, rarity)
     }, 5, 2);
     tooltip->style.fill = 0x80000000;
     tooltip->style.round_radius = 6;
     tooltip->refactor();
-    Ui::UiLoadout::petal_tooltips[id] = tooltip;
+    Ui::UiLoadout::petal_tooltips[id][rarity] = tooltip;
 }
 
 void Ui::make_petal_tooltips() {
     for (PetalID::T i = 0; i < PetalID::kNumPetals; ++i)
-        make_petal_tooltip(i);
+        for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)
+            make_petal_tooltip(i, r);
 }

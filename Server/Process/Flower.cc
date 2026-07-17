@@ -137,7 +137,7 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
         LoadoutSlot &slot = player.loadout[i];
         //player.set_loadout_ids(i, slot.id);
         //other way around. loadout_ids should dictate loadout
-        if (slot.get_petal_id() != player.get_loadout_ids(i) || player.get_overlevel_timer() >= PETAL_DISABLE_DELAY * TPS)
+        if (slot.get_petal_id() != player.get_loadout_ids(i))
             slot.update_id(sim, player.get_loadout_ids(i));
         PetalID::T slot_petal_id = slot.get_petal_id();
         struct PetalData const &petal_data = PETAL_DATA[slot_petal_id];
@@ -145,12 +145,6 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
 
         if (slot_petal_id == PetalID::kNone || petal_data.count == 0)
             continue;
-        //if overleveled timer too large
-        if (player.get_overlevel_timer() >= PETAL_DISABLE_DELAY * TPS) {
-            player.set_loadout_reloads(i, 0);
-            player.set_loadout_healths(i, 0);
-            continue;
-        }
         float min_reload = 1;
         // Worst-case (lowest) health among this slot's currently-alive petal
         // instances, mirroring how min_reload takes the least-ready instance.
