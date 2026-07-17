@@ -127,6 +127,12 @@ def main():
                 bleed = BLEED if name in ('bg', 'transitions') else 0.0
                 sz = CELL + 2 * bleed
                 h_, v_, dg = bool(g & FLIP_H), bool(g & FLIP_V), bool(g & FLIP_D)
+                # gid 47 (desert_b) is placed on the VERTICAL jungle<->desert
+                # boundary but is a horizontal transition, so its wave sits
+                # sideways (toothed edge). Rotate it 90deg CW so desert is on the
+                # left and the wave faces the jungle.
+                if gid == 47:
+                    h_, v_, dg = True, False, True
                 if not (h_ or v_ or dg):
                     out.append(f'<use href="#{sid}" x="{x-bleed}" y="{y-bleed}" width="{sz}" height="{sz}"/>')
                 else:
@@ -468,18 +474,17 @@ def write_tilemap_header(layers, W, H):
                     t = 15  # void: outside the map, must block
             terrain.append(t)
 
-            # HITBOX: only the CENTRE blocking tiles (bush_c/cliff_c/dirt_c/
-            # castle_c/water_c and their numbered variants) get a hitbox -- the
-            # opaque fill shape of the tile (its visible part). Transition/edge
-            # tiles and everything else are walkable (no hitbox).
+            # HITBOX: every blocking-biome tile (bush/cliff/dirt/castle/water --
+            # centre, side, corner AND inner-corner) gets a hitbox equal to its
+            # opaque fill shape (the visible part, ignoring transparent area). The
+            # sand<->grass ground transitions aren't blocking tiles, so they're
+            # naturally excluded.
             for name in BLOCK_LAYERS:
                 g = layers.get(name, [0] * (W * H))[i]
                 if not (g & 0x1FFFFFFF):
                     continue
                 svg = GID_TO_SVG.get(g & 0x1FFFFFFF, LAYER_FALLBACK.get(name))
-                if not svg or '_c_' not in svg:
-                    break   # transition/edge tile -> no hitbox
-                if not os.path.exists(os.path.join(TILES, svg)):
+                if not svg or not os.path.exists(os.path.join(TILES, svg)):
                     p = FULL
                 else:
                     p = [(x * 500 / 256, y * 500 / 256)
