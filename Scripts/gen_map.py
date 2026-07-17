@@ -468,15 +468,18 @@ def write_tilemap_header(layers, W, H):
                     t = 15  # void: outside the map, must block
             terrain.append(t)
 
-            if t == 15:
-                raw[i] = FULL
-                continue
+            # HITBOX: only the CENTRE blocking tiles (bush_c/cliff_c/dirt_c/
+            # castle_c/water_c and their numbered variants) get a hitbox -- the
+            # opaque fill shape of the tile (its visible part). Transition/edge
+            # tiles and everything else are walkable (no hitbox).
             for name in BLOCK_LAYERS:
                 g = layers.get(name, [0] * (W * H))[i]
                 if not (g & 0x1FFFFFFF):
                     continue
                 svg = GID_TO_SVG.get(g & 0x1FFFFFFF, LAYER_FALLBACK.get(name))
-                if not svg or not os.path.exists(os.path.join(TILES, svg)):
+                if not svg or '_c_' not in svg:
+                    break   # transition/edge tile -> no hitbox
+                if not os.path.exists(os.path.join(TILES, svg)):
                     p = FULL
                 else:
                     p = [(x * 500 / 256, y * 500 / 256)
@@ -638,7 +641,32 @@ def write_tilemap_header(layers, W, H):
     open(out, 'w').write('\n'.join(lines))
     from collections import Counter
     print('Tilemap.hh terrain dist:', dict(Counter(terrain)))
-    print(f'collision: {len(polys)} unique polys, {sum(1 for v in cell_poly if v)} blocking cells, {len(verts)//2} verts')
+    print(f'collision: {len(polys)} unique hitboxes, {sum(1 for v in cell_poly if v)} hitbox cells, {len(verts)//2} verts')
+
+    # Debug export: the map with every hitbox drawn in red (invisible in-game;
+    # this SVG makes the red filter visible). Hitbox = opaque shape of the
+    # centre blocking tiles only.
+    try:
+        mapsvg = open(os.path.join(ROOT, 'Server/main-map.svg')).read()
+        sc = CELL / 500.0
+        ov = ['<g fill="#ff0000" fill-opacity="0.5">']
+        for r in range(H):
+            for c in range(W):
+                pi = cell_poly[r * W + c]
+                if not pi:
+                    continue
+                p = polys[pi - 1]
+                pts = ' '.join('%.2f,%.2f' % (x * sc + c * CELL, y * sc + r * CELL) for x, y in p)
+                ov.append(f'<polygon points="{pts}"/>')
+        ov.append('</g>')
+        hb = mapsvg.replace('</svg>', '\n'.join(ov) + '\n</svg>')
+        for p in (os.path.join(ROOT, 'docs/map-hitbox.svg'),
+                  os.path.expanduser('~/Desktop/floir-map-hitbox.svg')):
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            open(p, 'w').write(hb)
+        print('wrote map-hitbox.svg (red hitbox overlay)')
+    except Exception as e:
+        print('hitbox svg export skipped:', e)
 
 
 if __name__ == '__main__':

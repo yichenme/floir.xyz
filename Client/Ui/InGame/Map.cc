@@ -80,10 +80,8 @@ void Minimap::on_render(Renderer &ctx) {
     ctx.scale(size / view_w, size / view_h);
     ctx.translate(-view_l, -view_t);
 
-    // Paint blocked terrain per whole cell (biome), matching the tmj: black =
-    // dirt/water/bush/cliff/castle, white = walkable. Sampling per cell (not the
-    // shaped sub-cell collision) keeps the minimap clean -- no isolated white
-    // specks where a shaped edge tile left a tiny walkable sliver.
+    // Paint the actual hitboxes black (walkable = white), so the minimap matches
+    // the collision. Sample per cell centre -- hitboxes are centre-tile shaped.
     float const step = Tilemap::CELL_SIZE;
     int32_t sc0 = std::max(0, (int32_t)std::floor(view_l / step));
     int32_t sc1 = (int32_t)std::ceil((view_l + view_w) / step);
@@ -94,8 +92,7 @@ void Minimap::on_render(Renderer &ctx) {
     for (int32_t r = sr0; r < sr1; ++r) {
         int32_t start = -1;
         for (int32_t c = sc0; c <= sc1; ++c) {
-            bool w = c < sc1 && Tilemap::blocks_movement(
-                Tilemap::terrain_at(c * step + step / 2, r * step + step / 2));
+            bool w = c < sc1 && Tilemap::solid_at(c * step + step / 2, r * step + step / 2);
             if (w && start < 0) start = c;
             else if (!w && start >= 0) {
                 ctx.fill_rect(start * step, r * step - ov,
