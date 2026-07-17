@@ -287,35 +287,16 @@ void Game::tick(double time) {
         renderer.set_global_alpha(0.85);
         renderer.translate(renderer.width/2,renderer.height/2);
         renderer.draw_image(game_ui_renderer);
-        //process keybind petal switches
-        if (Input::keys_held_this_tick.contains('X'))
+        //process keybind petal switches: R swaps every main/secondary pair at
+        // once; each number key SLOT_KEYBINDS[i] directly swaps just that one
+        // main/secondary pair (no more Q/E navigate-then-swap).
+        if (Input::keys_held_this_tick.contains('R'))
             Game::swap_all_petals();
-        else if (Input::keys_held_this_tick.contains('E')) 
-            Ui::forward_secondary_select();
-        else if (Input::keys_held_this_tick.contains('Q')) 
-            Ui::backward_secondary_select();
-        else if (Ui::UiLoadout::selected_with_keys == MAX_SLOT_COUNT) {
+        else {
             for (uint8_t i = 0; i < Game::loadout_count; ++i) {
                 if (Input::keys_held_this_tick.contains(SLOT_KEYBINDS[i])) {
-                    Ui::forward_secondary_select();
+                    Ui::ui_swap_petals(i, i + Game::loadout_count);
                     break;
-                }
-            }
-        } else if (Game::cached_loadout[Game::loadout_count + Ui::UiLoadout::selected_with_keys] == PetalID::kNone)
-            Ui::UiLoadout::selected_with_keys = MAX_SLOT_COUNT;
-        if (Ui::UiLoadout::selected_with_keys < MAX_SLOT_COUNT 
-            && Game::cached_loadout[Game::loadout_count + Ui::UiLoadout::selected_with_keys] != PetalID::kNone) {
-            if (Input::keys_held_this_tick.contains('T')) {
-                Ui::ui_store_petal(Ui::UiLoadout::selected_with_keys + Game::loadout_count);
-                Ui::forward_secondary_select();
-            } else {
-                for (uint8_t i = 0; i < Game::loadout_count; ++i) {
-                    if (Input::keys_held_this_tick.contains(SLOT_KEYBINDS[i])) {
-                        Ui::ui_swap_petals(i, Ui::UiLoadout::selected_with_keys + Game::loadout_count);
-                        if (Game::cached_loadout[Game::loadout_count + Ui::UiLoadout::selected_with_keys] == PetalID::kNone)
-                            Ui::forward_secondary_select();
-                        break;
-                    }
                 }
             }
         }

@@ -13,31 +13,6 @@ uint8_t Ui::UiLoadout::selected_with_keys = MAX_SLOT_COUNT;
 double Ui::UiLoadout::last_key_select = 0;
 uint32_t Ui::UiLoadout::num_petals_selected = 0;
 
-void Ui::forward_secondary_select() {
-    Ui::UiLoadout::last_key_select = Game::timestamp;
-    if (Ui::UiLoadout::selected_with_keys == MAX_SLOT_COUNT)
-        Ui::UiLoadout::selected_with_keys = 0;
-    else
-        ++Ui::UiLoadout::selected_with_keys;
-    for (uint8_t i = 0; i < MAX_SLOT_COUNT; ++i) {
-        Ui::UiLoadout::selected_with_keys = Ui::UiLoadout::selected_with_keys % MAX_SLOT_COUNT;
-        if (Game::cached_loadout[Game::loadout_count + Ui::UiLoadout::selected_with_keys] != PetalID::kNone) return;
-        ++Ui::UiLoadout::selected_with_keys;
-    }
-    Ui::UiLoadout::selected_with_keys = MAX_SLOT_COUNT;
-}
-
-void Ui::backward_secondary_select() {
-    Ui::UiLoadout::last_key_select = Game::timestamp;
-    if (Ui::UiLoadout::selected_with_keys == MAX_SLOT_COUNT)
-        return Ui::forward_secondary_select();
-    for (uint8_t i = 0; i < MAX_SLOT_COUNT; ++i) {
-        Ui::UiLoadout::selected_with_keys = (Ui::UiLoadout::selected_with_keys - 1 + MAX_SLOT_COUNT) % MAX_SLOT_COUNT;
-        if (Game::cached_loadout[Game::loadout_count + Ui::UiLoadout::selected_with_keys] != PetalID::kNone) return;
-    }
-    Ui::UiLoadout::selected_with_keys = MAX_SLOT_COUNT;
-}
-
 uint8_t Ui::static_to_dynamic(uint8_t static_pos) {
     if (static_pos >= Game::loadout_count) 
         return std::min(MAX_SLOT_COUNT + static_pos - Game::loadout_count, 2 * MAX_SLOT_COUNT);

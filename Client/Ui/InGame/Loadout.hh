@@ -53,8 +53,6 @@ namespace Ui {
     uint8_t dynamic_to_static(uint8_t);
     uint8_t static_to_dynamic(uint8_t);
 
-    void forward_secondary_select();
-    void backward_secondary_select();
     void ui_store_petal(uint8_t);
     void ui_swap_petals(uint8_t, uint8_t);
 }
