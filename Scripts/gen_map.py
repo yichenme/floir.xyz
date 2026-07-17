@@ -148,8 +148,13 @@ def main():
                         h_, v_, dg = False, False, False
                     elif _isD(c, r - 1):    # desert above -> 180
                         h_, v_, dg = True, True, False
-                    elif _isD(c - 1, r):    # desert left -> 90 cw
-                        h_, v_, dg = True, False, True
+                    elif _isD(c - 1, r):
+                        # desert on left (vertical desert<->jungle boundary): use
+                        # the desert_r asset rotated 180deg (desert-on-right ->
+                        # desert-on-left), per request.
+                        svg = 'desert_r_0.svg'
+                        sid = f't_{svg.replace(".", "_")}'
+                        h_, v_, dg = True, True, False
                     elif _isD(c + 1, r):    # desert right -> 270 cw
                         h_, v_, dg = False, True, True
                 if not (h_ or v_ or dg):
