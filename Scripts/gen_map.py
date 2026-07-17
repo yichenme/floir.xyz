@@ -389,9 +389,13 @@ def _tile_mask(svg_name):
             elif el.startswith('<path'):
                 d = attr(el, 'd')
                 if d:
-                    poly = [(px*sc, py*sc) for px, py in _path_points(d)]
-                    if len(poly) >= 3:
-                        dr.polygon(poly, fill=1); drew = True
+                    # Draw each subpath separately so the opaque area is the UNION
+                    # of all shapes (concatenating them into one polygon would
+                    # bridge disjoint blobs and distort the outline).
+                    for sp in _path_subpaths(d):
+                        poly = [(px*sc, py*sc) for px, py in sp]
+                        if len(poly) >= 3:
+                            dr.polygon(poly, fill=1); drew = True
             else:  # polygon / polyline
                 p = attr(el, 'points')
                 if p:
@@ -477,38 +481,47 @@ def _flip_poly(poly, g):
     return out
 
 
-def _sync_collision_editor(raw, W, H):
+def _flip_mask(m, g):
+    # Apply Tiled flip bits to an NxN coverage mask (same transform as _flip_poly).
+    if not (g & (FLIP_D_B | FLIP_H_B | FLIP_V_B)):
+        return m
+    n = len(m)
+    D, Hf, Vf = bool(g & FLIP_D_B), bool(g & FLIP_H_B), bool(g & FLIP_V_B)
+    out = [[0] * n for _ in range(n)]
+    for sy in range(n):
+        row = m[sy]
+        for sx in range(n):
+            if not row[sx]:
+                continue
+            x, y = sx, sy
+            if D:  x, y = y, x
+            if Hf: x = n - 1 - x
+            if Vf: y = n - 1 - y
+            out[y][x] = 1
+    return out
+
+
+def _sync_collision_editor(gm, GW, GH):
+    # Downsample the global collision mask (GW x GH, 10 world u/px) to the
+    # editor's 25-world-u grid and patch collision-editor.html's B64_INIT.
     import base64
     import re
-    EDITOR_UNIT = 25                     # world units per editor cell (was 50)
-    UW = W * 500 // EDITOR_UNIT           # 1000
-    UH = H * 500 // EDITOR_UNIT           # 1020
-
-    def _pip(px, py, poly):              # point-in-polygon, matches C _in_poly
-        inside = False
-        n = len(poly)
-        j = n - 1
-        for i in range(n):
-            xi, yi = poly[i]
-            xj, yj = poly[j]
-            if ((yi > py) != (yj > py)) and (px < (xj - xi) * (py - yi) / (yj - yi) + xi):
-                inside = not inside
-            j = i
-        return inside
-
+    EDITOR_UNIT = 25
+    UW = GW * 10 // EDITOR_UNIT           # 1000
+    UH = GH * 10 // EDITOR_UNIT           # 1020
     buf = bytearray((UW * UH + 7) // 8)
     half = EDITOR_UNIT / 2.0
     for uy in range(UH):
-        wy = uy * EDITOR_UNIT + half
-        r = int(wy // 500)
+        py = int((uy * EDITOR_UNIT + half) / 10.0)
+        if py >= GH:
+            py = GH - 1
+        base = py * GW
         rowbase = uy * UW
         for ux in range(UW):
-            wx = ux * EDITOR_UNIT + half
-            c = int(wx // 500)
-            p = raw[r * W + c]
-            if p is None:
-                continue
-            if _pip(wx - c * 500, wy - r * 500, p):
+            px = int((ux * EDITOR_UNIT + half) / 10.0)
+            if px >= GW:
+                px = GW - 1
+            if gm[base + px]:
                 idx = rowbase + ux
                 buf[idx >> 3] |= 1 << (idx & 7)
     b64 = base64.b64encode(bytes(buf)).decode()
@@ -532,10 +545,8 @@ def write_tilemap_header(layers, W, H):
     def present(name, i):
         return (layers.get(name, [0] * (W * H))[i] & 0x1FFFFFFF) != 0
 
-    FULL = [(0, 0), (500, 0), (500, 500), (0, 500)]   # void / fallback cell
+    # ---- coarse per-cell terrain (minimap colours) ----
     terrain = []
-    raw = [None] * (W * H)   # per-cell fill polygon (0..500) or None if walkable
-
     for r in range(H):
         for c in range(W):
             i = r * W + c
@@ -546,110 +557,112 @@ def write_tilemap_header(layers, W, H):
                     break
             else:
                 if not present('bg', i):
-                    t = 15  # void: outside the map, must block
+                    t = 15
             terrain.append(t)
 
-            # HITBOX: every blocking-biome tile (bush/cliff/dirt/castle/water --
-            # centre, side, corner AND inner-corner) gets a hitbox equal to its
-            # opaque fill shape (the visible part, ignoring transparent area). The
-            # sand<->grass ground transitions aren't blocking tiles, so they're
-            # naturally excluded.
+    # ---- global collision mask: rasterise the WHOLE block layer together ----
+    # Each block tile's opaque coverage (the UNION of all its fill shapes, via
+    # _tile_mask) is stamped into one global bitmask at SUB sub-cells/cell =
+    # 10 world units/pixel. Adjacent walls merge into a single shape, so there
+    # is no per-tile seam. A morphological close then seals hairline gaps where
+    # two tiles' opaque parts stop a pixel short of the shared edge, without
+    # growing the exposed (walkable-facing) outline.
+    SUB = MASK_RES                       # 50 sub-cells per 500 cell -> 10 u/px
+    GW, GH = W * SUB, H * SUB
+    gm = bytearray(GW * GH)
+    full_mask = [[1] * SUB for _ in range(SUB)]
+    for r in range(H):
+        for c in range(W):
+            i = r * W + c
+            masks = []
+            if terrain[i] == 15 and not present('bg', i):
+                masks.append(full_mask)          # void outside the map blocks
             for name in BLOCK_LAYERS:
                 g = layers.get(name, [0] * (W * H))[i]
                 if not (g & 0x1FFFFFFF):
                     continue
                 svg = GID_TO_SVG.get(g & 0x1FFFFFFF, LAYER_FALLBACK.get(name))
-                if not svg or not os.path.exists(os.path.join(TILES, svg)):
-                    p = FULL
+                if svg and os.path.exists(os.path.join(TILES, svg)):
+                    masks.append(_flip_mask(_tile_mask(svg), g))
                 else:
-                    p = [(x * 500 / 256, y * 500 / 256)
-                         for x, y in _flip_poly(_tile_polys(svg), g)]
-                raw[i] = p
-                break
+                    masks.append(full_mask)
+            if not masks:
+                continue
+            for sy in range(SUB):
+                base = (r * SUB + sy) * GW + c * SUB
+                for m in masks:
+                    mr = m[sy]
+                    for sx in range(SUB):
+                        if mr[sx]:
+                            gm[base + sx] = 1
 
-    # Bridge seams between adjacent hitbox tiles. Where two solid tiles neighbour
-    # each other, their opaque fills often stop short of the shared cell edge,
-    # leaving a thin walkable slit a player can slip into. Extend each fill polygon
-    # out to that shared edge -- but only vertices already within BRIDGE units of
-    # it, and only on sides facing a solid neighbour. Exposed (walkable-facing)
-    # edges keep the exact visible outline; centre tiles are full squares already,
-    # so only the wavy edge/corner tiles gain a little to close the seam. Snapping
-    # only pushes coords outward (to 0 or 500), so a polygon can only grow.
-    BRIDGE = 150.0    # how far a vertex may reach to a solid-neighbour edge
-    CORNER = 90.0     # keep this far from a walkable-facing edge (protect corners)
-    def _solid(c, r):
-        return 0 <= c < W and 0 <= r < H and raw[r * W + c] is not None
-    bridged = list(raw)
+    # seal hairline seams (close = dilate then erode: fills gaps <= ~2px / 20u
+    # without growing the outer boundary)
+    try:
+        from PIL import Image, ImageFilter
+        im = Image.frombytes('L', (GW, GH), bytes(255 if v else 0 for v in gm))
+        im = im.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(3))
+        gm = bytearray(1 if v else 0 for v in im.getdata())
+    except Exception as e:
+        print('seam close skipped:', e)
+
+    _sync_collision_editor(gm, GW, GH)
+
+    # ---- slice into per-cell sub-masks; classify empty/full/detailed + dedup ----
+    CELL_MASK = [0] * (W * H)
+    detail = []
+    detail_idx = {}
     for r in range(H):
         for c in range(W):
-            p = raw[r * W + c]
-            if p is None:
-                continue
-            L, R = _solid(c - 1, r), _solid(c + 1, r)
-            U, D = _solid(c, r - 1), _solid(c, r + 1)
-            if not (L or R or U or D):
-                continue
-            np = []
-            for (x, y) in p:
-                # Snap toward a solid neighbour only when the vertex isn't hugging
-                # a walkable-facing perpendicular edge (that would over-block a
-                # visible corner).
-                free_y = (U and y <= CORNER) or (D and y >= 500 - CORNER)
-                free_x = (L and x <= CORNER) or (R and x >= 500 - CORNER)
-                if R and x >= 500 - BRIDGE and not free_y: x = 500.0
-                if L and x <= BRIDGE and not free_y:       x = 0.0
-                if D and y >= 500 - BRIDGE and not free_x: y = 500.0
-                if U and y <= BRIDGE and not free_x:       y = 0.0
-                np.append((x, y))
-            bridged[r * W + c] = np
-    raw = bridged
+            bits = bytearray((SUB * SUB + 7) // 8)
+            cnt = 0
+            for sy in range(SUB):
+                base = (r * SUB + sy) * GW + c * SUB
+                for sx in range(SUB):
+                    if gm[base + sx]:
+                        k = sy * SUB + sx
+                        bits[k >> 3] |= 1 << (k & 7)
+                        cnt += 1
+            if cnt == 0:
+                CELL_MASK[r * W + c] = 0
+            elif cnt == SUB * SUB:
+                CELL_MASK[r * W + c] = 1
+            else:
+                key = bytes(bits)
+                di = detail_idx.get(key)
+                if di is None:
+                    di = len(detail)
+                    detail_idx[key] = di
+                    detail.append(bits)
+                CELL_MASK[r * W + c] = 2 + di
 
-    # Sync the standalone collision editor: rasterise the exact live collision
-    # (same point-in-polygon test the game's solid_at uses) into a fine bitmask
-    # and patch collision-editor.html's B64_INIT. UNIT=25 world u -> a 1000x1020
-    # grid (4x the old 500x510 cell count) for finer manual editing.
-    _sync_collision_editor(raw, W, H)
+    submask = bytearray((len(detail) * SUB * SUB + 7) // 8)
+    for di, bits in enumerate(detail):
+        dbase = di * SUB * SUB
+        for k in range(SUB * SUB):
+            if (bits[k >> 3] >> (k & 7)) & 1:
+                gbit = dbase + k
+                submask[gbit >> 3] |= 1 << (gbit & 7)
 
-    # Each hitbox is a tile's opaque fill polygon (or a full cell for gap-fills).
-    polys = []            # list of vert-lists in 0..500
-    unique = {}           # rounded-tuple -> poly index (1-based)
-    cell_poly = [0] * (W * H)
-
-    def add_poly(p):
-        key = tuple((round(x, 1), round(y, 1)) for x, y in p)
-        if key not in unique:
-            unique[key] = len(polys) + 1
-            polys.append(p)
-        return unique[key]
-
-    for i in range(W * H):
-        if raw[i] is None:
-            continue
-        cell_poly[i] = add_poly(raw[i])
-
-    # flatten polygon vertices
-    verts = []
-    starts = []
-    lens = []
-    for p in polys:
-        starts.append(len(verts) // 2)   # vertex index; C indexes POLY_VERTS[2*(s+i)]
-        lens.append(len(p))
-        for x, y in p:
-            verts.append(x); verts.append(y)
-
+    # ---- emit Tilemap.hh ----
     lines = [
         '#pragma once', '', '#include <cstdint>', '', '#include <cmath>', '',
         '// Auto-generated by Scripts/gen_map.py.',
         '//  - TERRAIN: coarse per-cell type (minimap colours).',
-        '//  - CELL_POLY/POLY_*: each blocking cell references its tile\'s fill',
-        '//    polygon (flip baked in, verts in 0..500 cell-local). Collision is',
-        '//    exact point/circle-in-polygon, so precision is ~1 world unit and',
-        '//    follows the visible asset outline. Void cells block the outside.', '',
+        '//  - CELL_MASK/SUBMASK: the whole block layer rasterised together into',
+        '//    one union mask at SUB sub-cells/cell (10 world u/px). Each cell is',
+        '//    empty(0), full(1) or an index into per-cell sub-masks. Collision',
+        '//    follows the combined visible outline with no per-tile seams; only',
+        '//    exposed unit faces block, so bodies slide smoothly along walls.', '',
         'namespace Tilemap {',
         f'    inline constexpr uint32_t GRID_W = {W};',
         f'    inline constexpr uint32_t GRID_H = {H};',
         '    inline constexpr float    CELL_SIZE = 500;',
         '    inline constexpr float    COLL_CELL = 4;   // minimap sampling step hint',
+        f'    inline constexpr uint32_t SUB = {SUB};',
+        '    inline constexpr float    COLL_UNIT = CELL_SIZE / SUB;   // 10 world u/px',
+        '    inline constexpr uint32_t CU_W = GRID_W * SUB;',
+        '    inline constexpr uint32_t CU_H = GRID_H * SUB;',
         '',
         '    namespace TerrainID {',
         '        enum : uint8_t {',
@@ -661,19 +674,16 @@ def write_tilemap_header(layers, W, H):
     for r in range(H):
         lines.append('        ' + ','.join(str(v) for v in terrain[r * W:(r + 1) * W]) + ',')
     lines += ['    };', '',
-        f'    inline constexpr uint32_t NUM_POLYS = {len(polys)};',
-        '    inline constexpr float POLY_VERTS[] = {',
-    ]
-    # chunk verts for readability
-    for k in range(0, len(verts), 16):
-        lines.append('        ' + ','.join('%.1ff' % v for v in verts[k:k + 16]) + ',')
-    lines += ['    };', '',
-        '    inline constexpr uint32_t POLY_START[NUM_POLYS] = {' + ','.join(str(v) for v in starts) + '};',
-        '    inline constexpr uint32_t POLY_LEN[NUM_POLYS] = {' + ','.join(str(v) for v in lens) + '};', '',
-        '    inline constexpr uint16_t CELL_POLY[GRID_W * GRID_H] = {',
+        f'    inline constexpr uint32_t NUM_DETAIL = {len(detail)};',
+        '    inline constexpr uint16_t CELL_MASK[GRID_W * GRID_H] = {',
     ]
     for r in range(H):
-        lines.append('        ' + ','.join(str(v) for v in cell_poly[r * W:(r + 1) * W]) + ',')
+        lines.append('        ' + ','.join(str(v) for v in CELL_MASK[r * W:(r + 1) * W]) + ',')
+    lines += ['    };', '',
+        f'    inline constexpr uint8_t SUBMASK[{len(submask)}] = {{',
+    ]
+    for k in range(0, len(submask), 32):
+        lines.append('        ' + ','.join(str(v) for v in submask[k:k + 32]) + ',')
     lines += ['    };', '',
         '    inline uint8_t terrain_at(float x, float y) {',
         '        if (x < 0 || y < 0) return TerrainID::kVoid;',
@@ -686,74 +696,61 @@ def write_tilemap_header(layers, W, H):
         '            case TerrainID::kJungle: case TerrainID::kBush: case TerrainID::kCliff:',
         '            case TerrainID::kCastle: case TerrainID::kVoid: return true; default: return false; }',
         '    }', '',
-        '    // point-in-polygon for local coords (verts POLY_START[p]..+POLY_LEN[p]).',
-        '    inline bool _in_poly(float px, float py, uint32_t p) {',
-        '        uint32_t s=POLY_START[p], n=POLY_LEN[p]; bool in=false;',
-        '        for (uint32_t i=0,j=n-1;i<n;j=i++) {',
-        '            float xi=POLY_VERTS[2*(s+i)], yi=POLY_VERTS[2*(s+i)+1];',
-        '            float xj=POLY_VERTS[2*(s+j)], yj=POLY_VERTS[2*(s+j)+1];',
-        '            if (((yi>py)!=(yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi)) in=!in;',
-        '        }',
-        '        return in;',
+        '    // Is collision unit (ux,uy) solid? Out of bounds = solid (arena edge).',
+        '    inline bool _usolid(int ux, int uy) {',
+        '        if (ux<0||uy<0||ux>=(int)CU_W||uy>=(int)CU_H) return true;',
+        '        uint16_t m=CELL_MASK[(ux/(int)SUB)+(uy/(int)SUB)*GRID_W];',
+        '        if(!m) return false; if(m==1) return true;',
+        '        uint32_t bit=(uint32_t)(m-2)*(SUB*SUB)+(uint32_t)(uy%(int)SUB)*SUB+(uint32_t)(ux%(int)SUB);',
+        '        return (SUBMASK[bit>>3]>>(bit&7))&1u;',
         '    }', '',
         '    inline bool solid_at(float x, float y) {',
-        '        if (x<0||y<0) return false;',
-        '        uint32_t c=(uint32_t)(x/CELL_SIZE), r=(uint32_t)(y/CELL_SIZE);',
-        '        if (c>=GRID_W||r>=GRID_H) return false;',
-        '        uint16_t pi=CELL_POLY[r*GRID_W+c]; if(!pi) return false;',
-        '        return _in_poly(x-c*CELL_SIZE, y-r*CELL_SIZE, pi-1);',
+        '        return _usolid((int)std::floor(x/COLL_UNIT), (int)std::floor(y/COLL_UNIT));',
         '    }', '',
         '    inline bool solid_circle(float x, float y, float rad) {',
-        '        if (solid_at(x,y)) return true;',
-        '        float d=rad*0.70710678f;',
-        '        return solid_at(x+rad,y)||solid_at(x-rad,y)||solid_at(x,y+rad)||solid_at(x,y-rad)',
-        '            ||solid_at(x+d,y+d)||solid_at(x+d,y-d)||solid_at(x-d,y+d)||solid_at(x-d,y-d);',
+        '        int x0=(int)std::floor((x-rad)/COLL_UNIT), x1=(int)std::floor((x+rad)/COLL_UNIT);',
+        '        int y0=(int)std::floor((y-rad)/COLL_UNIT), y1=(int)std::floor((y+rad)/COLL_UNIT);',
+        '        float r2=rad*rad;',
+        '        for (int uy=y0; uy<=y1; ++uy) for (int ux=x0; ux<=x1; ++ux) {',
+        '            if (!_usolid(ux,uy)) continue;',
+        '            float ax=ux*COLL_UNIT, ay=uy*COLL_UNIT;',
+        '            float px=x<ax?ax:(x>ax+COLL_UNIT?ax+COLL_UNIT:x);',
+        '            float py=y<ay?ay:(y>ay+COLL_UNIT?ay+COLL_UNIT:y);',
+        '            float dx=x-px,dy=y-py; if (dx*dx+dy*dy<r2) return true;',
+        '        }',
+        '        return false;',
         '    }', '',
-        '    inline void _closest_seg(float px,float py,float ax,float ay,float bx,float by,float&ox,float&oy){',
-        '        float dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy;',
-        '        float t=l2>0?((px-ax)*dx+(py-ay)*dy)/l2:0; if(t<0)t=0; else if(t>1)t=1;',
-        '        ox=ax+t*dx; oy=ay+t*dy;',
-        '    }', '',
-        '    // Push a circle of radius rad out of the solid tiles, sliding smoothly.',
-        '    // Only SURFACE edges (those bordering empty space) collide; an edge',
-        '    // shared with an adjacent solid tile is skipped. That removes the',
-        '    // "ghost collision" where a body catches on the internal seam between',
-        '    // two solid tiles while sliding along a wall. Each pass applies the',
-        '    // single deepest correction so concave corners settle without jitter.',
+        '    // Push a circle out of the solid units. Only EXPOSED unit faces (those',
+        '    // bordering an empty unit) collide, so a body slides smoothly along a',
+        '    // wall instead of catching on the internal seam between two solid units.',
+        '    // Deepest correction per pass so concave corners settle without jitter.',
         '    inline void push_circle(float &x, float &y, float rad) {',
+        '        const float U=COLL_UNIT;',
         '        for (int pass=0; pass<6; ++pass) {',
-        '            int c0=(int)std::floor((x-rad)/CELL_SIZE), c1=(int)std::floor((x+rad)/CELL_SIZE);',
-        '            int r0=(int)std::floor((y-rad)/CELL_SIZE), r1=(int)std::floor((y+rad)/CELL_SIZE);',
-        '            float best_pen=0.f, tgtx=x, tgty=y; bool found=false;',
-        '            for (int rr=r0; rr<=r1; ++rr) for (int cc=c0; cc<=c1; ++cc) {',
-        '                if (cc<0||rr<0||cc>=(int)GRID_W||rr>=(int)GRID_H) continue;',
-        '                uint16_t pi=CELL_POLY[rr*GRID_W+cc]; if(!pi) continue; --pi;',
-        '                float ox0=cc*CELL_SIZE, oy0=rr*CELL_SIZE;',
-        '                float lx=x-ox0, ly=y-oy0;',
-        '                uint32_t s=POLY_START[pi], n=POLY_LEN[pi];',
-        '                bool inside=_in_poly(lx,ly,pi);',
-        '                float bestd2=1e18f, bx=0, by=0, bnx=0, bny=0; bool surf=false;',
-        '                for (uint32_t i=0,j=n-1;i<n;j=i++) {',
-        '                    float ax=POLY_VERTS[2*(s+j)], ay=POLY_VERTS[2*(s+j)+1];',
-        '                    float bx2=POLY_VERTS[2*(s+i)], by2=POLY_VERTS[2*(s+i)+1];',
-        '                    float ex=bx2-ax, ey=by2-ay, el=std::sqrt(ex*ex+ey*ey); if(el<1e-4f) continue;',
-        '                    float nx=ey/el, ny=-ex/el;',
-        '                    float mx=(ax+bx2)*0.5f, my=(ay+by2)*0.5f;',
-        '                    if (_in_poly(mx+nx*1.5f, my+ny*1.5f, pi)) { nx=-nx; ny=-ny; }',
-        '                    if (solid_at(ox0+mx+nx*4.f, oy0+my+ny*4.f)) continue;   // internal edge',
-        '                    float px,py; _closest_seg(lx,ly, ax,ay, bx2,by2, px,py);',
-        '                    float dx=lx-px, dy=ly-py, d2=dx*dx+dy*dy;',
-        '                    if (d2<bestd2){ bestd2=d2; bx=px; by=py; bnx=nx; bny=ny; surf=true; }',
-        '                }',
-        '                if (!surf) continue;',
-        '                float bd=std::sqrt(bestd2); float nlx, nly, pen;',
-        '                if (inside) { nlx=bx+bnx*rad; nly=by+bny*rad; pen=bd+rad; }',
-        '                else if (bd<rad && bd>1e-4f) { nlx=bx+(lx-bx)/bd*rad; nly=by+(ly-by)/bd*rad; pen=rad-bd; }',
-        '                else continue;',
-        '                if (pen>best_pen){ best_pen=pen; tgtx=ox0+nlx; tgty=oy0+nly; found=true; }',
+        '            int cx0=(int)std::floor((x-rad)/U)-1, cx1=(int)std::floor((x+rad)/U)+1;',
+        '            int cy0=(int)std::floor((y-rad)/U)-1, cy1=(int)std::floor((y+rad)/U)+1;',
+        '            float best=0.f, bx=x, by=y; bool found=false;',
+        '            for (int uy=cy0; uy<=cy1; ++uy) for (int ux=cx0; ux<=cx1; ++ux) {',
+        '                if (!_usolid(ux,uy)) continue;',
+        '                float ax0=ux*U, ay0=uy*U, ax1=ax0+U, ay1=ay0+U;',
+        '                auto face=[&](float nx,float ny,float p0x,float p0y,float p1x,float p1y){',
+        '                    float ex=p1x-p0x, ey=p1y-p0y, l2=ex*ex+ey*ey;',
+        '                    float t=l2>0?((x-p0x)*ex+(y-p0y)*ey)/l2:0.f; if(t<0)t=0; else if(t>1)t=1;',
+        '                    float qx=p0x+t*ex, qy=p0y+t*ey;',
+        '                    float vx=x-qx, vy=y-qy, d=std::sqrt(vx*vx+vy*vy), dn=vx*nx+vy*ny;',
+        '                    float dx,dy,pen;',
+        '                    if (dn>=0.f && d>1e-4f){ dx=vx/d; dy=vy/d; pen=rad-d; }',
+        '                    else { dx=nx; dy=ny; pen=rad-dn; }',
+        '                    if (pen<=0.f) return;',
+        '                    if (pen>best){ best=pen; bx=qx+dx*rad; by=qy+dy*rad; found=true; }',
+        '                };',
+        '                if (!_usolid(ux-1,uy)) face(-1,0, ax0,ay0, ax0,ay1);',
+        '                if (!_usolid(ux+1,uy)) face( 1,0, ax1,ay0, ax1,ay1);',
+        '                if (!_usolid(ux,uy-1)) face(0,-1, ax0,ay0, ax1,ay0);',
+        '                if (!_usolid(ux,uy+1)) face(0, 1, ax0,ay1, ax1,ay1);',
         '            }',
         '            if (!found) break;',
-        '            x=tgtx; y=tgty;',
+        '            x=bx; y=by;',
         '        }',
         '    }',
         '}', '',
@@ -762,32 +759,26 @@ def write_tilemap_header(layers, W, H):
     open(out, 'w').write('\n'.join(lines))
     from collections import Counter
     print('Tilemap.hh terrain dist:', dict(Counter(terrain)))
-    print(f'collision: {len(polys)} unique hitboxes, {sum(1 for v in cell_poly if v)} hitbox cells, {len(verts)//2} verts')
+    nfull = sum(1 for v in CELL_MASK if v == 1)
+    ndet = sum(1 for v in CELL_MASK if v >= 2)
+    print(f'collision mask: {len(detail)} unique sub-masks, {nfull} full + {ndet} detailed cells, '
+          f'SUBMASK {len(submask)//1024}KB, {SUB}x{SUB}/cell (10 world u/px)')
 
-    # Debug export: the map with every hitbox drawn in red (invisible in-game;
-    # this SVG makes the red filter visible). Hitbox = opaque shape of the
-    # centre blocking tiles only.
+    # Debug export: full-res red collision mask PNG (composited with the map by
+    # the Desktop export step) + a downscaled preview under docs/.
     try:
-        mapsvg = open(os.path.join(ROOT, 'Server/main-map.svg')).read()
-        sc = CELL / 500.0
-        ov = ['<g fill="#ff0000" fill-opacity="0.5">']
-        for r in range(H):
-            for c in range(W):
-                pi = cell_poly[r * W + c]
-                if not pi:
-                    continue
-                p = polys[pi - 1]
-                pts = ' '.join('%.2f,%.2f' % (x * sc + c * CELL, y * sc + r * CELL) for x, y in p)
-                ov.append(f'<polygon points="{pts}"/>')
-        ov.append('</g>')
-        hb = mapsvg.replace('</svg>', '\n'.join(ov) + '\n</svg>')
-        for p in (os.path.join(ROOT, 'docs/map-hitbox.svg'),
-                  os.path.expanduser('~/Desktop/floir-map-hitbox.svg')):
-            os.makedirs(os.path.dirname(p), exist_ok=True)
-            open(p, 'w').write(hb)
-        print('wrote map-hitbox.svg (red hitbox overlay)')
+        from PIL import Image
+        red = Image.new('RGBA', (GW, GH), (0, 0, 0, 0))
+        px = red.load()
+        for y in range(GH):
+            base = y * GW
+            for x in range(GW):
+                if gm[base + x]:
+                    px[x, y] = (255, 0, 0, 140)
+        red.save(os.path.join(ROOT, 'docs/collision-mask.png'))
+        print('wrote docs/collision-mask.png (red hitbox mask)')
     except Exception as e:
-        print('hitbox svg export skipped:', e)
+        print('collision mask png skipped:', e)
 
 
 if __name__ == '__main__':
