@@ -52,7 +52,7 @@ CELL = 64
 # Per-tile outward bleed (native SVG px) so neighbouring tiles overlap and no
 # anti-aliased seam ("white gap line") shows between cells after the client
 # upscales the backdrop.
-BLEED = 1.25
+BLEED = 3.0
 FLIP_H, FLIP_V, FLIP_D = 0x80000000, 0x40000000, 0x20000000
 
 
