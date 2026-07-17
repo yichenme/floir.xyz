@@ -85,7 +85,7 @@ int main() {
 
 Run:
 ```sh
-g++ -std=c++20 -I. Scripts/test_shared_helpers.cc Shared/AccountValidation.cc Shared/StackFormat.cc Shared/RarityScale.cc -o /tmp/test_shared_helpers
+g++ -std=c++20 -I. Scripts/test_shared_helpers.cc Shared/AccountValidation.cc Shared/StackFormat.cc Shared/RarityScale.cc Helpers/Math.cc -o /tmp/test_shared_helpers
 ```
 Expected: FAIL to compile with `error: 'mob_size_mult' was not declared in this scope` (function doesn't exist yet).
 
@@ -155,7 +155,7 @@ uint8_t roll_spawn_rarity(uint8_t band) {
 
 Run:
 ```sh
-g++ -std=c++20 -I. Scripts/test_shared_helpers.cc Shared/AccountValidation.cc Shared/StackFormat.cc Shared/RarityScale.cc -o /tmp/test_shared_helpers && /tmp/test_shared_helpers
+g++ -std=c++20 -I. Scripts/test_shared_helpers.cc Shared/AccountValidation.cc Shared/StackFormat.cc Shared/RarityScale.cc Helpers/Math.cc -o /tmp/test_shared_helpers && /tmp/test_shared_helpers
 ```
 Expected: prints `ok` with exit code 0.
 
@@ -664,7 +664,7 @@ Expected: both `make` invocations end with `[100%] Built target floir-client` / 
 - [ ] **Step 2: Run the two standalone regression tests one more time (final confirmation)**
 
 ```sh
-g++ -std=c++20 -I. Scripts/test_shared_helpers.cc Shared/AccountValidation.cc Shared/StackFormat.cc Shared/RarityScale.cc -o /tmp/test_shared_helpers && /tmp/test_shared_helpers
+g++ -std=c++20 -I. Scripts/test_shared_helpers.cc Shared/AccountValidation.cc Shared/StackFormat.cc Shared/RarityScale.cc Helpers/Math.cc -o /tmp/test_shared_helpers && /tmp/test_shared_helpers
 g++ -std=c++20 Scripts/test_push_circle.cc -o /tmp/test_push_circle && /tmp/test_push_circle
 ```
 Expected: both print `ok`.

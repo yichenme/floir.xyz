@@ -64,6 +64,7 @@ static Entity &__alloc_mob(
     mob.add_component(kMob);
     mob.set_mob_id(mob_id);
     mob.set_mob_rarity(rarity);
+    mob.set_radius(mob.get_radius() * mob_size_mult(rarity));
 
     mob.add_component(kHealth);
     float hp_m = mob_hp_mult(rarity);
