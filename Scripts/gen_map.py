@@ -137,7 +137,14 @@ def main():
                     def _isD(cc2, rr2):
                         b = (bgl[rr2 * W + cc2] & 0x1FFFFFFF) if (0 <= cc2 < W and 0 <= rr2 < H) else 0
                         return 1 <= b <= 5
-                    if _isD(c, r + 1):      # desert below -> keep desert_b
+                    if _isD(c, r + 1) and _isD(c - 1, r):
+                        # bottom-right desert corner (desert on left AND below):
+                        # use the desert_l (desert-on-left) asset directly, no
+                        # rotation, per request.
+                        svg = 'desert_l_0.svg'
+                        sid = f't_{svg.replace(".", "_")}'
+                        h_, v_, dg = False, False, False
+                    elif _isD(c, r + 1):    # desert below -> keep desert_b
                         h_, v_, dg = False, False, False
                     elif _isD(c, r - 1):    # desert above -> 180
                         h_, v_, dg = True, True, False
