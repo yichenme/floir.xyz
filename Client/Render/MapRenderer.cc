@@ -29,6 +29,7 @@ void MapRenderer::load() {
             }
             Module.mapTiles = tiles;
             Module.mapLayers = layerGrid;
+            Module.mapLayerNames = layers;
             Module.mapObjects = d["objects"];
             Module.mapLayerCount = NL;
             Module.mapCell = d["cell"];
@@ -50,12 +51,13 @@ void MapRenderer::draw(int ctx_id, int c0, int c1, int r0, int r1) {
         const GW = 50;
         const tiles = Module.mapTiles;
         const layers = Module.mapLayers;
+        const layerNames = Module.mapLayerNames;
         const c0 = $1;
         const c1 = $2;
         const r0 = $3;
         const r1 = $4;
-        function paint(shapes, flip) {
-            ctx.save();
+        const SHADOW_ALPHA = 0.1;
+        function tileTransform(targetCtx, flip) {
             // flip within the tile's own 256 box, matching the Tiled bits.
             // ctx.transform() is cumulative: calling D, then H, then V applies
             // them to a drawn point in REVERSE order (V first, D last). To match
@@ -65,22 +67,76 @@ void MapRenderer::draw(int ctx_id, int c0, int c1, int r0, int r1) {
             const H = (flip & 0x80000000) !== 0;
             const V = (flip & 0x40000000) !== 0;
             const D = (flip & 0x20000000) !== 0;
-            if (V) ctx.transform(1, 0, 0, -1, 0, ts);
-            if (H) ctx.transform(-1, 0, 0, 1, ts, 0);
-            if (D) ctx.transform(0, 1, 1, 0, 0, 0);
+            if (V) targetCtx.transform(1, 0, 0, -1, 0, ts);
+            if (H) targetCtx.transform(-1, 0, 0, 1, ts, 0);
+            if (D) targetCtx.transform(0, 1, 1, 0, 0, 0);
+        }
+        function paint(shapes, flip) {
+            // Shadow shapes (op<1) are handled separately (see the per-layer
+            // offscreen pass below) so they don't get drawn twice.
+            ctx.save();
+            tileTransform(ctx, flip);
             for (const sh of shapes) {
-                // Shadows (castle/water/dirt/cliff/bush edge tiles) are authored
-                // as low-opacity shapes in the SVG; apply that alpha per-shape so
-                // they blend softly instead of drawing as solid fills/strokes.
-                ctx.globalAlpha = (sh.op === undefined ? 1 : sh.op);
+                if (sh.op !== undefined && sh.op < 1) continue;
                 if (sh.fill) { ctx.fillStyle = sh.fill; ctx.fill(sh.path); }
                 if (sh.stroke) { ctx.strokeStyle = sh.stroke; ctx.lineWidth = sh.sw; ctx.lineJoin = 'round'; ctx.stroke(sh.path); }
             }
-            ctx.globalAlpha = 1;
             ctx.restore();
+        }
+        function paintShadowsOnly(targetCtx, shapes, flip) {
+            // Draws only the low-opacity shadow shapes, always at full alpha --
+            // the shared alpha is applied once when the whole accumulated
+            // buffer is composited, so overlapping shadows of the SAME terrain
+            // layer union instead of stacking darker.
+            targetCtx.save();
+            tileTransform(targetCtx, flip);
+            for (const sh of shapes) {
+                if (sh.op === undefined || sh.op >= 1) continue;
+                if (sh.fill) { targetCtx.fillStyle = '#000'; targetCtx.fill(sh.path); }
+                if (sh.stroke) { targetCtx.strokeStyle = '#000'; targetCtx.lineWidth = sh.sw; targetCtx.lineJoin = 'round'; targetCtx.stroke(sh.path); }
+            }
+            targetCtx.restore();
+        }
+        if (!Module.mapShadowCanvas) {
+            Module.mapShadowCanvas = document.createElement('canvas');
+            Module.mapShadowCtx = Module.mapShadowCanvas.getContext('2d');
+        }
+        const shadowCanvas = Module.mapShadowCanvas;
+        const shadowCtx = Module.mapShadowCtx;
+        if (shadowCanvas.width !== ctx.canvas.width || shadowCanvas.height !== ctx.canvas.height) {
+            shadowCanvas.width = ctx.canvas.width;
+            shadowCanvas.height = ctx.canvas.height;
         }
         for (let l = 0; l < layers.length; l++) {
             const grid = layers[l];
+            const name = layerNames[l];
+            // bg/transitions never carry shadow shapes -- skip the offscreen
+            // pass entirely for them.
+            const hasShadows = name !== 'bg' && name !== 'transitions';
+            if (hasShadows) {
+                shadowCtx.setTransform(1, 0, 0, 1, 0, 0);
+                shadowCtx.clearRect(0, 0, shadowCanvas.width, shadowCanvas.height);
+                shadowCtx.setTransform(ctx.getTransform());
+                for (let r = r0; r < r1; r++) {
+                    for (let c = c0; c < c1; c++) {
+                        const p = grid.get(r * GW + c);
+                        if (!p) continue;
+                        const shapes = tiles[p["gid"]];
+                        if (!shapes) continue;
+                        const pad = 2;
+                        shadowCtx.save();
+                        shadowCtx.translate(c * cell - pad, r * cell - pad);
+                        shadowCtx.scale((cell + 2 * pad) / ts, (cell + 2 * pad) / ts);
+                        paintShadowsOnly(shadowCtx, shapes, p["flip"]);
+                        shadowCtx.restore();
+                    }
+                }
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.globalAlpha = SHADOW_ALPHA;
+                ctx.drawImage(shadowCanvas, 0, 0);
+                ctx.restore();
+            }
             for (let r = r0; r < r1; r++) {
                 for (let c = c0; c < c1; c++) {
                     const p = grid.get(r * GW + c);
