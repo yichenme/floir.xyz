@@ -153,7 +153,6 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.fill();
             break;
         case MobID::kLadybug:
-        case MobID::kMassiveLadybug:
         case MobID::kDarkLadybug:
         case MobID::kShinyLadybug:
             ctx.scale(radius / 30);
@@ -222,7 +221,6 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.fill(1);
             break;
         case MobID::kBeetle:
-        case MobID::kMassiveBeetle:
             ctx.scale(radius / 35);
             SET_BASE_COLOR(0xff905db0)
             ctx.begin_path();
@@ -372,7 +370,7 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             break;
         }
         case MobID::kRock:
-        case MobID::kBoulder: {
+        {
             SET_BASE_COLOR(0xff777777)
             SeedGenerator gen(std::floor(radius) * 1957264 + 295726);
             ctx.set_fill(base_color);

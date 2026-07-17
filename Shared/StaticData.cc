@@ -793,34 +793,6 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .attributes = {}
     },
     {
-        .name = "Massive Ladybug",
-        .description = "Much larger, but still cute.",
-        .rarity = RarityID::kEpic,
-        .health = {1000.0},
-        .damage = 10.0,
-        .radius = {90.0},
-        .xp = 400,
-        .drops = {
-            PetalID::kRose, PetalID::kDahlia, PetalID::kBubble, PetalID::kAzalea, PetalID::kObserver
-        }, 
-        .attributes = {}
-    },
-    {
-        .name = "Massive Beetle",
-        .description = "Someone overfed this one, you might be next.",
-        .rarity = RarityID::kRare,
-        .health = {600.0},
-        .damage = 35.0,
-        .radius = {75.0},
-        .xp = 50,
-        .drops = {
-            PetalID::kIris, PetalID::kWing, PetalID::kBlueIris, PetalID::kTriplet, PetalID::kBeetleEgg, PetalID::kThirdEye
-        }, 
-        .attributes = { 
-            .aggro_radius = 750
-        }
-    },
-    {
         .name = "Ladybug",
         .description = "Cute and harmless... if left unprovoked.",
         .rarity = RarityID::kUncommon,
@@ -874,21 +846,6 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .drops = {
             PetalID::kHeavy, PetalID::kLight, PetalID::kRock
         },
-        .attributes = {
-            .stationary = 1
-        }
-    },
-    {
-        .name = "Boulder",
-        .description = "A bigger rock. It also doesn't do much.",
-        .rarity = RarityID::kUncommon,
-        .health = {40.0, 60.0},
-        .damage = 10.0,
-        .radius = {50.0, 75.0},
-        .xp = 10,
-        .drops = {
-            PetalID::kHeavy, PetalID::kRock, PetalID::kHeaviest, PetalID::kMoon
-        }, 
         .attributes = {
             .stationary = 1
         }

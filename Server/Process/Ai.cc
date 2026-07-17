@@ -392,7 +392,6 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
     switch(ent.get_mob_id()) {
         case MobID::kBabyAnt:            
         case MobID::kLadybug:
-        case MobID::kMassiveLadybug:
             tick_default_passive(sim, ent);
             break;
         case MobID::kBee:
@@ -414,7 +413,6 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
             break;
         case MobID::kSoldierAnt:
         case MobID::kBeetle:
-        case MobID::kMassiveBeetle:
             tick_default_aggro(sim, ent, 0.95);
             break;
         case MobID::kScorpion:
@@ -444,7 +442,6 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
         case MobID::kHornet:
             tick_hornet_aggro(sim, ent);
             break;
-        case MobID::kBoulder:
         case MobID::kRock:
         case MobID::kCactus:
         case MobID::kSquare:

@@ -31,13 +31,11 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 0, .top = 2500, .right = 25000, .bottom = 15000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kRock, 500000 },
+            { MobID::kRock, 510000 },
             { MobID::kLadybug, 100000 },
             { MobID::kBee, 100000 },
             { MobID::kBabyAnt, 25000 },
             { MobID::kCentipede, 10000 },
-            { MobID::kBoulder, 10000 },
-            { MobID::kMassiveLadybug, 200 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 0, .color = 0xff58c05c, .name = "Grasslands"
@@ -46,8 +44,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 0, .top = 0, .right = 25000, .bottom = 2500,
         .density = 1, .drop_multiplier = 0.2,
         .spawns = {
-            { MobID::kBoulder, 200000 },
-            { MobID::kRock, 200000 },
+            { MobID::kRock, 400000 },
             { MobID::kDarkLadybug, 100000 },
             { MobID::kBee, 50000 },
             { MobID::kCentipede, 10000 },
@@ -61,10 +58,9 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .spawns = {
             { MobID::kSpider, 100000 },
             { MobID::kHornet, 100000 },
-            { MobID::kBoulder, 80000 },
+            { MobID::kRock, 80000 },
             { MobID::kBeetle, 50000 },
             { MobID::kEvilCentipede, 10000 },
-            { MobID::kMassiveBeetle, 2000 },
             { MobID::kAntHole, 2000 },
             { MobID::kSquare, 1 }
         },
