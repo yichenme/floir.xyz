@@ -5,25 +5,34 @@
 using namespace Ui;
 
 void MapRenderer::load() {
+    // Bracket-quote every JSON key: Closure renames d.tiles → d.ua etc., but
+    // map-data.json still uses the original string names.
     EM_ASM({
         Module.mapReady = false;
         fetch('map-data.json').then(function(r){ return r.json(); }).then(function(d){
             const tiles = {};
-            for (const gid in d.tiles) {
-                tiles[gid] = d.tiles[gid].map(function(s){
-                    return { path: new Path2D(s.d), fill: s.fill, stroke: s.stroke, sw: s.sw };
+            const srcTiles = d["tiles"];
+            for (const gid in srcTiles) {
+                tiles[gid] = srcTiles[gid].map(function(s){
+                    return { path: new Path2D(s["d"]), fill: s["fill"], stroke: s["stroke"], sw: s["sw"] };
                 });
             }
-            const NL = d.layers.length, GW = 50;
+            const layers = d["layers"];
+            const NL = layers.length;
+            const GW = 50;
             const layerGrid = [];
             for (let i = 0; i < NL; i++) layerGrid.push(new Map());
-            for (const p of d.placements) layerGrid[p.l].set(p.r * GW + p.c, p);
+            const placements = d["placements"];
+            for (let i = 0; i < placements.length; i++) {
+                const p = placements[i];
+                layerGrid[p["l"]].set(p["r"] * GW + p["c"], p);
+            }
             Module.mapTiles = tiles;
             Module.mapLayers = layerGrid;
-            Module.mapObjects = d.objects;
+            Module.mapObjects = d["objects"];
             Module.mapLayerCount = NL;
-            Module.mapCell = d.cell;
-            Module.mapTileSize = d.tileSize;
+            Module.mapCell = d["cell"];
+            Module.mapTileSize = d["tileSize"];
             Module.mapReady = true;
         });
     });
@@ -66,25 +75,27 @@ void MapRenderer::draw(int ctx_id, int c0, int c1, int r0, int r1) {
                 for (let c = c0; c < c1; c++) {
                     const p = grid.get(r * GW + c);
                     if (!p) continue;
-                    const shapes = tiles[p.gid];
+                    const shapes = tiles[p["gid"]];
                     if (!shapes) continue;
                     ctx.save();
                     ctx.translate(c * cell, r * cell);
                     ctx.scale(s, s);
-                    paint(shapes, p.flip);
+                    paint(shapes, p["flip"]);
                     ctx.restore();
                 }
             }
         }
         // landmark objects (world-positioned), culled to the visible rect
-        for (const o of Module.mapObjects) {
-            const shapes = tiles[o.gid];
+        const objects = Module.mapObjects;
+        for (let i = 0; i < objects.length; i++) {
+            const o = objects[i];
+            const shapes = tiles[o["gid"]];
             if (!shapes) continue;
-            if (o.x + o.w < c0 * cell || o.x > c1 * cell || o.y + o.h < r0 * cell || o.y > r1 * cell) continue;
+            if (o["x"] + o["w"] < c0 * cell || o["x"] > c1 * cell || o["y"] + o["h"] < r0 * cell || o["y"] > r1 * cell) continue;
             ctx.save();
-            ctx.translate(o.x, o.y);
-            ctx.scale(o.w / ts, o.h / ts);
-            paint(shapes, o.flip);
+            ctx.translate(o["x"], o["y"]);
+            ctx.scale(o["w"] / ts, o["h"] / ts);
+            paint(shapes, o["flip"]);
             ctx.restore();
         }
     }, ctx_id, c0, c1, r0, r1);
