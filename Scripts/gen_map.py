@@ -492,9 +492,21 @@ def write_tilemap_header(layers, W, H):
                 raw[i] = p
                 break
 
-    # Collision is exactly each tile's fill polygon so it matches the tmj tiles
-    # (and thus the minimap, which samples this). No full-cell "seam fill" -- that
-    # over-blocked walkable parts of shaped edge tiles.
+    # Close 1-cell gaps: a walkable cell wedged between two hitbox cells (left+
+    # right OR top+bottom) becomes a full hitbox, so there's no walkable passage
+    # squeezing between two blocking tiles.
+    def _hb(c, r):
+        return 0 <= c < W and 0 <= r < H and raw[r * W + c] is not None
+    for _ in range(8):   # iterate so filling one gap closes any it exposes
+        gaps = [r * W + c for r in range(H) for c in range(W)
+                if raw[r * W + c] is None and
+                ((_hb(c - 1, r) and _hb(c + 1, r)) or (_hb(c, r - 1) and _hb(c, r + 1)))]
+        if not gaps:
+            break
+        for i in gaps:
+            raw[i] = FULL
+
+    # Each hitbox is a tile's opaque fill polygon (or a full cell for gap-fills).
     polys = []            # list of vert-lists in 0..500
     unique = {}           # rounded-tuple -> poly index (1-based)
     cell_poly = [0] * (W * H)
