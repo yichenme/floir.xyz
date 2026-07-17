@@ -86,11 +86,6 @@ def _tile_shapes(svg_name):
 # Draw order must match the .tmj (bottom -> top). Object 'img' sprites (sewer/
 # pyramid/factory landmarks) are drawn on top of the tiles, after this list.
 LAYER_ORDER = ['bg', 'transitions', 'water', 'bush', 'cliff', 'dirt', 'castle']
-LAYER_FALLBACK = {
-    'bg': 'grass_c_0.svg', 'dirt': 'dirt_c_0.svg', 'water': 'water_c_0.svg',
-    'bush': 'bush_c_0.svg', 'cliff': 'scliff_c_0.svg', 'castle': 'castle_c_0.svg',
-    'transitions': 'grass2_t_0.svg',
-}
 FLIP_H, FLIP_V, FLIP_D = 0x80000000, 0x40000000, 0x20000000
 
 
