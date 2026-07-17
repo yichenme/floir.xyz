@@ -25,7 +25,9 @@ struct MobRenderAttributes {
     FlowerRenderAttributes flower_attrs;
 };
 
-void draw_loadout_background(Renderer &, PetalID::T, float=1, float=1);
+// rarity=255 -> use the petal's own data rarity; otherwise colour the tile for
+// the given rarity (so the same petal can be shown at every rarity).
+void draw_loadout_background(Renderer &, PetalID::T, float=1, float=1, uint8_t=255);
 
 void draw_static_flower(Renderer &, FlowerRenderAttributes);
 

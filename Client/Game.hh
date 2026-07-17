@@ -27,6 +27,9 @@ namespace Game {
     extern std::array<uint8_t, MobID::kNumMobs> seen_mobs;
     // Populated from kInventoryUpdate; consumed by the Task 8 inventory UI.
     extern std::vector<PetalStack> inventory_stacks;
+    // Indices into inventory_stacks, sorted by rarity (highest first) so the
+    // inventory panel can group by rarity while equip still uses the real index.
+    extern std::vector<uint32_t> inventory_display_order;
     
     extern double timestamp;
     

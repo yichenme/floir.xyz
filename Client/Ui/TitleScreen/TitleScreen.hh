@@ -26,7 +26,8 @@ namespace Ui {
     class GalleryPetal final : public Element {
     public:
         PetalID::T id;
-        GalleryPetal(PetalID::T, float);
+        uint8_t rarity;   // 255 -> petal's own data rarity
+        GalleryPetal(PetalID::T, float, uint8_t = 255);
 
         virtual void on_render(Renderer &) override;
         virtual void on_event(uint8_t) override;

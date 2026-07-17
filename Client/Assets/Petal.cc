@@ -925,15 +925,16 @@ void draw_static_petal(PetalID::T id, Renderer &ctx) {
     }
 }
 
-void draw_loadout_background(Renderer &ctx, uint8_t id, float reload, float health) {
+void draw_loadout_background(Renderer &ctx, uint8_t id, float reload, float health, uint8_t rarity) {
+    uint8_t const rar = rarity == 255 ? PETAL_DATA[id].rarity : rarity;
     RenderContext c(&ctx);
-    ctx.set_fill(Renderer::HSV(RARITY_COLORS[PETAL_DATA[id].rarity], 0.8));
+    ctx.set_fill(Renderer::HSV(RARITY_COLORS[rar], 0.8));
     ctx.round_line_join();
     ctx.round_line_cap();
     ctx.begin_path();
     ctx.round_rect(-30, -30, 60, 60, 3);
     ctx.fill();
-    ctx.set_fill(RARITY_COLORS[PETAL_DATA[id].rarity]);
+    ctx.set_fill(RARITY_COLORS[rar]);
     ctx.begin_path();
     ctx.rect(-25, -25, 50, 50);
     ctx.fill();

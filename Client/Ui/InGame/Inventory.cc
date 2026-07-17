@@ -37,13 +37,13 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
     Element(INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE, { .h_justify = Style::Left }),
     index(idx), selected(0), drag_x(0), drag_y(0)
 {
-    style.should_render = [this](){ return index < Game::inventory_stacks.size(); };
+    style.should_render = [this](){ return index < Game::inventory_display_order.size(); };
     // The slot stays put in the grid; the single dragged petal is drawn by the
     // Window as a floating preview. Release is polled here (no kMouseUp event).
     style.animate = [this](Element *elt, Renderer &ctx){
         // Pop 90%->110%->100% when this stack gains petals.
-        if (index < Game::inventory_stacks.size()) {
-            uint32_t cnt = Game::inventory_stacks[index].count;
+        if (index < Game::inventory_display_order.size()) {
+            uint32_t cnt = Game::inventory_stacks[Game::inventory_display_order[index]].count;
             if (cnt > last_count) pop_t = 0;
             last_count = cnt;
         }
@@ -58,12 +58,12 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
         if (BitMath::at(Input::mouse_buttons_released, Input::LeftMouse)) {
             uint8_t potential_swap = find_viable_target(Input::mouse_x, Input::mouse_y);
             if (potential_swap != ((uint8_t)-1) && potential_swap < 2 * MAX_SLOT_COUNT) {
-                Game::equip_petal(index, dynamic_to_static(potential_swap));
+                Game::equip_petal(Game::inventory_display_order[index],dynamic_to_static(potential_swap));
             } else {
                 float dist = hypotf(Input::mouse_x - Ui::drag_start_mouse_x,
                                     Input::mouse_y - Ui::drag_start_mouse_y);
                 if (dist < 10 * Ui::scale)
-                    Game::equip_petal(index, find_equip_target());
+                    Game::equip_petal(Game::inventory_display_order[index],find_equip_target());
             }
             selected = 0;
             Ui::dragging_inventory_index = -1;
@@ -72,9 +72,9 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
 }
 
 void InventoryStackSlot::on_render(Renderer &ctx) {
-    if (index >= Game::inventory_stacks.size()) return;
-    PetalStack const &stack = Game::inventory_stacks[index];
-    draw_loadout_background(ctx, stack.type);
+    if (index >= Game::inventory_display_order.size()) return;
+    PetalStack const &stack = Game::inventory_stacks[Game::inventory_display_order[index]];
+    draw_loadout_background(ctx, stack.type, 1, 1, stack.rarity);
     // While dragging one out, show the remaining count (999 -> 998).
     uint32_t shown = stack.count;
     if (selected && shown > 0) --shown;
@@ -86,19 +86,20 @@ void InventoryStackSlot::on_render(Renderer &ctx) {
 }
 
 void InventoryStackSlot::on_event(uint8_t event) {
-    if (index >= Game::inventory_stacks.size()) {
+    if (index >= Game::inventory_display_order.size()) {
         rendering_tooltip = 0;
         return;
     }
+    uint32_t const real = Game::inventory_display_order[index];
     if (event == kMouseDown && !selected) {
         selected = 1;
-        Ui::dragging_inventory_index = index;
+        Ui::dragging_inventory_index = real;
         Ui::drag_start_mouse_x = Input::mouse_x;
         Ui::drag_start_mouse_y = Input::mouse_y;
     }
     if (event != kFocusLost && !selected) {
         rendering_tooltip = 1;
-        tooltip = Ui::UiLoadout::petal_tooltips[Game::inventory_stacks[index].type];
+        tooltip = Ui::UiLoadout::petal_tooltips[Game::inventory_stacks[real].type];
     } else
         rendering_tooltip = 0;
 }

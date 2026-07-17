@@ -8,6 +8,8 @@
 #include <Shared/Binary.hh>
 #include <Shared/Config.hh>
 
+#include <algorithm>
+
 using namespace Game;
 
 void Game::on_message(uint8_t *ptr, uint32_t len) {
@@ -54,6 +56,17 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
                 stack.count = reader.read<uint64_t>();
                 inventory_stacks.push_back(stack);
             }
+            // Display order: highest rarity first, then by petal type, so the
+            // inventory panel groups by rarity. equip still uses the real index.
+            inventory_display_order.resize(inventory_stacks.size());
+            for (uint32_t i = 0; i < inventory_stacks.size(); ++i)
+                inventory_display_order[i] = i;
+            std::sort(inventory_display_order.begin(), inventory_display_order.end(),
+                [](uint32_t a, uint32_t b){
+                    PetalStack const &sa = inventory_stacks[a], &sb = inventory_stacks[b];
+                    if (sa.rarity != sb.rarity) return sa.rarity > sb.rarity;
+                    return sa.type < sb.type;
+                });
             break;
         }
         default:

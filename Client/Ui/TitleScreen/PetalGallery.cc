@@ -13,12 +13,12 @@
 
 using namespace Ui;
 
-GalleryPetal::GalleryPetal(PetalID::T id, float w) : 
-    Element(w,w,{ .fill = 0x40000000, .round_radius = w/20 , .h_justify = Style::Left }), id(id) {}
+GalleryPetal::GalleryPetal(PetalID::T id, float w, uint8_t rarity) :
+    Element(w,w,{ .fill = 0x40000000, .round_radius = w/20 , .h_justify = Style::Left }), id(id), rarity(rarity) {}
 
 void GalleryPetal::on_render(Renderer &ctx) {
     ctx.scale(width / 60);
-    draw_loadout_background(ctx, id);
+    draw_loadout_background(ctx, id, 1, 1, rarity);
 }
 
 void GalleryPetal::on_event(uint8_t event) {
@@ -31,27 +31,24 @@ void GalleryPetal::on_event(uint8_t event) {
 
 
 static Element *make_scroll() {
-    Element *elt = new Ui::VContainer({}, 10, 10, {});
-
-    PetalID::T id_list[PetalID::kNumPetals];
-    for (PetalID::T i = 0; i < PetalID::kNumPetals; ++i)
-        id_list[i] = i;
-    std::sort(id_list, id_list + PetalID::kNumPetals, [](PetalID::T a, PetalID::T b){
-        if (a == PetalID::kNone) return true;
-        if (b == PetalID::kNone) return false;
-        if (PETAL_DATA[a].rarity < PETAL_DATA[b].rarity) return true;
-        if (PETAL_DATA[a].rarity > PETAL_DATA[b].rarity) return false;
-        return strcmp(PETAL_DATA[a].name, PETAL_DATA[b].name) <= 0;
-    });
-    for (PetalID::T i = PetalID::kBasic; i < PetalID::kNumPetals;) {
-        Element *row = new Ui::HContainer({}, 0, 10, { .v_justify = Style::Top });
-        for (uint8_t j = 0; j < 4 && i < PetalID::kNumPetals; ++j, ++i) {
-            row->add_child(new GalleryPetal(id_list[i], 60));
+    Element *elt = new Ui::VContainer({}, 10, 8, {});
+    // Grouped by rarity, highest rarity at the top (matches the reference layout).
+    // Every petal is shown at every rarity.
+    for (int r = RarityID::kNumRarities - 1; r >= 0; --r) {
+        elt->add_child(new Ui::StaticText(15, RARITY_NAMES[r], { .fill = RARITY_COLORS[r] }));
+        for (PetalID::T i = PetalID::kBasic; i < PetalID::kNumPetals;) {
+            Element *row = new Ui::HContainer({}, 0, 8, { .v_justify = Style::Top });
+            for (uint8_t j = 0; j < 5 && i < PetalID::kNumPetals; ++j, ++i) {
+                row->add_child(new Ui::VContainer({
+                    new GalleryPetal(i, 55, (uint8_t) r),
+                    new Ui::StaticText(11, PETAL_DATA[i].name)
+                }, 0, 3, { .v_justify = Style::Top }));
+            }
+            row->refactor();
+            elt->add_child(row);
         }
-        row->refactor();
-        elt->add_child(row);
     }
-    return new Ui::ScrollContainer(elt, 300);
+    return new Ui::ScrollContainer(elt, 340);
 }
 
 Element *Ui::make_petal_gallery() {
