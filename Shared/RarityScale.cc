@@ -20,8 +20,8 @@ float mob_hp_mult(uint8_t r) {
     return m;
 }
 float mob_size_mult(uint8_t r) {
-    // 1.0x at Common (0) compounding to exactly 3.0x at Unique (8), ~1.147x/tier.
-    return std::pow(3.f, (float)r / 8.f);
+    // 1.2x per rarity tier, compounding (1.0x at Common, ~4.3x at Unique).
+    return std::pow(1.2f, (float)r);
 }
 uint8_t roll_spawn_rarity(uint8_t band) {
     // band = Common..Ultra (0..6)
