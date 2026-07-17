@@ -56,11 +56,17 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
         // tunnel through a thin wall; resolve exactly against tile polygons.
         float tx = ent.get_x(), ty = ent.get_y();
         float dist = std::hypot(tx - prev_x, ty - prev_y);
-        int steps = std::max(1, (int)std::ceil(dist / 50.0f));
+        // Step must be <= this body's radius so the swept circle overlaps any
+        // wall it crosses (no thin-wall skip); the floor bounds the step count.
+        float step = std::max(4.0f, r * 0.8f);
+        int steps = std::max(1, (int)std::ceil(dist / step));
+        float sdx = (tx - prev_x) / steps, sdy = (ty - prev_y) / steps;
         float cx = prev_x, cy = prev_y;
-        for (int s = 1; s <= steps; ++s) {
-            cx = prev_x + (tx - prev_x) * s / steps;
-            cy = prev_y + (ty - prev_y) * s / steps;
+        // Advance from the RESOLVED position each step and re-resolve, so a fast
+        // burst (bubble, knockback) can't tunnel through / into a wall.
+        for (int s = 0; s < steps; ++s) {
+            cx += sdx;
+            cy += sdy;
             Tilemap::push_circle(cx, cy, r);
         }
         ent.set_x(cx);
