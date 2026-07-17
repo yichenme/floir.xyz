@@ -465,6 +465,57 @@ def _flip_poly(poly, g):
     return out
 
 
+def _sync_collision_editor(raw, W, H):
+    import base64
+    import re
+    EDITOR_UNIT = 25                     # world units per editor cell (was 50)
+    UW = W * 500 // EDITOR_UNIT           # 1000
+    UH = H * 500 // EDITOR_UNIT           # 1020
+
+    def _pip(px, py, poly):              # point-in-polygon, matches C _in_poly
+        inside = False
+        n = len(poly)
+        j = n - 1
+        for i in range(n):
+            xi, yi = poly[i]
+            xj, yj = poly[j]
+            if ((yi > py) != (yj > py)) and (px < (xj - xi) * (py - yi) / (yj - yi) + xi):
+                inside = not inside
+            j = i
+        return inside
+
+    buf = bytearray((UW * UH + 7) // 8)
+    half = EDITOR_UNIT / 2.0
+    for uy in range(UH):
+        wy = uy * EDITOR_UNIT + half
+        r = int(wy // 500)
+        rowbase = uy * UW
+        for ux in range(UW):
+            wx = ux * EDITOR_UNIT + half
+            c = int(wx // 500)
+            p = raw[r * W + c]
+            if p is None:
+                continue
+            if _pip(wx - c * 500, wy - r * 500, p):
+                idx = rowbase + ux
+                buf[idx >> 3] |= 1 << (idx & 7)
+    b64 = base64.b64encode(bytes(buf)).decode()
+
+    targets = [os.path.join(ROOT, 'collision-editor.html'),
+               os.path.expanduser('~/Desktop/floir-collision-editor.html')]
+    for path in targets:
+        if not os.path.exists(path):
+            continue
+        html = open(path).read()
+        html = re.sub(r'const B64_INIT="[^"]*";',
+                      'const B64_INIT="' + b64 + '";', html)
+        html = re.sub(r'UNIT=\d+;', 'UNIT=' + str(EDITOR_UNIT) + ';', html)
+        html = re.sub(r'1 unit = \d+ world u',
+                      '1 unit = ' + str(EDITOR_UNIT) + ' world u', html)
+        open(path, 'w').write(html)
+    print(f'synced collision editor: {UW}x{UH} units ({EDITOR_UNIT} world u/cell)')
+
+
 def write_tilemap_header(layers, W, H):
     def present(name, i):
         return (layers.get(name, [0] * (W * H))[i] & 0x1FFFFFFF) != 0
@@ -517,6 +568,12 @@ def write_tilemap_header(layers, W, H):
             break
         for i in gaps:
             raw[i] = FULL
+
+    # Sync the standalone collision editor: rasterise the exact live collision
+    # (same point-in-polygon test the game's solid_at uses) into a fine bitmask
+    # and patch collision-editor.html's B64_INIT. UNIT=25 world u -> a 1000x1020
+    # grid (4x the old 500x510 cell count) for finer manual editing.
+    _sync_collision_editor(raw, W, H)
 
     # Each hitbox is a tile's opaque fill polygon (or a full cell for gap-fills).
     polys = []            # list of vert-lists in 0..500
