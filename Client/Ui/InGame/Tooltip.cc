@@ -146,7 +146,6 @@ static Ui::Element *make_petal_stat_container(PetalID::T id) {
 
 static void make_petal_tooltip(PetalID::T id) {
     Element *tooltip = new Ui::VContainer({
-        #ifdef DEBUG
         new Ui::HFlexContainer(
             new Ui::StaticText(20, PETAL_DATA[id].name, { .fill = 0xffffffff, .h_justify = Style::Left }),
             new Ui::DynamicText(16, [=](){
@@ -158,13 +157,10 @@ static void make_petal_tooltip(PetalID::T id) {
             }, { .fill = 0xffffffff, .v_justify = Style::Top }),
             5, 10, {}
         ),
-        #else
-        new Ui::StaticText(20, PETAL_DATA[id].name, { .fill = 0xffffffff, .h_justify = Style::Left }),
-        #endif
         new Ui::StaticText(14, RARITY_NAMES[PETAL_DATA[id].rarity], { .fill = RARITY_COLORS[PETAL_DATA[id].rarity], .h_justify = Style::Left }),
         new Ui::Element(0,8),
         new Ui::StaticText(12, PETAL_DATA[id].description, { .fill = 0xffffffff, .h_justify = Style::Left }),
-        DEBUG_ONLY(make_petal_stat_container(id))
+        make_petal_stat_container(id)
     }, 5, 2);
     tooltip->style.fill = 0x80000000;
     tooltip->style.round_radius = 6;

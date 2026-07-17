@@ -67,9 +67,21 @@ static Element *make_mob_stat_container(MobID::T id) {
         new Ui::StaticText(12, mob_data.health.to_string())
     }, 0, 5, { .h_justify = Style::Left }));
     stats.push_back(new Ui::HContainer({
-        new Ui::StaticText(12, "Damage:", { .fill = 0xffff7777 }),
+        new Ui::StaticText(12, "Body Damage:", { .fill = 0xffff7777 }),
         new Ui::StaticText(12, format_number(mob_data.damage))
     }, 0, 5, { .h_justify = Style::Left }));
+    if (attrs.missile_damage > 0) {
+        stats.push_back(new Ui::HContainer({
+            new Ui::StaticText(12, "Missile Damage:", { .fill = 0xffff7777 }),
+            new Ui::StaticText(12, format_number(attrs.missile_damage))
+        }, 0, 5, { .h_justify = Style::Left }));
+    }
+    if (attrs.armor > 0) {
+        stats.push_back(new Ui::HContainer({
+            new Ui::StaticText(12, "Armor:", { .fill = 0xff777777 }),
+            new Ui::StaticText(12, format_number(attrs.armor))
+        }, 0, 5, { .h_justify = Style::Left }));
+    }
     if (attrs.poison_damage.damage > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Poison:", { .fill = 0xffce76db }),
@@ -97,7 +109,7 @@ static Element *make_mob_card(MobID::T id) {
             10, 10
         ),
         new Ui::Element(0,10),
-        DEBUG_ONLY(make_mob_stat_container(id),)
+        make_mob_stat_container(id),
         new Ui::Element(0,10),
         make_mob_drops(id)
     }, 10, 0, { .fill = 0x33000000, .stroke_hsv = 1, .line_width = 3, .round_radius = 6, .v_justify = Style::Top, .no_animation = 1 });
