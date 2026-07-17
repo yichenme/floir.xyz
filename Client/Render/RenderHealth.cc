@@ -10,11 +10,15 @@
 
 void render_health(Renderer &ctx, Entity const &ent) {
     if (ent.has_component(kPetal)) return;
-    if (ent.healthbar_opacity < 0.01) return;
+    bool const is_mob = ent.has_component(kMob);
+    // Players fade their bar in on damage / out at full health; mobs stay
+    // always visible (so their strength is readable before engaging), fading
+    // only on death like everything else.
+    if (!is_mob && ent.healthbar_opacity < 0.01) return;
     float w = ent.get_radius() * 1.33;
-    ctx.set_global_alpha((1 - ent.deletion_animation) * ent.healthbar_opacity);
+    ctx.set_global_alpha((1 - ent.deletion_animation) * (is_mob ? 1.0f : ent.healthbar_opacity));
     ctx.scale(1 + 0.5 * ent.deletion_animation);
-    if (ent.has_component(kMob)) {
+    if (is_mob) {
         // Name + rarity line sits just above the bar, still below the model.
         ctx.translate(0, w + 15 - 16);
         ctx.draw_text(MOB_DATA[ent.get_mob_id()].name,
