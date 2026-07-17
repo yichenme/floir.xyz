@@ -14,7 +14,7 @@ void MapRenderer::load() {
             const srcTiles = d["tiles"];
             for (const gid in srcTiles) {
                 tiles[gid] = srcTiles[gid].map(function(s){
-                    return { path: new Path2D(s["d"]), fill: s["fill"], stroke: s["stroke"], sw: s["sw"] };
+                    return { path: new Path2D(s["d"]), fill: s["fill"], stroke: s["stroke"], sw: s["sw"], op: s["op"] };
                 });
             }
             const layers = d["layers"];
@@ -30,7 +30,6 @@ void MapRenderer::load() {
             Module.mapTiles = tiles;
             Module.mapLayers = layerGrid;
             Module.mapObjects = d["objects"];
-            Module.mapShadows = d["shadows"];
             Module.mapLayerCount = NL;
             Module.mapCell = d["cell"];
             Module.mapTileSize = d["tileSize"];
@@ -70,21 +69,17 @@ void MapRenderer::draw(int ctx_id, int c0, int c1, int r0, int r1) {
             if (H) ctx.transform(-1, 0, 0, 1, ts, 0);
             if (D) ctx.transform(0, 1, 1, 0, 0, 0);
             for (const sh of shapes) {
+                // Shadows (castle/water/dirt/cliff/bush edge tiles) are authored
+                // as low-opacity shapes in the SVG; apply that alpha per-shape so
+                // they blend softly instead of drawing as solid fills/strokes.
+                ctx.globalAlpha = (sh.op === undefined ? 1 : sh.op);
                 if (sh.fill) { ctx.fillStyle = sh.fill; ctx.fill(sh.path); }
                 if (sh.stroke) { ctx.strokeStyle = sh.stroke; ctx.lineWidth = sh.sw; ctx.lineJoin = 'round'; ctx.stroke(sh.path); }
             }
+            ctx.globalAlpha = 1;
             ctx.restore();
         }
-        const shadows = Module.mapShadows;
         for (let l = 0; l < layers.length; l++) {
-            if (l === 1) {
-                for (let i = 0; i < shadows.length; i++) {
-                    const sh = shadows[i];
-                    if (sh["x"] + sh["w"] < c0 * cell || sh["x"] > c1 * cell || sh["y"] + sh["h"] < r0 * cell || sh["y"] > r1 * cell) continue;
-                    ctx.fillStyle = sh["fill"];
-                    ctx.fillRect(sh["x"], sh["y"], sh["w"], sh["h"]);
-                }
-            }
             const grid = layers[l];
             for (let r = r0; r < r1; r++) {
                 for (let c = c0; c < c1; c++) {

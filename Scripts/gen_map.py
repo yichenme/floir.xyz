@@ -57,9 +57,17 @@ def _tile_shapes(svg_name):
     for el in re.findall(r'<(?:rect|path|polygon|polyline)\b[^>]*?/?>', txt):
         fill = attr(el, 'fill')
         stroke = attr(el, 'stroke')
-        if (not fill or fill == 'none') and (not stroke or stroke == 'none'):
+        # An absent fill is NOT "no fill" -- per the SVG spec it defaults to
+        # black. Several edge/corner tiles (castle/water/dirt/cliff/bush) use
+        # exactly that (an unfilled shape + opacity=".1") to author a soft
+        # drop-shadow; only skip a shape that's explicitly invisible.
+        if fill == 'none' and (not stroke or stroke == 'none'):
             continue
         sw = float(attr(el, 'stroke-width') or 0)
+        # `attr(el, 'opacity')` also matches as a substring of `fill-opacity=`/
+        # `stroke-opacity=` (the regex isn't attribute-anchored), which is
+        # exactly the fallback we want here: one alpha value however it's spelled.
+        op = attr(el, 'opacity')
         if el.startswith('<rect'):
             x = float(attr(el, 'x') or 0); y = float(attr(el, 'y') or 0)
             w = float(attr(el, 'width') or 0); h = float(attr(el, 'height') or 0)
@@ -76,16 +84,23 @@ def _tile_shapes(svg_name):
                 d += 'Z'
         if not d:
             continue
+        if fill == 'none':
+            fill_out = None
+        elif fill:
+            fill_out = fill
+        else:
+            fill_out = '#000'   # attribute absent -> SVG default fill is black
         out.append({'d': d,
-                    'fill': (fill if fill and fill != 'none' else None),
+                    'fill': fill_out,
                     'stroke': (stroke if stroke and stroke != 'none' else None),
-                    'sw': sw})
+                    'sw': sw,
+                    'op': float(op) if op else 1.0})
     return out
 
 
 # Draw order must match the .tmj (bottom -> top). Object 'img' sprites (sewer/
 # pyramid/factory landmarks) are drawn on top of the tiles, after this list.
-LAYER_ORDER = ['bg', 'transitions', 'water', 'bush', 'cliff', 'dirt', 'castle']
+LAYER_ORDER = ['bg', 'transitions', 'bush', 'cliff', 'water', 'dirt', 'castle']
 FLIP_H, FLIP_V, FLIP_D = 0x80000000, 0x40000000, 0x20000000
 
 
@@ -103,7 +118,6 @@ def main():
     objgroups = {l['name']: l.get('objects', [])
                  for l in d['layers'] if l.get('type') == 'objectgroup'}
     terrain = compute_terrain(layers, W, H)
-    shadows = compute_shadows(terrain, W, H)
     # Client render asset: per-tile Path2D shapes + culled placements + landmark
     # objects. The client draws these as vector each frame (florr.io style).
     import json as _json
@@ -140,12 +154,11 @@ def main():
         if svg_name and os.path.exists(os.path.join(TILES, svg_name)):
             map_tiles[str(gid)] = _tile_shapes(svg_name)
     map_data = {'cell': 500, 'tileSize': 256, 'layers': LAYER_ORDER,
-                'tiles': map_tiles, 'placements': map_placements, 'objects': map_objects,
-                'shadows': shadows}
+                'tiles': map_tiles, 'placements': map_placements, 'objects': map_objects}
     open(os.path.join(ROOT, 'Server/map-data.json'), 'w').write(
         _json.dumps(map_data, separators=(',', ':')))
     print(f'map-data.json: {len(map_tiles)} tiles, {len(map_placements)} placements, '
-          f'{len(map_objects)} objects, {len(shadows)} shadow bands')
+          f'{len(map_objects)} objects')
 
     write_tilemap_header(layers, objgroups, W, H, terrain)
 
@@ -513,8 +526,7 @@ def _sync_collision_editor(gm, GW, GH):
 
 
 def compute_terrain(layers, W, H):
-    # Coarse per-cell terrain id: minimap colours, and (via BLOCKING_TERRAIN_IDS)
-    # which cells synthesized shadows treat as solid.
+    # Coarse per-cell terrain id (minimap colours + collision terrain lookup).
     def present(name, i):
         return (layers.get(name, [0] * (W * H))[i] & 0x1FFFFFFF) != 0
     terrain = []
@@ -531,49 +543,6 @@ def compute_terrain(layers, W, H):
                     t = 15
             terrain.append(t)
     return terrain
-
-
-BLOCKING_TERRAIN_IDS = {1, 2, 3, 4, 5, 6}   # kDirt,kBush,kWater,kJungle,kCliff,kCastle
-SHADOW_DEPTH = 18     # world units each shadow band extends into the open neighbor
-SHADOW_BANDS = (0.25, 0.15, 0.08)   # alpha per band, closest-to-the-edge first
-
-
-def compute_shadows(terrain, W, H):
-    # Synthesize a soft drop-shadow/AO band on the OPEN side of every blocking-cell
-    # edge that borders open ground. Baked once here (map is static) so the client
-    # never computes neighbor adjacency per frame -- just draws flat rects.
-    def blocking(c, r):
-        if c < 0 or r < 0 or c >= W or r >= H:
-            return True
-        return terrain[r * W + c] in BLOCKING_TERRAIN_IDS
-
-    shadows = []
-    for r in range(H):
-        for c in range(W):
-            if not blocking(c, r):
-                continue
-            x0, y0 = c * 500, r * 500
-            if not blocking(c, r - 1):          # open to the north
-                for i, a in enumerate(SHADOW_BANDS):
-                    shadows.append({'x': x0, 'y': y0 - (i + 1) * SHADOW_DEPTH,
-                                     'w': 500, 'h': SHADOW_DEPTH,
-                                     'fill': f'rgba(0,0,0,{a})'})
-            if not blocking(c, r + 1):          # open to the south
-                for i, a in enumerate(SHADOW_BANDS):
-                    shadows.append({'x': x0, 'y': y0 + 500 + i * SHADOW_DEPTH,
-                                     'w': 500, 'h': SHADOW_DEPTH,
-                                     'fill': f'rgba(0,0,0,{a})'})
-            if not blocking(c - 1, r):          # open to the west
-                for i, a in enumerate(SHADOW_BANDS):
-                    shadows.append({'x': x0 - (i + 1) * SHADOW_DEPTH, 'y': y0,
-                                     'w': SHADOW_DEPTH, 'h': 500,
-                                     'fill': f'rgba(0,0,0,{a})'})
-            if not blocking(c + 1, r):          # open to the east
-                for i, a in enumerate(SHADOW_BANDS):
-                    shadows.append({'x': x0 + 500 + i * SHADOW_DEPTH, 'y': y0,
-                                     'w': SHADOW_DEPTH, 'h': 500,
-                                     'fill': f'rgba(0,0,0,{a})'})
-    return shadows
 
 
 def write_tilemap_header(layers, objgroups, W, H, terrain):
