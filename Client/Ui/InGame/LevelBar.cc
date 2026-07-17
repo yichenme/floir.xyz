@@ -35,6 +35,13 @@ LevelBar::LevelBar() : Element(FACE_R + BAR_W, FACE_R * 2 + 8) {
             hp.set(Game::simulation.get_ent(Game::player_id).get_health_ratio());
         progress.step(Ui::lerp_amount);
         hp.step(Ui::lerp_amount);
+        // Slide-in/out transition. This used to be set as a second, separate
+        // style.animate assignment in make_level_bar() -- but style.animate
+        // holds a single callback, so that assignment clobbered this entire
+        // lambda and froze level/progress/hp at their constructor defaults
+        // forever (the real cause of the HUD never updating). Merged here so
+        // both the live data and the transition apply every frame.
+        ctx.translate(-(1 - (float) elt->animation) * 1.5 * elt->width, 0);
     };
     style.h_justify = Style::Left;
     style.v_justify = Style::Top;
@@ -120,8 +127,9 @@ Element *Ui::make_level_bar() {
     // Below the "floir.xyz" game title in the top-left.
     bar->x = 20;
     bar->y = 54;
-    bar->style.animate = [](Element *elt, Renderer &ctx) {
-        ctx.translate(-(1 - (float) elt->animation) * 1.5 * elt->width, 0);
-    };
+    // The slide-in/out transition is merged into LevelBar's own style.animate
+    // (set in its constructor) -- do not reassign style.animate here, since it
+    // holds a single callback and would clobber the live level/progress/hp
+    // computation.
     return bar;
 }
