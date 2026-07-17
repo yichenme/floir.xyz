@@ -29,7 +29,7 @@ extern std::array<struct MobData, MobID::kNumMobs> const MOB_DATA;
 // then Desert, so later biomes win ties on overlapping edges.
 inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
     {
-        .left = 0, .top = 2500, .right = 12500.f * 1 / 7, .bottom = 14000,
+        .left = 0, .top = 0, .right = 12500.f * 1 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 510000 },
@@ -42,7 +42,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 0, .color = 0xff58c05c, .name = "Garden · Common"
     },
     {
-        .left = 12500.f * 1 / 7, .top = 2500, .right = 12500.f * 2 / 7, .bottom = 14000,
+        .left = 12500.f * 1 / 7, .top = 0, .right = 12500.f * 2 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 510000 },
@@ -55,7 +55,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 1, .color = 0xff50ae53, .name = "Garden · Uncommon"
     },
     {
-        .left = 12500.f * 2 / 7, .top = 2500, .right = 12500.f * 3 / 7, .bottom = 14000,
+        .left = 12500.f * 2 / 7, .top = 0, .right = 12500.f * 3 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 510000 },
@@ -68,7 +68,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 2, .color = 0xff489d4b, .name = "Garden · Rare"
     },
     {
-        .left = 12500.f * 3 / 7, .top = 2500, .right = 12500.f * 4 / 7, .bottom = 14000,
+        .left = 12500.f * 3 / 7, .top = 0, .right = 12500.f * 4 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 510000 },
@@ -81,7 +81,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 3, .color = 0xff408c43, .name = "Garden · Epic"
     },
     {
-        .left = 12500.f * 4 / 7, .top = 2500, .right = 12500.f * 5 / 7, .bottom = 14000,
+        .left = 12500.f * 4 / 7, .top = 0, .right = 12500.f * 5 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 510000 },
@@ -94,7 +94,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 4, .color = 0xff387a3a, .name = "Garden · Legendary"
     },
     {
-        .left = 12500.f * 5 / 7, .top = 2500, .right = 12500.f * 6 / 7, .bottom = 14000,
+        .left = 12500.f * 5 / 7, .top = 0, .right = 12500.f * 6 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 510000 },
@@ -107,7 +107,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 5, .color = 0xff306932, .name = "Garden · Mythic"
     },
     {
-        .left = 12500.f * 6 / 7, .top = 2500, .right = 12500, .bottom = 14000,
+        .left = 12500.f * 6 / 7, .top = 0, .right = 12500, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 510000 },
@@ -120,7 +120,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 6, .color = 0xff28582a, .name = "Garden · Ultra"
     },
     {
-        .left = 12500, .top = 5000, .right = 25000, .bottom = 5000 + 20500.f * 1 / 7,
+        .left = 12500, .top = 0, .right = 25000, .bottom = 25500.f * 1 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
             { MobID::kSpider, 100000 },
@@ -134,7 +134,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 0, .color = 0xff3a8f4a, .name = "Jungle · Common"
     },
     {
-        .left = 12500, .top = 5000 + 20500.f * 1 / 7, .right = 25000, .bottom = 5000 + 20500.f * 2 / 7,
+        .left = 12500, .top = 25500.f * 1 / 7, .right = 25000, .bottom = 25500.f * 2 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
             { MobID::kSpider, 100000 },
@@ -148,7 +148,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 1, .color = 0xff348243, .name = "Jungle · Uncommon"
     },
     {
-        .left = 12500, .top = 5000 + 20500.f * 2 / 7, .right = 25000, .bottom = 5000 + 20500.f * 3 / 7,
+        .left = 12500, .top = 25500.f * 2 / 7, .right = 25000, .bottom = 25500.f * 3 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
             { MobID::kSpider, 100000 },
@@ -162,7 +162,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 2, .color = 0xff2f753c, .name = "Jungle · Rare"
     },
     {
-        .left = 12500, .top = 5000 + 20500.f * 3 / 7, .right = 25000, .bottom = 5000 + 20500.f * 4 / 7,
+        .left = 12500, .top = 25500.f * 3 / 7, .right = 25000, .bottom = 25500.f * 4 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
             { MobID::kSpider, 100000 },
@@ -176,7 +176,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 3, .color = 0xff2a6836, .name = "Jungle · Epic"
     },
     {
-        .left = 12500, .top = 5000 + 20500.f * 4 / 7, .right = 25000, .bottom = 5000 + 20500.f * 5 / 7,
+        .left = 12500, .top = 25500.f * 4 / 7, .right = 25000, .bottom = 25500.f * 5 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
             { MobID::kSpider, 100000 },
@@ -190,7 +190,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 4, .color = 0xff255b2f, .name = "Jungle · Legendary"
     },
     {
-        .left = 12500, .top = 5000 + 20500.f * 5 / 7, .right = 25000, .bottom = 5000 + 20500.f * 6 / 7,
+        .left = 12500, .top = 25500.f * 5 / 7, .right = 25000, .bottom = 25500.f * 6 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
             { MobID::kSpider, 100000 },
@@ -204,7 +204,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .difficulty = 5, .color = 0xff1f4e28, .name = "Jungle · Mythic"
     },
     {
-        .left = 12500, .top = 5000 + 20500.f * 6 / 7, .right = 25000, .bottom = 25500,
+        .left = 12500, .top = 25500.f * 6 / 7, .right = 25000, .bottom = 25500,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
             { MobID::kSpider, 100000 },
