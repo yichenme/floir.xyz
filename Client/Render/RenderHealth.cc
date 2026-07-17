@@ -5,15 +5,24 @@
 #include <Client/Render/Renderer.hh>
 
 #include <Shared/Entity.hh>
+#include <Shared/StaticData.hh>
+#include <Client/StaticData.hh>
 
 void render_health(Renderer &ctx, Entity const &ent) {
     if (ent.has_component(kPetal)) return;
-    if (ent.has_component(kMob)) return;
     if (ent.healthbar_opacity < 0.01) return;
     float w = ent.get_radius() * 1.33;
     ctx.set_global_alpha((1 - ent.deletion_animation) * ent.healthbar_opacity);
     ctx.scale(1 + 0.5 * ent.deletion_animation);
-    ctx.translate(-w, w + 15);
+    if (ent.has_component(kMob)) {
+        // Name + rarity line sits just above the bar, still below the model.
+        ctx.translate(0, w + 15 - 16);
+        ctx.draw_text(MOB_DATA[ent.get_mob_id()].name,
+                       { .size = 14, .fill = RARITY_COLORS[ent.get_mob_rarity()] });
+        ctx.translate(-w, 16);
+    } else {
+        ctx.translate(-w, w + 15);
+    }
     ctx.round_line_cap();
     ctx.set_stroke(0xff222222);
     ctx.set_line_width(9);
