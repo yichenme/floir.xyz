@@ -159,6 +159,9 @@ static void tick_hornet_aggro(Simulation *sim, Entity &ent) {
             ent.ai_tick = 0;
 
             Entity &missile = alloc_petal(sim, PetalID::kMissile, ent, ent.get_mob_rarity());
+            // Scale the missile with the hornet's own rarity size, so a bigger
+            // hornet fires a proportionally bigger missile.
+            missile.set_radius(missile.get_radius() * mob_size_mult(ent.get_mob_rarity()));
             float missile_damage = MOB_DATA[ent.get_mob_id()].attributes.missile_damage
                 * mob_body_damage_mult(ent.get_mob_rarity());
             missile.damage = missile_damage;

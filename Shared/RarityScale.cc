@@ -21,10 +21,10 @@ float mob_hp_mult(uint8_t r) {
     return m;
 }
 float mob_size_mult(uint8_t r) {
-    // 1.5x per rarity tier, compounding (1.0x at Common, ~25.6x at Unique). No
+    // 1.4x per rarity tier, compounding (1.0x at Common, ~14.8x at Unique). No
     // cap: the adaptive-stride terrain collision (Shared/Tilemap.hh push_circle)
     // bounds per-mob cost, so large high-rarity mobs stay performant.
-    return std::pow(1.5f, (float)r);
+    return std::pow(1.4f, (float)r);
 }
 
 // Rarity of a dropped item given the MOB's rarity, or DROP_NOTHING for no drop.
@@ -60,6 +60,8 @@ uint8_t roll_spawn_rarity(uint8_t band) {
         }
         return r;
     }
-    if (frand() < 0.75f) return band;
+    // Mostly spawn at the zone's own rarity; only a small fraction bump one tier
+    // higher, so higher-rarity mobs stay rare and don't crowd low-rarity zones.
+    if (frand() < 0.90f) return band;
     return (uint8_t)(band + 1);
 }
