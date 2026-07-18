@@ -207,7 +207,16 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             reader.read<std::string>(message);
             if (client->check_invalid(UTF8Parser::is_valid_utf8(message))) return;
             if (message.empty()) break;
-            std::string const sender = client->username.empty() ? "Anonymous" : client->username;
+            // Prefer the flower's in-game name; fall back to the account name.
+            std::string sender = client->username.empty() ? "Anonymous" : client->username;
+            if (client->alive()) {
+                Simulation *sim = &client->game->simulation;
+                Entity &camera = sim->get_ent(client->camera);
+                if (sim->ent_exists(camera.get_player())) {
+                    std::string const nm = sim->get_ent(camera.get_player()).get_name();
+                    if (!nm.empty()) sender = nm;
+                }
+            }
             Writer writer(Server::OUTGOING_PACKET);
             writer.write<uint8_t>(Clientbound::kChatMessage);
             writer.write<std::string>(sender);

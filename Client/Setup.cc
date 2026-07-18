@@ -104,7 +104,12 @@ extern "C" {
 int setup_inputs() {
     EM_ASM({
         window.addEventListener("keydown", (e) => {
-            //e.preventDefault();
+            // While a text field (nickname / chat) is focused, don't leak keys
+            // into the game controls -- but still forward Enter so it can
+            // spawn / send chat.
+            var ae = document.activeElement;
+            var typing = ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA");
+            if (typing && e.code !== "Enter") return;
             !e.repeat && _key_event(stringToNewUTF8(e.code), 0);
         });
         window.addEventListener("keyup", (e) => {

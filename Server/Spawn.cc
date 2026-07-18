@@ -193,8 +193,8 @@ Entity &alloc_petal(Simulation *sim, PetalID::T petal_id, Entity const &parent, 
     petal.set_petal_rarity(rarity);
     petal.set_split_projectile(petal_data.attributes.split_projectile);
     petal.add_component(kHealth);
-    // Stinger is always 1 HP regardless of rarity -- it stays a glass cannon.
-    float const hp_mult = (petal_id == PetalID::kStinger) ? 1.0f : petal_hp_mult(rarity);
+    // Stinger and Bubble are always 1 HP regardless of rarity.
+    float const hp_mult = (petal_id == PetalID::kStinger || petal_id == PetalID::kBubble) ? 1.0f : petal_hp_mult(rarity);
     petal.health = petal.max_health = petal_data.health * hp_mult;
     petal.damage = petal_data.damage * petal_damage_mult(rarity);
     petal.set_health_ratio(1);

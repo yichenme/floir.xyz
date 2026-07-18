@@ -46,16 +46,18 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     // Specials that scale x3 per rarity in-game (armor, poison, flower-HP, body
     // damage, poison-absorb, heal) use this so the info box tracks the rarity.
     float const mult = rarity_pow3(rarity);
-    // Pure summoner petals (eggs, Stick) hide their own tiny HP/damage and show
-    // the summon's stats instead.
+    // Pure summoner petals (eggs, Stick) and Lotus hide their own HP/damage.
     bool const is_summoner = attrs.spawns != MobID::kNumMobs && attrs.defend_only;
-    if (petal_data.health > 0 && !is_summoner) {
+    bool const hide_combat = is_summoner || id == PetalID::kLotus;
+    // Stinger and Bubble stay at 1 HP regardless of rarity.
+    float const eff_hp_mult = (id == PetalID::kStinger || id == PetalID::kBubble) ? 1.0f : hp_mult;
+    if (petal_data.health > 0 && !hide_combat) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Health:", { .fill = 0xff77ff77 }),
-            new Ui::StaticText(12, format_number(petal_data.health * hp_mult))
+            new Ui::StaticText(12, format_number(petal_data.health * eff_hp_mult))
         }, 0, 5, { .h_justify = Style::Left }));
     }
-    if (petal_data.damage > 0 && !is_summoner) {
+    if (petal_data.damage > 0 && !hide_combat) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Damage:", { .fill = 0xffff7777 }),
             new Ui::DynamicText(12, [&petal_data, dmg_mult](){
@@ -190,12 +192,19 @@ static void make_petal_tooltip(PetalID::T id, uint8_t rarity) {
                 float reload = PETAL_DATA[id].reload * get_reload_factor();
                 // Yggdrasil's cooldown is divided by 3 each rarity up.
                 if (id == PetalID::kYggdrasil) reload /= rarity_pow3(rarity);
+                float secondary = PETAL_DATA[id].attributes.secondary_reload;
+                // Bubble reload table: -0.25s primary / -0.1s secondary per tier.
+                if (id == PetalID::kBubble) {
+                    reload = 2.0f - 0.25f * rarity; if (reload < 0.1f) reload = 0.1f;
+                    secondary = rarity >= RarityID::kUnique ? 0.f : 0.7f - 0.1f * rarity;
+                    if (secondary < 0.1f && secondary > 0) secondary = 0.1f;
+                }
                 // Show both reload phases with their own "s" (e.g. 0.1s + 0.1s),
                 // no reload icon.
                 if (reload == 0) return std::string("");
-                if (PETAL_DATA[id].attributes.secondary_reload == 0)
+                if (secondary == 0)
                     return std::format("{:.1f}s", reload);
-                return std::format("{:.1f}s + {:.1f}s", reload, PETAL_DATA[id].attributes.secondary_reload);
+                return std::format("{:.1f}s + {:.1f}s", reload, secondary);
             }, { .fill = 0xffffffff, .v_justify = Style::Top }),
             5, 10, {}
         ),

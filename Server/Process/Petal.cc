@@ -61,7 +61,14 @@ void tick_petal_behavior(Simulation *sim, Entity &petal) {
         return;
     }
     if (petal_data.attributes.secondary_reload == 0) return;
-    if (petal.secondary_reload <= petal_data.attributes.secondary_reload * TPS) {
+    // Bubble's charge shortens with rarity: 0.7s at Common, -0.1s per tier (min
+    // 0.1s), none at Unique.
+    float secondary = petal_data.attributes.secondary_reload;
+    if (petal.get_petal_id() == PetalID::kBubble) {
+        uint8_t const r = petal.get_petal_rarity();
+        secondary = (r >= RarityID::kUnique) ? 0.f : std::fmax(0.1f, 0.7f - 0.1f * r);
+    }
+    if (petal.secondary_reload <= secondary * TPS) {
         ++petal.secondary_reload;
         return;
     }

@@ -171,6 +171,9 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
                 // Yggdrasil's cooldown is divided by 3 each rarity up.
                 if (slot_petal_id == PetalID::kYggdrasil)
                     reload_time = (game_tick_t)(reload_time / rarity_pow3(player.get_loadout_rarities(i)));
+                // Bubble: primary reload 2.0s at Common, -0.25s per rarity (min 0.1s).
+                else if (slot_petal_id == PetalID::kBubble)
+                    reload_time = (game_tick_t)(std::fmax(0.1f, 2.0f - 0.25f * player.get_loadout_rarities(i)) * TPS);
                 if (!slot.already_spawned) reload_time += TPS;
                 float this_reload = reload_time == 0 ? 1 : (float) petal_slot.reload / reload_time;
                 min_reload = std::min(min_reload, this_reload);
