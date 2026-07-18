@@ -53,10 +53,28 @@ WebSocketServer::WebSocketServer() {
         const http = require("http");
         const fs = require("fs");
         const server = http.createServer(function(req, res) {
+            // Admin panel API: POST JSON in, JSON out (credential re-checked in
+            // global.adminApi, defined in Account/database.js).
+            if (req.url === "/admin/api" && req.method === "POST") {
+                let body = "";
+                req.on("data", function(c){ body += c; });
+                req.on("end", function(){
+                    let out = "{\"ok\":false,\"error\":\"unavailable\"}";
+                    // Bracket + string so the closure minifier can't rename the
+                    // property (it must match global.adminApi in database.js).
+                    try { if (globalThis["adminApi"]) out = globalThis["adminApi"](body); } catch (e) { out = "{\"ok\":false,\"error\":\"server error\"}"; }
+                    res.writeHead(200, {"Content-Type": "application/json", "Cache-Control": "no-store"});
+                    res.end(out);
+                });
+                return;
+            }
             let encodeType = "text/html";
             let file = "index.html";
             switch (req.url) {
                 case "/":
+                    break;
+                case "/admin":
+                    file = "admin.html";
                     break;
                 case "/floir-client.js":
                     encodeType = "application/javascript";
