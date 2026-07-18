@@ -35568,11 +35568,18 @@ namespace Tilemap {
         return _usolid((int)std::floor(x/COLL_UNIT), (int)std::floor(y/COLL_UNIT));
     }
 
+    // Adaptive stride mirroring push_circle below: cost is O((2*rad/COLL_UNIT)^2)
+    // unstrided, which is fine for player-scale bodies but unbounded for a
+    // large high-rarity mob (radius can run into the hundreds of units) --
+    // without this, a single call can scan hundreds of thousands of sub-cells.
     inline bool solid_circle(float x, float y, float rad) {
         int x0=(int)std::floor((x-rad)/COLL_UNIT), x1=(int)std::floor((x+rad)/COLL_UNIT);
         int y0=(int)std::floor((y-rad)/COLL_UNIT), y1=(int)std::floor((y+rad)/COLL_UNIT);
+        int const SAMPLES=24;
+        int span=x1-x0+1;
+        int st=span/SAMPLES; if (st<1) st=1;
         float r2=rad*rad;
-        for (int uy=y0; uy<=y1; ++uy) for (int ux=x0; ux<=x1; ++ux) {
+        for (int uy=y0; uy<=y1; uy+=st) for (int ux=x0; ux<=x1; ux+=st) {
             if (!_usolid(ux,uy)) continue;
             float ax=ux*COLL_UNIT, ay=uy*COLL_UNIT;
             float px=x<ax?ax:(x>ax+COLL_UNIT?ax+COLL_UNIT:x);
