@@ -60,6 +60,16 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
             })
         }, 0, 5, { .h_justify = Style::Left }));
     }
+    // Reload, labelled. Two-phase petals (e.g. Bubble) show "X + Ys".
+    if (petal_data.reload > 0 || attrs.secondary_reload > 0) {
+        std::string rld = std::format("{:.1f}s", petal_data.reload * get_reload_factor());
+        if (attrs.secondary_reload > 0)
+            rld += std::format(" + {:.1f}s", attrs.secondary_reload);
+        stats.push_back(new Ui::HContainer({
+            new Ui::StaticText(12, "Reload:", { .fill = 0xff7777ff }),
+            new Ui::StaticText(12, rld)
+        }, 0, 5, { .h_justify = Style::Left }));
+    }
     if (attrs.armor > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Armor:", { .fill = 0xff777777 }),

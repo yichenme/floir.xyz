@@ -151,7 +151,7 @@ namespace {
         uint8_t rarity;
         Element *card = nullptr;   // tooltip, built lazily on first hover
         GalleryMobCell(MobID::T id, uint8_t rarity, float w) :
-            Element(w, w, { .round_radius = w / 12, .v_justify = Style::Top }), id(id), rarity(rarity) {}
+            Element(w, w, { .fill = 0x40000000, .round_radius = w / 20, .h_justify = Style::Left }), id(id), rarity(rarity) {}
 
         void on_render(Renderer &ctx) override {
             ctx.set_fill(Renderer::HSV(RARITY_COLORS[rarity], 0.8));
@@ -187,7 +187,7 @@ namespace {
 }
 
 static Element *make_scroll() {
-    Element *elt = new Ui::VContainer({}, 0, 3, {});
+    Element *elt = new Ui::VContainer({}, 10, 6, {});
     MobID::T id_list[MobID::kNumMobs];
     for (MobID::T i = 0; i < MobID::kNumMobs; ++i)
         id_list[i] = i;
@@ -200,11 +200,11 @@ static Element *make_scroll() {
         MobID::T const id = id_list[k];
         Element *row = new Ui::HContainer({}, 0, 3, { .v_justify = Style::Top });
         for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)
-            row->add_child(new GalleryMobCell(id, r, 32));
+            row->add_child(new GalleryMobCell(id, r, 34));
         row->refactor();
         elt->add_child(row);
     }
-    return new Ui::ScrollContainer(elt, 320);
+    return new Ui::ScrollContainer(elt, 340);
 }
 
 Element *Ui::make_mob_gallery() {
