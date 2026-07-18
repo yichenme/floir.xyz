@@ -155,14 +155,11 @@ UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
                     height = lerp(height, slot->height, lerp_amt);
                 }
             } else {
-                // Match the inventory drag: grow to 125% and shake fast while
-                // free-dragging (the snap-to-slot branch above already fits the
-                // target slot exactly).
                 x = lerp(x, (mouse_x - Ui::window_width / 2) / Ui::scale, lerp_amt);
                 y = lerp(y, (mouse_y - Ui::window_height / 2) / Ui::scale, lerp_amt);
-                width = lerp(width, parent_slot->width * 1.25f, lerp_amt);
-                height = lerp(height, parent_slot->height * 1.25f, lerp_amt);
-                ctx.rotate(sinf(Game::timestamp * 0.045f) * (10.0f * (float)M_PI / 180.0f));
+                width = lerp(width, parent_slot->width + 10, lerp_amt);
+                height = lerp(height, parent_slot->height + 10, lerp_amt);
+                ctx.rotate(sin(Game::timestamp / 150) * 0.1);
             }
             //if (released)
                 //Ui::UiLoadout::petal_selected = nullptr;

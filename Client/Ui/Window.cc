@@ -47,33 +47,37 @@ void Window::on_render(Renderer &ctx) {
     static uint8_t rel_rarity = 255;
     static uint8_t was_dragging = 0;
     static uint8_t rel_to_slot = 0;      // released onto a loadout slot?
-    static double drag_start_ts = 0;     // when this drag began (for the shake)
-    static float pv_scale = 1.0f;        // lerped size (grow to 1.25, fit to 1.0)
+    static double drag_start_ts = 0;     // when this drag began
+    static float pv_scale = 1.0f;        // lerped size, matched to the loadout card
+    static float rel_scale = 1.0f;       // fit scale of the slot released onto
 
     bool const dragging = Ui::dragging_inventory_index != -1 && Game::alive() &&
                           (uint32_t)Ui::dragging_inventory_index < Game::inventory_stacks.size();
+    // Match the loadout petal card's drag animation exactly: the card is drawn
+    // as a 60u square, so a target on-screen width W corresponds to scale W/60.
+    // Loadout slots are 70u; a free-dragged loadout card grows to slot+10 (=80u)
+    // and snapping fits the slot (70u). Uses the same gentle sin(t/150)*0.1
+    // wobble and the same lerp rate (0.75x) as the loadout card.
+    float const drag_lerp = Ui::lerp_amount * 0.75f;
     if (dragging) {
         float tx = Input::mouse_x, ty = Input::mouse_y;
         uint8_t swap = find_viable_target(Input::mouse_x, Input::mouse_y);
         bool const snapped = swap != ((uint8_t)-1) && swap < 2 * MAX_SLOT_COUNT;
+        float target_scale = (70.0f + 10.0f) / 60.0f;   // free drag: loadout slot + 10
         if (snapped) {
             UiLoadoutSlot *slot = Ui::UiLoadout::petal_backgrounds[swap];
             tx = slot->screen_x; ty = slot->screen_y;
+            target_scale = slot->width / 60.0f;          // fit the target slot
         }
         if (!was_dragging) { pv_x = tx; pv_y = ty; drag_start_ts = Game::timestamp; pv_scale = 1.0f; }
-        pv_x = lerp(pv_x, tx, Ui::lerp_amount * 2.5);
-        pv_y = lerp(pv_y, ty, Ui::lerp_amount * 2.5);
-        // Smoothly lerp the size like the loadout petal card: grow toward 125%
-        // while free-dragging, shrink to fit (1.0) when stuck to a slot.
-        pv_scale = lerp(pv_scale, snapped ? 1.0f : 1.25f, Ui::lerp_amount * 2.5);
+        pv_x = lerp(pv_x, tx, drag_lerp);
+        pv_y = lerp(pv_y, ty, drag_lerp);
+        pv_scale = lerp(pv_scale, target_scale, drag_lerp);
         RenderContext c(&ctx);
         ctx.reset_transform();
         ctx.translate(pv_x, pv_y);
-        if (!snapped) {
-            // Free drag: shake fast (a small right tilt then rocking ~10 degrees).
-            float const t = (float)(Game::timestamp - drag_start_ts);
-            ctx.rotate(sinf(t * 0.045f) * (10.0f * (float)M_PI / 180.0f));
-        }
+        if (!snapped)
+            ctx.rotate(sin(Game::timestamp / 150) * 0.1);   // gentle wobble, same as loadout
         ctx.scale(Ui::scale * pv_scale);
         draw_loadout_background(ctx, Game::inventory_stacks[Ui::dragging_inventory_index].type, 1, 1, Game::inventory_stacks[Ui::dragging_inventory_index].rarity);
         rel_type = Game::inventory_stacks[Ui::dragging_inventory_index].type;
@@ -87,6 +91,7 @@ void Window::on_render(Renderer &ctx) {
             if (swap != ((uint8_t)-1) && swap < 2 * MAX_SLOT_COUNT) {
                 UiLoadoutSlot *slot = Ui::UiLoadout::petal_backgrounds[swap];
                 rel_tx = slot->screen_x; rel_ty = slot->screen_y; rel_to_slot = 1;
+                rel_scale = slot->width / 60.0f;
             } else {
                 rel_tx = Ui::inventory_icon_x; rel_ty = Ui::inventory_icon_y; rel_to_slot = 0;
             }
@@ -94,20 +99,17 @@ void Window::on_render(Renderer &ctx) {
             was_dragging = 0;
         }
         if (release_anim > 0.01 && rel_type != PetalID::kNone) {
-            // Onto a slot: linger a little longer at full size so the petal
-            // keeps covering the slot until the server's loadout update lands
-            // (both are the same petal, so overlap is seamless). A miss shrinks
-            // away back to the inventory icon as before.
+            // Onto a slot: settle to the slot's fit size, covering it until the
+            // server's loadout update lands. A miss shrinks away to the icon.
             float const decay = Ui::lerp_amount * (rel_to_slot ? 1.5 : 3);
             pv_x = lerp(pv_x, rel_tx, decay);
             pv_y = lerp(pv_y, rel_ty, decay);
             release_anim = lerp(release_anim, 0, decay);
-            // Onto a slot: settle to fit size (1.0), covering it. Miss: shrink away.
-            pv_scale = lerp(pv_scale, rel_to_slot ? 1.0f : 0.0f, decay);
+            pv_scale = lerp(pv_scale, rel_to_slot ? rel_scale : 0.0f, decay);
             RenderContext c(&ctx);
             ctx.reset_transform();
             ctx.translate(pv_x, pv_y);
-            ctx.scale(Ui::scale * (rel_to_slot ? 1.0f : pv_scale));
+            ctx.scale(Ui::scale * (rel_to_slot ? rel_scale : pv_scale));
             draw_loadout_background(ctx, rel_type, 1, 1, rel_rarity);
         }
     }
