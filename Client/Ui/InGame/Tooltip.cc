@@ -151,16 +151,21 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
             new Ui::StaticText(12, "+" + format_number(attrs.extra_range))
         }, 0, 5, { .h_justify = Style::Left }));
     }
-    if (attrs.extra_damage_factor > 1) {
+    // Damage/reload multipliers: show whether they raise (+) or lower (-) the
+    // stat (Golden Leaf, e.g., is -5% reload). format_pct only takes positives,
+    // so pass the magnitude and prefix the sign.
+    if (attrs.extra_damage_factor != 1) {
+        float const pct = 100 * (attrs.extra_damage_factor - 1);
         stats.push_back(new Ui::HContainer({
-            new Ui::StaticText(12, "Extra Damage:", { .fill = 0xffff7777 }),
-            new Ui::StaticText(12, "+"+format_pct(100 * (attrs.extra_damage_factor - 1)))
+            new Ui::StaticText(12, "Damage Factor:", { .fill = 0xffff7777 }),
+            new Ui::StaticText(12, (pct > 0 ? "+" : "-") + format_pct(pct > 0 ? pct : -pct))
         }, 0, 5, { .h_justify = Style::Left }));
     }
-    if (attrs.extra_reload_factor > 1) {
+    if (attrs.extra_reload_factor != 1) {
+        float const pct = 100 * (attrs.extra_reload_factor - 1);
         stats.push_back(new Ui::HContainer({
-            new Ui::StaticText(12, "Extra Reload:", { .fill = 0xff7777ff }),
-            new Ui::StaticText(12, "+"+format_pct(100 * (attrs.extra_reload_factor - 1)))
+            new Ui::StaticText(12, "Reload Factor:", { .fill = 0xff7777ff }),
+            new Ui::StaticText(12, (pct > 0 ? "+" : "-") + format_pct(pct > 0 ? pct : -pct))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     return new Ui::VContainer(stats, 0, 2, { .h_justify = Style::Left });
