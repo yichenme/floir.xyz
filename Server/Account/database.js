@@ -170,10 +170,15 @@ global.dbSetProgress = (user, level, xp) => {
 const ADMIN_USER = 'admin';
 const ADMIN_PASS = 'loveKK88';
 
+// Shared with Server/Wasm.cc: the admin mob-spawn action reaches straight into
+// the live C++ simulation (this DB layer can't touch it), so its handler
+// checks credentials via this same function instead of going through adminApi.
+global.checkAdmin = (user, password) => user === ADMIN_USER && password === ADMIN_PASS;
+
 global.adminApi = (bodyStr) => {
     let req;
     try { req = JSON.parse(bodyStr || '{}'); } catch { return JSON.stringify({ ok: false, error: 'bad request' }); }
-    if (req.user !== ADMIN_USER || req.password !== ADMIN_PASS)
+    if (!global.checkAdmin(req.user, req.password))
         return JSON.stringify({ ok: false, error: 'invalid admin credentials' });
     global.loadDatabase();
     if (req.action === 'search') {

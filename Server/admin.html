@@ -66,11 +66,33 @@
         <button onclick="give()">Give petal</button>
         <div class="msg" id="giveMsg"></div>
     </div>
+
+    <div class="card hidden" id="spawnCard">
+        <label>Spawn mob (right-click the map)</label>
+        <canvas id="mapCanvas" width="300" height="306" style="width:100%;max-width:300px;height:auto;border-radius:5px;cursor:crosshair;"></canvas>
+        <div class="row" style="margin-top:10px;">
+            <div>
+                <label>Mob</label>
+                <select id="mob"></select>
+            </div>
+            <div>
+                <label>Rarity</label>
+                <select id="spawnRarity"></select>
+            </div>
+        </div>
+        <div class="target">Last click: <b id="spawnPos">(none yet)</b></div>
+        <div class="msg" id="spawnMsg"></div>
+    </div>
 </div>
 <script>
     var PETALS = ["None","Basic","Light","Heavy(old)","Stinger","Leaf","Twin(retired)","Rose","Iris","Missile","Dandelion","Bubble","Faster","Rock","Cactus","Web","Wing","Peas","Sand","Pincer","Dahlia","Triplet(retired)","Ant Egg","Blue Iris(retired)","Pollen","Grapes","Beetle Egg","Azalea(retired)","Stick","Tringer","Triweb(retired)","Antennae","Tricactus(retired)","Heavy","Third Eye","Observer","Purple Cactus(retired)","Salt","Unique Basic","Square","Moon","Lotus","Cutter","Yin Yang","Yggdrasil","Rice","Bone","Yucca","Corn","Golden Leaf"];
     var RARITIES = ["Common","Uncommon","Rare","Epic","Legendary","Mythic","Ultra","Super","Unique"];
+    // Mirrors MobID's order in Shared/StaticDefinitions.hh. Two entries share
+    // the in-game display name "Ladybug" (Dark/Shiny variants) -- disambiguated
+    // here for the dropdown only, not a gameplay name change.
+    var MOBS = ["Baby Ant","Worker Ant","Soldier Ant","Bee","Ladybug","Beetle","Ladybug (Dark)","Hornet","Cactus","Rock","Centipede","Evil Centipede","Desert Centipede","Sandstorm","Scorpion","Spider","Ant Hole","Queen Ant","Ladybug (Shiny)","Square","Digger"];
     var creds = null, target = null;
+    var zones = [];
 
     // Retired/removed petal IDs (kept numbered for account compatibility, but
     // never giveable). Mirrors RETIRED_PETALS in Server/Account/database.js.
@@ -80,6 +102,8 @@
     function fillPetalSelect(el, arr){ el.innerHTML = arr.map(function(n,i){ return RETIRED.has(i) ? '' : '<option value="'+i+'">'+n+' ('+i+')</option>'; }).join(''); }
     fillPetalSelect(document.getElementById('petal'), PETALS);
     fillSelect(document.getElementById('rarity'), RARITIES);
+    fillSelect(document.getElementById('mob'), MOBS);
+    fillSelect(document.getElementById('spawnRarity'), RARITIES);
 
     async function api(payload){
         const body = Object.assign({ user: creds.user, password: creds.pass }, payload);
@@ -96,11 +120,61 @@
             document.getElementById('loginCard').classList.add('hidden');
             document.getElementById('searchCard').classList.remove('hidden');
             document.getElementById('giveCard').classList.remove('hidden');
+            document.getElementById('spawnCard').classList.remove('hidden');
             renderUsers(res.users);
+            loadZones();
         } else {
             m.textContent = res.error || 'login failed';
         }
     }
+
+    // --- Spawn minimap: zone rectangles fetched once from Shared/StaticData.hh
+    // MAP_DATA (via /admin/zones.json, generated server-side so this file never
+    // hand-copies balance data), right-click converts canvas -> world coords.
+    var ARENA_W = 25000, ARENA_H = 25500;
+    async function loadZones(){
+        try {
+            const r = await fetch('/admin/zones.json');
+            zones = await r.json();
+            if (zones.length) {
+                ARENA_W = Math.max.apply(null, zones.map(function(z){ return z.right; }));
+                ARENA_H = Math.max.apply(null, zones.map(function(z){ return z.bottom; }));
+            }
+        } catch (e) { zones = []; }
+        drawMap();
+    }
+
+    function drawMap(){
+        const cv = document.getElementById('mapCanvas');
+        const ctx = cv.getContext('2d');
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        zones.forEach(function(z){
+            ctx.fillStyle = '#' + z.color.toString(16).padStart(6, '0');
+            ctx.fillRect(
+                z.left / ARENA_W * cv.width, z.top / ARENA_H * cv.height,
+                (z.right - z.left) / ARENA_W * cv.width, (z.bottom - z.top) / ARENA_H * cv.height
+            );
+        });
+    }
+
+    document.getElementById('mapCanvas').addEventListener('contextmenu', async function(e){
+        e.preventDefault();
+        const cv = e.target;
+        const rect = cv.getBoundingClientRect();
+        // Canvas is CSS-scaled (width:100%), so map the click through the
+        // rendered box size, not the canvas's internal pixel size.
+        const cx = (e.clientX - rect.left) / rect.width * ARENA_W;
+        const cy = (e.clientY - rect.top) / rect.height * ARENA_H;
+        document.getElementById('spawnPos').textContent = Math.round(cx) + ', ' + Math.round(cy);
+        const m = document.getElementById('spawnMsg');
+        const res = await api({
+            action: 'spawn', x: cx, y: cy,
+            mobId: parseInt(document.getElementById('mob').value, 10),
+            rarity: parseInt(document.getElementById('spawnRarity').value, 10)
+        });
+        m.className = 'msg ' + (res.ok ? 'ok' : 'err');
+        m.textContent = res.ok ? 'spawned' : (res.error || 'failed');
+    });
 
     var searchTimer = null;
     function search(){

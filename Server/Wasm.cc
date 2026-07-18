@@ -1,10 +1,16 @@
 #ifdef WASM_SERVER
 #include <Server/Client.hh>
+#include <Server/Game.hh>
 #include <Server/Server.hh>
+#include <Server/Spawn.hh>
 
 #include <Shared/Config.hh>
+#include <Shared/StaticData.hh>
+
+#include <Helpers/Math.hh>
 
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -14,6 +20,37 @@ std::unordered_map<int, WebSocket *> WS_MAP;
 
 size_t const MAX_BUFFER_LEN = 1024;
 static uint8_t INCOMING_BUFFER[MAX_BUFFER_LEN] = {0};
+
+extern "C" {
+    // Admin-panel bridge: the DB/credential layer is plain JS (Account/database.js)
+    // and has no reach into the live simulation, so a mob spawn from the admin
+    // minimap comes in here directly. Credentials are checked JS-side
+    // (global.checkAdmin) before this is ever called.
+    void admin_spawn_mob(float x, float y, uint8_t mob_id, uint8_t rarity) {
+        if (mob_id >= MobID::kNumMobs || rarity >= RarityID::kNumRarities) return;
+        x = fclamp(x, 0, (float) ARENA_WIDTH);
+        y = fclamp(y, 0, (float) ARENA_HEIGHT);
+        alloc_mob(&Server::game.simulation, mob_id, x, y, NULL_ENTITY, rarity);
+    }
+}
+
+// Serialized once at startup: MAP_DATA zone rectangles + colours, so the admin
+// minimap can draw the same regions the game uses without duplicating this
+// balance data by hand in admin.html (Shared stays the single source of truth).
+static std::string build_admin_zones_json() {
+    std::ostringstream out;
+    out << "[";
+    for (size_t i = 0; i < MAP_DATA.size(); ++i) {
+        struct ZoneDefinition const &z = MAP_DATA[i];
+        if (i) out << ",";
+        out << "{\"left\":" << z.left << ",\"top\":" << z.top
+            << ",\"right\":" << z.right << ",\"bottom\":" << z.bottom
+            << ",\"color\":" << (z.color & 0xffffff)
+            << ",\"name\":\"" << z.name << "\"}";
+    }
+    out << "]";
+    return out.str();
+}
 
 extern "C" {
     void on_connect(int ws_id) {
@@ -48,10 +85,15 @@ extern "C" {
 }
 
 WebSocketServer::WebSocketServer() {
+    std::string const zones_json = build_admin_zones_json();
     EM_ASM({
         const WSS = require("ws");
         const http = require("http");
         const fs = require("fs");
+        // Static: MAP_DATA zone rectangles, serialized once at startup (Shared
+        // stays the single source of truth -- admin.html never hand-copies
+        // zone bounds/colours).
+        const ADMIN_ZONES_JSON = UTF8ToString($3);
         const server = http.createServer(function(req, res) {
             // Admin panel API: POST JSON in, JSON out (credential re-checked in
             // global.adminApi, defined in Account/database.js).
@@ -60,12 +102,31 @@ WebSocketServer::WebSocketServer() {
                 req.on("data", function(c){ body += c; });
                 req.on("end", function(){
                     let out = "{\"ok\":false,\"error\":\"unavailable\"}";
-                    // Bracket + string so the closure minifier can't rename the
-                    // property (it must match global.adminApi in database.js).
-                    try { if (globalThis["adminApi"]) out = globalThis["adminApi"](body); } catch (e) { out = "{\"ok\":false,\"error\":\"server error\"}"; }
+                    try {
+                        const parsed = JSON.parse(body || "{}");
+                        // Spawning reaches into the live simulation, which the DB
+                        // layer (global.adminApi) can't touch -- handled here,
+                        // guarded by the same credential check.
+                        if (parsed.action === "spawn" && globalThis["checkAdmin"]
+                            && globalThis["checkAdmin"](parsed.user, parsed.password)) {
+                            const x = +parsed.x, y = +parsed.y;
+                            const mobId = parsed.mobId | 0, rarity = parsed.rarity | 0;
+                            if (Number.isFinite(x) && Number.isFinite(y)) {
+                                _admin_spawn_mob(x, y, mobId, rarity);
+                                out = "{\"ok\":true}";
+                            } else out = "{\"ok\":false,\"error\":\"bad coordinates\"}";
+                        // Bracket + string so the closure minifier can't rename the
+                        // property (it must match global.adminApi in database.js).
+                        } else if (globalThis["adminApi"]) out = globalThis["adminApi"](body);
+                    } catch (e) { out = "{\"ok\":false,\"error\":\"server error\"}"; }
                     res.writeHead(200, {"Content-Type": "application/json", "Cache-Control": "no-store"});
                     res.end(out);
                 });
+                return;
+            }
+            if (req.url === "/admin/zones.json" && req.method === "GET") {
+                res.writeHead(200, {"Content-Type": "application/json", "Cache-Control": "no-store"});
+                res.end(ADMIN_ZONES_JSON);
                 return;
             }
             let encodeType = "text/html";
@@ -145,7 +206,7 @@ WebSocketServer::WebSocketServer() {
                 delete Module.ws_connections[ws_id];
             });
         })
-    }, SERVER_PORT, INCOMING_BUFFER, MAX_BUFFER_LEN);
+    }, SERVER_PORT, INCOMING_BUFFER, MAX_BUFFER_LEN, zones_json.c_str());
 }
 
 void Server::run() {
