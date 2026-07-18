@@ -42,8 +42,13 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
         struct PetalAttributes const &attrs = petal_data.attributes;
         if (attrs.equipment != EquipmentFlags::kNone)
             player.set_equip_flags(player.get_equip_flags() | (1 << attrs.equipment));
-        buffs.vision_factor = std::min(buffs.vision_factor, attrs.vision_factor);
-        buffs.extra_range = std::fmax(attrs.extra_range, buffs.extra_range);
+        // FOV petals widen the view with rarity: Observer +75% per tier,
+        // Antennae +50% per tier (view radius scales; vision_factor = 1/scale).
+        if (attrs.vision_factor < 1.f) {
+            float const rate = (slot_petal_id == PetalID::kObserver) ? 0.75f : 0.5f;
+            buffs.vision_factor = std::min(buffs.vision_factor, 1.f / (1.f + rate * (slot.rarity + 1)));
+        }
+        buffs.extra_range = std::fmax(attrs.extra_range * (slot.rarity + 1), buffs.extra_range);   // Third Eye: +25 per rarity (base 25)
         buffs.extra_damage = std::fmax(buffs.extra_damage, attrs.extra_body_damage * rarity_pow3(slot.rarity));
         buffs.damage_factor *= attrs.extra_damage_factor;
         // Reload-factor reductions deepen one step per rarity (Golden Leaf: -5%
@@ -62,7 +67,7 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
             buffs.heal += attrs.constant_heal * rarity_pow3(slot.rarity) / TPS;
         buffs.extra_rot += attrs.extra_rotation_speed * (1 + 0.4f * slot.rarity);   // Faster: +0.2 rad/s per rarity (base 0.5)
         buffs.extra_health += attrs.extra_health * rarity_pow3(slot.rarity);   // flower-HP buff x3/rarity (Cactus)
-        player.damage_reflection = std::fmax(player.damage_reflection, attrs.damage_reflection);
+        player.damage_reflection = std::fmax(player.damage_reflection, attrs.damage_reflection > 0 ? attrs.damage_reflection + 0.05f * slot.rarity : 0);   // Salt: +5% per rarity
         player.poison_armor = std::fmax(player.poison_armor, attrs.poison_armor * rarity_pow3(slot.rarity) / TPS);   // Lotus x3/rarity
         if (slot_petal_id == PetalID::kPoisonCactus)
             buffs.is_poisonous = 1;
@@ -163,6 +168,9 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
             if (!sim->ent_alive(petal_slot.ent_id)) {
                 petal_slot.ent_id = NULL_ENTITY;
                 game_tick_t reload_time = (petal_data.reload * TPS) * buffs.reload_factor;
+                // Yggdrasil's cooldown is divided by 3 each rarity up.
+                if (slot_petal_id == PetalID::kYggdrasil)
+                    reload_time = (game_tick_t)(reload_time / rarity_pow3(player.get_loadout_rarities(i)));
                 if (!slot.already_spawned) reload_time += TPS;
                 float this_reload = reload_time == 0 ? 1 : (float) petal_slot.reload / reload_time;
                 min_reload = std::min(min_reload, this_reload);

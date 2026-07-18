@@ -416,8 +416,8 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Stick",
         .description = "Harnesses the power of the wind",
-        .health = 20.0,
-        .damage = 10.0,
+        .health = 1.0,
+        .damage = 0.0,
         .radius = 15.0,
         .reload = 4.0,
         .count = 1,
@@ -507,14 +507,14 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .count = 0,
         .rarity = RarityID::kMythic,
         .attributes = {
-            .extra_range = 75,
+            .extra_range = 25,
             .equipment = EquipmentFlags::kThirdEye
         }
     },
     {
         .name = "Observer",
         .description = "The one who sees all",
-        .health = 1.0,
+        .health = 0.0,
         .damage = 0.0,
         .radius = 12.5,
         .reload = 0.0,
@@ -610,11 +610,11 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Cutter",
         .description = "Increases the flower's body damage",
-        .health = 10.0,
-        .damage = 10.0,
+        .health = 0.0,
+        .damage = 0.0,
         .radius = 40.0,
         .reload = 2.5,
-        .count = 1,
+        .count = 0,
         .rarity = RarityID::kEpic,
         .attributes = {
             .extra_body_damage = 10,

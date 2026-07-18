@@ -46,13 +46,16 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     // Specials that scale x3 per rarity in-game (armor, poison, flower-HP, body
     // damage, poison-absorb, heal) use this so the info box tracks the rarity.
     float const mult = rarity_pow3(rarity);
-    if (petal_data.health > 0) {
+    // Pure summoner petals (eggs, Stick) hide their own tiny HP/damage and show
+    // the summon's stats instead.
+    bool const is_summoner = attrs.spawns != MobID::kNumMobs && attrs.defend_only;
+    if (petal_data.health > 0 && !is_summoner) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Health:", { .fill = 0xff77ff77 }),
             new Ui::StaticText(12, format_number(petal_data.health * hp_mult))
         }, 0, 5, { .h_justify = Style::Left }));
     }
-    if (petal_data.damage > 0) {
+    if (petal_data.damage > 0 && !is_summoner) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Damage:", { .fill = 0xffff7777 }),
             new Ui::DynamicText(12, [&petal_data, dmg_mult](){
@@ -69,7 +72,7 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     if (attrs.damage_reflection > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Damage Reflection:", { .fill = 0xff777777 }),
-            new Ui::StaticText(12, format_pct(attrs.damage_reflection * 100))
+            new Ui::StaticText(12, format_pct((attrs.damage_reflection + 0.05f * rarity) * 100))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     // Heal scales with rarity (x3 per tier, mirrors Server/Process/Flower.cc
@@ -143,15 +146,16 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.vision_factor < 1) {
+        float const rate = (id == PetalID::kObserver) ? 0.75f : 0.5f;
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Extra Vision:", { .fill = 0xffcde23b }),
-            new Ui::StaticText(12, format_pct(100 / attrs.vision_factor))
+            new Ui::StaticText(12, format_pct(100 * (1 + rate * (rarity + 1))))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.extra_range > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Attack Range:", { .fill = 0xffcde23b }),
-            new Ui::StaticText(12, "+" + format_number(attrs.extra_range))
+            new Ui::StaticText(12, "+" + format_number(attrs.extra_range * (rarity + 1)))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     // Damage/reload multipliers: show whether they raise (+) or lower (-) the
@@ -184,6 +188,8 @@ static void make_petal_tooltip(PetalID::T id, uint8_t rarity) {
             new Ui::StaticText(20, PETAL_DATA[id].name, { .fill = 0xffffffff, .h_justify = Style::Left }),
             new Ui::DynamicText(16, [=](){
                 float reload = PETAL_DATA[id].reload * get_reload_factor();
+                // Yggdrasil's cooldown is divided by 3 each rarity up.
+                if (id == PetalID::kYggdrasil) reload /= rarity_pow3(rarity);
                 // Show both reload phases with their own "s" (e.g. 0.1s + 0.1s),
                 // no reload icon.
                 if (reload == 0) return std::string("");
