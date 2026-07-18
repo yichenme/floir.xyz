@@ -98,8 +98,14 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             bool credited_kill = false;
             for (auto const &looter : looters) {
                 std::vector<std::pair<PetalID::T, uint8_t>> drops;
+                // Each drop-list item has a chance to not drop at all (on top of
+                // the rarity roll), so a kill yields fewer petals overall.
+                // DROP_SKIP_CHANCE is the per-item "nothing" probability -- tune
+                // to make loot rarer/commoner.
+                static constexpr float DROP_SKIP_CHANCE = 0.5f;
                 for (uint32_t i = 0; i < mob_data.drops.size(); ++i)
                     for (int k = 0; k < rolls; ++k) {
+                        if (frand() < DROP_SKIP_CHANCE) continue;
                         uint8_t const rar = roll_drop_rarity(mob_rarity);
                         if (rar != DROP_NOTHING)
                             drops.push_back({mob_data.drops[i], rar});

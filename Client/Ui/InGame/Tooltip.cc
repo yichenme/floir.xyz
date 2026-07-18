@@ -43,6 +43,9 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     // which applies these exact multipliers when the petal is spawned).
     float const hp_mult = petal_hp_mult(rarity);
     float const dmg_mult = petal_damage_mult(rarity);
+    // Specials that scale x3 per rarity in-game (armor, poison, flower-HP, body
+    // damage, poison-absorb, heal) use this so the info box tracks the rarity.
+    float const mult = rarity_pow3(rarity);
     if (petal_data.health > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Health:", { .fill = 0xff77ff77 }),
@@ -60,7 +63,7 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     if (attrs.armor > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Armor:", { .fill = 0xff777777 }),
-            new Ui::StaticText(12, format_number(attrs.armor))
+            new Ui::StaticText(12, format_number(attrs.armor * mult))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.damage_reflection > 0) {
@@ -87,25 +90,25 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     if (attrs.poison_damage.damage > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Poison:", { .fill = 0xffce76db }),
-            new Ui::StaticText(12, format_number(attrs.poison_damage.time * attrs.poison_damage.damage) + " (" + format_number(attrs.poison_damage.damage) + "/s)")
+            new Ui::StaticText(12, format_number(attrs.poison_damage.time * attrs.poison_damage.damage * mult) + " (" + format_number(attrs.poison_damage.damage * mult) + "/s)")
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.extra_health > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Flower Health:", { .fill = 0xff77ff77 }),
-            new Ui::StaticText(12, format_number(attrs.extra_health))
+            new Ui::StaticText(12, format_number(attrs.extra_health * mult))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.extra_body_damage > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Body Damage:", { .fill = 0xffff7777 }),
-            new Ui::StaticText(12, format_number(attrs.extra_body_damage))
+            new Ui::StaticText(12, format_number(attrs.extra_body_damage * mult))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.poison_armor > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Poison Armor:", { .fill = 0xffce76db }),
-            new Ui::StaticText(12, format_number(attrs.poison_armor) + "/s")
+            new Ui::StaticText(12, format_number(attrs.poison_armor * mult) + "/s")
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.extra_rotation_speed > 0) {

@@ -58,17 +58,6 @@ static void drop_rarity_dist(uint8_t mob_rarity, float out[RarityID::kNumRaritie
     }
 }
 
-// Highest rarity the player has killed anything at. The grid only shows columns
-// up to this, so it stays as narrow as what's actually been unlocked (a fresh
-// account sees ~1 column instead of all 9 spilling off the panel).
-static uint8_t max_killed_rarity() {
-    uint8_t max_r = 0;
-    for (MobID::T m = 0; m < MobID::kNumMobs; ++m)
-        for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)
-            if (Game::mob_kills[m][r] > 0 && r > max_r) max_r = r;
-    return max_r;
-}
-
 static Element *make_mob_drops(MobID::T id, uint8_t rarity) {
     Element *elt = new Ui::HContainer({}, 0, 6, { .h_justify = Style::Left });
     struct MobData const &data = MOB_DATA[id];
@@ -137,10 +126,7 @@ static Element *make_mob_card(MobID::T id, uint8_t rarity) {
         new Ui::Element(300,0),
         new Ui::HFlexContainer(
             new Ui::VContainer({
-                // Live kill count so the info box updates as the tally grows.
-                new Ui::DynamicText(18, [id, rarity](){
-                    return std::string(MOB_DATA[id].name) + "  x" + format_score(Game::mob_kills[id][rarity]);
-                }, { .fill = 0xffffffff, .h_justify = Style::Left }),
+                new Ui::StaticText(18, MOB_DATA[id].name, { .fill = 0xffffffff, .h_justify = Style::Left }),
                 new Ui::StaticText(14, RARITY_NAMES[rarity], { .fill = RARITY_COLORS[rarity], .h_justify = Style::Left }),
                 new Ui::Element(0,2),
                 new Ui::StaticParagraph(220, 14, MOB_DATA[id].description, { .h_justify = Style::Left })
@@ -156,8 +142,8 @@ static Element *make_mob_card(MobID::T id, uint8_t rarity) {
     return elt;
 }
 
-// One grid cell: a mob at a single rarity. Rarity-coloured with the kill count
-// when killed, a dim placeholder otherwise (so columns stay aligned by rarity).
+// One grid cell: a mob shown at a single rarity (reference gallery; every mob
+// and rarity is always shown, no progress tracking).
 namespace {
     class GalleryMobCell final : public Element {
     public:
@@ -165,21 +151,9 @@ namespace {
         uint8_t rarity;
         Element *card = nullptr;   // tooltip, built lazily on first hover
         GalleryMobCell(MobID::T id, uint8_t rarity, float w) :
-            Element(w, w, { .round_radius = w / 12, .v_justify = Style::Top }), id(id), rarity(rarity) {
-            // Drop columns past the highest rarity unlocked from the layout so
-            // the row (and panel) shrink to fit instead of spilling right.
-            style.should_render = [this](){ return this->rarity <= max_killed_rarity(); };
-        }
+            Element(w, w, { .round_radius = w / 12, .v_justify = Style::Top }), id(id), rarity(rarity) {}
 
         void on_render(Renderer &ctx) override {
-            uint64_t const kills = Game::mob_kills[id][rarity];
-            if (kills == 0) {
-                ctx.set_fill(0x22ffffff);
-                ctx.begin_path();
-                ctx.round_rect(-width / 2, -height / 2, width, height, style.round_radius);
-                ctx.fill();
-                return;
-            }
             ctx.set_fill(Renderer::HSV(RARITY_COLORS[rarity], 0.8));
             ctx.begin_path();
             ctx.round_rect(-width / 2, -height / 2, width, height, style.round_radius);
@@ -189,26 +163,20 @@ namespace {
             float const inner = width * 0.84f;
             ctx.round_rect(-inner / 2, -inner / 2, inner, inner, style.round_radius);
             ctx.fill();
-            {
-                RenderContext c(&ctx);
-                ctx.begin_path();
-                ctx.round_rect(-inner / 2, -inner / 2, inner, inner, style.round_radius);
-                ctx.clip();
-                struct MobData const &data = MOB_DATA[id];
-                if (id != MobID::kDigger) ctx.rotate(-3 * M_PI / 4);
-                float radius = (data.radius.upper + data.radius.lower) / 2;
-                if (radius > width * 0.5) ctx.scale(0.5 * width / radius);
-                ctx.scale(0.42);
-                draw_static_mob(id, ctx, { .radius = radius, .flower_attrs = { .color = ColorID::kGray } });
-            }
-            std::string const txt = "x" + format_score(kills);
             RenderContext c(&ctx);
-            ctx.translate(width / 2 - 3 - 3.2f * txt.size(), -height / 2 + 9);
-            ctx.draw_text(txt.c_str(), { .fill = 0xffffffff, .size = 12 });
+            ctx.begin_path();
+            ctx.round_rect(-inner / 2, -inner / 2, inner, inner, style.round_radius);
+            ctx.clip();
+            struct MobData const &data = MOB_DATA[id];
+            if (id != MobID::kDigger) ctx.rotate(-3 * M_PI / 4);
+            float radius = (data.radius.upper + data.radius.lower) / 2;
+            if (radius > width * 0.5) ctx.scale(0.5 * width / radius);
+            ctx.scale(0.42);
+            draw_static_mob(id, ctx, { .radius = radius, .flower_attrs = { .color = ColorID::kGray } });
         }
 
         void on_event(uint8_t event) override {
-            if (event != kFocusLost && Game::mob_kills[id][rarity] > 0) {
+            if (event != kFocusLost) {
                 if (card == nullptr) card = make_mob_card(id, rarity);
                 rendering_tooltip = 1;
                 tooltip = card;
@@ -218,21 +186,8 @@ namespace {
     };
 }
 
-// True if the player has killed this mob at any rarity (drives row visibility).
-static bool mob_killed_any(MobID::T id) {
-    for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)
-        if (Game::mob_kills[id][r] > 0) return true;
-    return false;
-}
-
-static bool any_kills() {
-    for (MobID::T m = 0; m < MobID::kNumMobs; ++m)
-        if (mob_killed_any(m)) return true;
-    return false;
-}
-
 static Element *make_scroll() {
-    Element *elt = new Ui::VContainer({}, 0, 6, {});
+    Element *elt = new Ui::VContainer({}, 0, 3, {});
     MobID::T id_list[MobID::kNumMobs];
     for (MobID::T i = 0; i < MobID::kNumMobs; ++i)
         id_list[i] = i;
@@ -240,22 +195,15 @@ static Element *make_scroll() {
         if (MOB_DATA[a].rarity != MOB_DATA[b].rarity) return MOB_DATA[a].rarity < MOB_DATA[b].rarity;
         return strcmp(MOB_DATA[a].name, MOB_DATA[b].name) < 0;
     });
-    // One row per mob, a cell per rarity. Rows for un-killed mobs drop out of
-    // layout so only killed mobs appear.
+    // One row per mob, a cell per rarity -- every mob at every rarity.
     for (MobID::T k = 0; k < MobID::kNumMobs; ++k) {
         MobID::T const id = id_list[k];
         Element *row = new Ui::HContainer({}, 0, 3, { .v_justify = Style::Top });
         for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)
             row->add_child(new GalleryMobCell(id, r, 32));
         row->refactor();
-        row->style.should_render = [id](){ return mob_killed_any(id); };
         elt->add_child(row);
     }
-    // Empty-state hint when nothing has been killed yet.
-    elt->add_child(new Ui::StaticText(14, "Kill mobs to fill your gallery", {
-        .fill = 0xffffffff,
-        .should_render = [](){ return !any_kills(); }
-    }));
     return new Ui::ScrollContainer(elt, 320);
 }
 
