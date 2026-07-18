@@ -4,14 +4,15 @@
 > owner's request. Keep this repository **private** and rotate the password if
 > it is ever exposed. Prefer SSH keys over password auth when possible.
 
-## Server (NEW — target for the DNS cutover, not yet live at floir.xyz)
+## Server (PRODUCTION — this is what `floir.xyz` resolves to)
 - **IP:** `38.76.196.43`
 - **User:** `root`
 - **Password:** `nwg8fBjc`
 - **App dir:** `/var/www/floir.xyz`
 - **Process:** PM2 `floir.xyz` → `node /var/www/floir.xyz/floir-server.js` (cwd `/var/www/floir.xyz`)
-- **Web:** nginx 80 → `localhost:3000` (HTTP only for now — see TLS section below;
-  443/TLS is NOT configured yet because it needs the domain pointed here first).
+- **Web:** nginx 443/80 → `localhost:3000`, TLS via certbot (`/etc/letsencrypt/live/floir.xyz/`,
+  expires 2026-10-16, `certbot renew` handles renewal via its systemd timer).
+  Client derives its WebSocket URL from `location.host`.
 - **OS:** Debian 11 (bullseye) — **already past upstream EOL**: the
   `security.debian.org` and `bullseye-backports` repos 404. `/etc/apt/sources.list`
   was repointed to `archive.debian.org/debian bullseye main` only (no security
@@ -22,48 +23,37 @@
 - **Node 20** installed via NodeSource (`deb.nodesource.com/setup_20.x`) — the
   distro repo only has an ancient Node 12. **pm2 7.x** via `npm install -g pm2`,
   with `pm2 startup systemd` + `pm2 save` so the app survives a reboot.
-- **`database.json` was migrated** from the old server (see History below) —
-  this box owns the live accounts once DNS is cut over. It is **not** synced
-  automatically from the old server after that point.
-- **TLS not yet issued.** `floir.xyz` DNS still points at the OLD server, so a
-  certbot HTTP-01 challenge run here would fail. Once DNS (the domain's A
-  record) is switched to `38.76.196.43` and has propagated, run:
-  ```sh
-  sshpass -e ssh -o StrictHostKeyChecking=no root@38.76.196.43 \
-    'certbot --nginx -d floir.xyz -d www.floir.xyz --non-interactive --agree-tos -m <owner-email>'
-  ```
-  This both issues the cert and rewrites the nginx site config to the
-  redirect-to-https + 443 pattern (mirror the OLD server's config below).
-  `python3-certbot-nginx` is already installed on this box.
+- **`database.json` is the live account store** — migrated here from the old
+  server on 2026-07-19 (see History below). It is the sole source of truth for
+  accounts now; nothing syncs from the old server anymore.
 
-## Server (OLD — current production, still live at floir.xyz until DNS is cut over)
+## Server (RETIRED — was production, DNS no longer points here)
 - **IP:** `38.76.198.54`
 - **User:** `root`
 - **Password:** `8gqIktKMAzpe`
-- **App dir:** `/var/www/floir.xyz`
-- **Process:** PM2 `floir.xyz` → `node /var/www/floir.xyz/floir-server.js` (cwd `/var/www/floir.xyz`)
-- **Web:** nginx 443/80 → `localhost:3000`. Client derives its WebSocket URL from `location.host`.
-- Once the new server is confirmed serving `floir.xyz` correctly (DNS
-  propagated + TLS issued + a final `database.json` resync — see below), this
-  server can be decommissioned. Don't tear it down before that's confirmed.
+- DNS for `floir.xyz`/`www.floir.xyz` was cut over to `38.76.196.43` on
+  2026-07-19. This box is no longer live-facing but has **not been
+  decommissioned** — its `database.json` is a stale snapshot as of the
+  cutover (do not treat it as authoritative; do not resync from it). Safe to
+  tear down once you've confirmed nothing still depends on it, but no rush.
 
 `ssh`/`scp` use `sshpass -e` with `SSHPASS` set to the matching password. The
 remotes have **no `rsync`** — use `scp` only (`-C` to compress).
 
-## Migration history (2026-07-19): old server -> new server
-`database.json` was copied old -> local -> new via `scp` (no direct
-server-to-server transfer). Because the old server keeps taking live writes
-until DNS actually cuts over, **re-run this resync immediately before flipping
-DNS** to minimize the staleness window:
+## Migration history (2026-07-19): old server → new server
+`database.json` was copied old → local → new via `scp` (no direct
+server-to-server transfer), then DNS was switched and TLS issued via certbot
+(`--nginx -d floir.xyz -d www.floir.xyz --redirect`). If a similar migration
+is ever needed again:
 ```sh
-export SCRATCH=/tmp/floir-db-migrate   # or any local scratch dir
+export SCRATCH=/tmp/floir-db-migrate
 mkdir -p "$SCRATCH"
-sshpass -e -p '8gqIktKMAzpe' scp -C -o StrictHostKeyChecking=no \
-  root@38.76.198.54:/var/www/floir.xyz/database.json "$SCRATCH/database.json"
-sshpass -e -p 'nwg8fBjc' scp -C -o StrictHostKeyChecking=no \
-  "$SCRATCH/database.json" root@38.76.196.43:/var/www/floir.xyz/database.json
+sshpass -e -p '<old-password>' scp -C -o StrictHostKeyChecking=no \
+  root@<old-ip>:/var/www/floir.xyz/database.json "$SCRATCH/database.json"
+sshpass -e -p '<new-password>' scp -C -o StrictHostKeyChecking=no \
+  "$SCRATCH/database.json" root@<new-ip>:/var/www/floir.xyz/database.json
 ```
-**Gotcha found during migration: `pm2 restart` did not reliably reload
+**Gotcha found during this migration: `pm2 restart` did not reliably reload
 `database.json` into the process's in-memory `global.db`** (observed once —
 after uploading a newer file and running `pm2 restart`, the running process
 kept serving/re-saving the OLDER in-memory snapshot, silently clobbering the
@@ -73,7 +63,7 @@ tick loop delaying clean shutdown before pm2's kill timeout). **Whenever
 `restart`, and verify with more than md5 of the file** (md5 only proves the
 *disk* file is right — verify the *loaded* state too):
 ```sh
-sshpass -e -p 'nwg8fBjc' ssh -o StrictHostKeyChecking=no root@38.76.196.43 '
+sshpass -e ssh -o StrictHostKeyChecking=no $HOST '
   cd /var/www/floir.xyz
   pm2 delete floir.xyz
   ss -ltnp | grep 3000 || echo "port clear"   # confirm nothing still bound before restarting
@@ -89,10 +79,26 @@ sshpass -e -p 'nwg8fBjc' ssh -o StrictHostKeyChecking=no root@38.76.196.43 '
 '
 ```
 
+## Perf incident (2026-07-19): unbounded `solid_circle` scan
+Tick time regressed to 100-130ms (well over the 50ms/20TPS budget). Profiled
+by temporarily timing each system in `Simulation::on_tick()` — `tick_entity_motion`
+(Server/Process/Motion.cc) was ~80-100ms of that on its own. Root cause:
+`Tilemap::solid_circle` (the large-mob terrain-tunnel fallback check added
+earlier) had no adaptive stride, unlike `push_circle` — cost was
+`O((2*rad/COLL_UNIT)^2)` uncapped, so a large high-rarity mob (radius can run
+into the hundreds of units) could burn hundreds of thousands of sub-cell
+checks per call, twice per terrain-colliding entity per tick. Fixed by giving
+`solid_circle` the same `SAMPLES=24` adaptive stride `push_circle` already
+had — brought tick time down to ~45-55ms. **If tick time regresses again,
+profile first** (temporarily add timers around each `Simulation::on_tick()`
+system call, deploy just that, read `pm2 logs`, then revert) rather than
+guessing — this is the second time collision cost has been the culprit (see
+git history / commit messages for "collision-perf").
+
 ## Build (local)
 ```sh
 source /Users/eason/emsdk/emsdk_env.sh
-python3 Scripts/gen_map.py                 # regen map + Shared/Tilemap.hh (only if map/tiles changed)
+python3 Scripts/gen_map.py                 # regen map + Tilemap.hh + map-overview.png (only if map/tiles changed)
 cd Client/build && make                     # -> Client/build/floir-client.{js,wasm}
 cd ../../Server/build && make               # -> Server/build/floir-server.{js,wasm}
 # stage fresh client into the Server/ bundle:
@@ -117,23 +123,23 @@ cp Client/build/floir-client.js Client/build/floir-client.wasm Server/
   separate file to remember, but if the admin minimap/spawn UI ever silently
   stops working after a deploy, check that this export wasn't dropped by a
   CMake edit.
+- `admin.html`'s spawn minimap draws `/map-overview.png` (a static file,
+  generated by `Scripts/gen_map.py` from the same collision-mask source the
+  in-game minimap samples) — regenerate it (`python3 Scripts/gen_map.py`) and
+  upload it whenever the map itself changes; it won't auto-update otherwise.
 
 ## Upload + restart
-Run from the local `Server/` directory. Target **both** servers while the old
-one is still live (until DNS cutover + a final `database.json` resync — see
-Migration history above — after which only the new server needs this):
+Run from the local `Server/` directory:
 ```sh
-export SSHPASS='8gqIktKMAzpe'   # old: 38.76.198.54 | new: nwg8fBjc @ 38.76.196.43
-HOST=root@38.76.198.54
+export SSHPASS='nwg8fBjc'
+HOST=root@38.76.196.43
 # scp is slow (~2MB can exceed a 3-min timeout); split big files / run in background if needed.
 sshpass -e scp -C -o StrictHostKeyChecking=no \
-  floir-server.js Account build floir-client.js floir-client.wasm index.html admin.html grass_bg.svg map-data.json \
+  floir-server.js Account build floir-client.js floir-client.wasm index.html admin.html grass_bg.svg map-data.json map-overview.png \
   $HOST:/var/www/floir.xyz/
 sshpass -e ssh -o StrictHostKeyChecking=no $HOST \
   'cd /var/www/floir.xyz && pm2 restart floir.xyz --update-env'
 ```
-(`main-map.svg` from earlier deploys was renamed/replaced by `map-data.json` —
-upload whichever your checkout actually has in `Server/`.)
 
 ## Verify (always by md5, NOT timestamps — scp/rsync can skip on size+mtime)
 ```sh
@@ -142,27 +148,10 @@ sshpass -e ssh -o StrictHostKeyChecking=no $HOST '
   md5sum floir-client.wasm map-data.json build/floir-server.js build/floir-server.wasm
   pm2 list | grep floir
   curl -sS -o /dev/null -w "localhost:3000 -> %{http_code}\n" http://localhost:3000/
-  curl -skS -o /dev/null -w "https://floir.xyz -> %{http_code}\n" https://floir.xyz/   # old server only until TLS is issued on the new one
+  curl -skS -o /dev/null -w "https://floir.xyz -> %{http_code}\n" https://floir.xyz/
   ss -ltnp | grep 3000   # node should be listening
   pm2 logs floir.xyz --lines 20 --nostream | grep "Server running"
 '
 ```
 Compare the remote md5s against local (`md5 -q <file>` on macOS). Expect both
-curls → `200` and a `Server running at http://localhost:3000` log line. On the
-new server (no TLS yet), check `http://38.76.196.43/` instead of the
-`https://floir.xyz` line.
-
-## New-server cutover checklist (once ready to make 38.76.196.43 production)
-1. Do a final `database.json` resync (Migration history above) — do this
-   **last**, immediately before the DNS change, to minimize the staleness gap.
-2. Update the domain's DNS A record (`floir.xyz`, `www.floir.xyz`) to
-   `38.76.196.43`. **This requires registrar/DNS-provider access the deploying
-   agent does not have** — the account owner must do this step (or hand over
-   DNS credentials).
-3. Wait for DNS propagation (`dig floir.xyz` should return the new IP).
-4. Run the certbot command from the NEW server section above to issue TLS and
-   rewrite nginx to the redirect+443 pattern.
-5. Verify `https://floir.xyz` serves the new server (200, WebSocket connects,
-   a game session can log in and spawn) and `pm2 logs` show no errors.
-6. Only after that's confirmed stable, decommission the OLD server
-   (`38.76.198.54`) — don't tear it down before this point in case of rollback.
+curls → `200` and a `Server running at http://localhost:3000` log line.
