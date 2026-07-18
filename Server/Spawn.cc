@@ -65,6 +65,16 @@ static Entity &__alloc_mob(
     mob.set_mob_id(mob_id);
     mob.set_mob_rarity(rarity);
     mob.set_radius(mob.get_radius() * mob_size_mult(rarity));
+    // The pre-spawn terrain check only knew the base radius; scaling by rarity
+    // (and petal/summon spawns that place a mob wherever the summoner is) can
+    // leave a body clipping into a wall. Push the spawn out of any solid terrain
+    // so mobs -- e.g. a wandering Sandstorm -- never start embedded in a block.
+    {
+        float sx = mob.get_x(), sy = mob.get_y();
+        Tilemap::push_circle(sx, sy, mob.get_radius());
+        mob.set_x(sx);
+        mob.set_y(sy);
+    }
 
     mob.add_component(kHealth);
     float hp_m = mob_hp_mult(rarity);
