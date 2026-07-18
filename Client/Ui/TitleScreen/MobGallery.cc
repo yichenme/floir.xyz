@@ -58,6 +58,17 @@ static void drop_rarity_dist(uint8_t mob_rarity, float out[RarityID::kNumRaritie
     }
 }
 
+// Highest rarity the player has killed anything at. The grid only shows columns
+// up to this, so it stays as narrow as what's actually been unlocked (a fresh
+// account sees ~1 column instead of all 9 spilling off the panel).
+static uint8_t max_killed_rarity() {
+    uint8_t max_r = 0;
+    for (MobID::T m = 0; m < MobID::kNumMobs; ++m)
+        for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)
+            if (Game::mob_kills[m][r] > 0 && r > max_r) max_r = r;
+    return max_r;
+}
+
 static Element *make_mob_drops(MobID::T id, uint8_t rarity) {
     Element *elt = new Ui::HContainer({}, 0, 6, { .h_justify = Style::Left });
     struct MobData const &data = MOB_DATA[id];
@@ -154,7 +165,11 @@ namespace {
         uint8_t rarity;
         Element *card = nullptr;   // tooltip, built lazily on first hover
         GalleryMobCell(MobID::T id, uint8_t rarity, float w) :
-            Element(w, w, { .round_radius = w / 12, .v_justify = Style::Top }), id(id), rarity(rarity) {}
+            Element(w, w, { .round_radius = w / 12, .v_justify = Style::Top }), id(id), rarity(rarity) {
+            // Drop columns past the highest rarity unlocked from the layout so
+            // the row (and panel) shrink to fit instead of spilling right.
+            style.should_render = [this](){ return this->rarity <= max_killed_rarity(); };
+        }
 
         void on_render(Renderer &ctx) override {
             uint64_t const kills = Game::mob_kills[id][rarity];
