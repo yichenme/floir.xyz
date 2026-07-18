@@ -301,7 +301,7 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.arc(0,0,8);
             ctx.fill();
             break;
-        case PetalID::kPoisonPeas:
+        case PetalID::kGrapes:
             ctx.set_fill(0xffce76db);
             ctx.set_stroke(0xffa760b1);
             ctx.set_line_width(3);
@@ -910,9 +910,12 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
     }
 }
 
-void draw_static_petal(PetalID::T id, Renderer &ctx) {
+void draw_static_petal(PetalID::T id, Renderer &ctx, uint8_t rarity) {
     struct PetalData const &data = PETAL_DATA[id];
     uint32_t count = data.count > 1 ? data.count : 1;
+    // Light shows 1/2/3/5 dots by rarity (see light_petal_count).
+    if (id == PetalID::kLight)
+        count = light_petal_count(rarity == 255 ? data.rarity : rarity);
     for (uint32_t i = 0; i < count; ++i) {
         RenderContext context(&ctx);
         float rad = 10;
@@ -968,7 +971,7 @@ void draw_loadout_background(Renderer &ctx, uint8_t id, float reload, float heal
         RenderContext r(&ctx);
         ctx.scale(0.833);
         if (PETAL_DATA[id].radius > 20) ctx.scale(20 / PETAL_DATA[id].radius);
-        draw_static_petal(id, ctx);
+        draw_static_petal(id, ctx, rar);
     }
     float text_width = 12 * Renderer::get_ascii_text_size(PETAL_DATA[id].name);
     if (text_width < 50) text_width = 12;

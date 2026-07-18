@@ -42,7 +42,8 @@ static Element *make_scroll() {
                 // account petal IDs don't renumber).
                 if (i == PetalID::kHeavyLegacy || i == PetalID::kAzalea ||
                     i == PetalID::kBlueIris || i == PetalID::kTriweb ||
-                    i == PetalID::kTricac || i == PetalID::kPoisonCactus) { ++i; continue; }
+                    i == PetalID::kTricac || i == PetalID::kPoisonCactus ||
+                    i == PetalID::kTwin || i == PetalID::kTriplet) { ++i; continue; }
                 row->add_child(new GalleryPetal(i, 52, (uint8_t) r));
                 ++j; ++i;
             }

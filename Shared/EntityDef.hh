@@ -193,10 +193,11 @@ class LoadoutSlot {
     PetalID::T id;
 public:
     uint8_t already_spawned;
-    LoadoutPetal petals[MAX_PETALS_IN_CLUMP];    
+    uint8_t rarity = 0;   // this slot's petal rarity (drives Light's dot count)
+    LoadoutPetal petals[MAX_PETALS_IN_CLUMP];
     LoadoutSlot();
     void reset();
-    void update_id(Simulation *, PetalID::T);
+    void update_id(Simulation *, PetalID::T, uint8_t rarity = 0);
     void force_reload();
     PetalID::T get_petal_id() const;
     uint32_t size() const;

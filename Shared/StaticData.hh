@@ -332,3 +332,6 @@ extern uint32_t level_to_score(uint32_t);
 extern uint32_t loadout_slots_at_level(uint32_t);
 
 extern float hp_at_level(uint32_t);
+
+// Light petal: number of orbiting dots by rarity (common 1 -> mythic+ 5).
+extern uint32_t light_petal_count(uint8_t rarity);

@@ -66,6 +66,12 @@ static Element *make_mob_stat_container(MobID::T id) {
         new Ui::StaticText(12, "Health:", { .fill = 0xff77ff77 }),
         new Ui::StaticText(12, mob_data.health.to_string())
     }, 0, 5, { .h_justify = Style::Left }));
+    // Per-spawn size variation (HP scales with it via the shared roll), e.g. a
+    // Rock spans 1x - 2.5x. Rarity multiplies both on top of this range.
+    stats.push_back(new Ui::HContainer({
+        new Ui::StaticText(12, "Size:", { .fill = 0xffbfbfbf }),
+        new Ui::StaticText(12, "1.0x - " + format_number(mob_data.radius.lower > 0 ? mob_data.radius.upper / mob_data.radius.lower : 1.0f) + "x")
+    }, 0, 5, { .h_justify = Style::Left }));
     stats.push_back(new Ui::HContainer({
         new Ui::StaticText(12, "Body Damage:", { .fill = 0xffff7777 }),
         new Ui::StaticText(12, format_number(mob_data.damage))

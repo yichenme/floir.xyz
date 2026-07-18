@@ -12,7 +12,7 @@ rolls off the parent's zone if it was itself a zone spawn, else inherits
 the parent's mob rarity, else falls back to Common. */
 uint8_t inherited_spawn_rarity(Entity const &parent);
 
-Entity &alloc_drop(Simulation *, PetalID::T, uint8_t rarity);
+Entity &alloc_drop(Simulation *, PetalID::T, uint8_t rarity, uint32_t owner = 0);
 Entity &alloc_mob(
     Simulation *, MobID::T, float, float, 
     EntityID const, uint8_t rarity = 0,

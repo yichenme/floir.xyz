@@ -33,7 +33,7 @@ void draw_static_flower(Renderer &, FlowerRenderAttributes);
 
 void draw_static_petal_single(PetalID::T, Renderer &);
 
-void draw_static_petal(PetalID::T, Renderer &);
+void draw_static_petal(PetalID::T, Renderer &, uint8_t rarity = 255);
 
 void draw_static_mob(MobID::T, Renderer &, MobRenderAttributes);
 

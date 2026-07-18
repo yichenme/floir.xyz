@@ -32,7 +32,7 @@ void tick_petal_behavior(Simulation *sim, Entity &petal) {
                 petal.acceleration.unit_normal(petal.get_angle()).set_magnitude(2.0 * PLAYER_ACCELERATION);
                 break;
             }
-            case PetalID::kPoisonPeas:
+            case PetalID::kGrapes:
             case PetalID::kPeas: {
                 petal.acceleration.unit_normal(petal.heading_angle).set_magnitude(2.0 * PLAYER_ACCELERATION);
                 break;
@@ -110,7 +110,7 @@ void tick_petal_behavior(Simulation *sim, Entity &petal) {
             }
             break;
         case PetalID::kPeas:
-        case PetalID::kPoisonPeas:
+        case PetalID::kGrapes:
             if (BitMath::at(player.input, InputFlags::kAttacking)) {
                 float spray_angle = frand() * 2 * M_PI;
                 petal.friction = DEFAULT_FRICTION;

@@ -12,7 +12,7 @@ inline uint32_t const ARENA_HEIGHT = 25500;
 inline uint32_t const MAX_SLOT_COUNT = 8;
 inline uint32_t const LEVELS_PER_EXTRA_SLOT = 15;
 inline uint32_t const LEADERBOARD_SIZE = 10;
-inline uint32_t const MAX_PETALS_IN_CLUMP = 4;
+inline uint32_t const MAX_PETALS_IN_CLUMP = 5;
 inline uint32_t const MAX_DIFFICULTY = 6;
 inline uint32_t const MAX_DROPS_PER_MOB = 6;
 
@@ -54,7 +54,7 @@ namespace PetalID {
         kBlueIris, // removed from game; kept to preserve saved petal-ID numbering
 
         kPollen,
-        kPoisonPeas,
+        kGrapes, // formerly kPoisonPeas ("Purple Peas"), now "Grapes"
         kBeetleEgg,
         kAzalea, // "Triangled Rose"; removed from game (numbering kept for accounts)
         kStick,

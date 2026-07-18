@@ -137,8 +137,8 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
         LoadoutSlot &slot = player.loadout[i];
         //player.set_loadout_ids(i, slot.id);
         //other way around. loadout_ids should dictate loadout
-        if (slot.get_petal_id() != player.get_loadout_ids(i))
-            slot.update_id(sim, player.get_loadout_ids(i));
+        if (slot.get_petal_id() != player.get_loadout_ids(i) || slot.rarity != player.get_loadout_rarities(i))
+            slot.update_id(sim, player.get_loadout_ids(i), player.get_loadout_rarities(i));
         PetalID::T slot_petal_id = slot.get_petal_id();
         struct PetalData const &petal_data = PETAL_DATA[slot_petal_id];
         DEBUG_ONLY(assert(petal_data.count <= MAX_PETALS_IN_CLUMP);)

@@ -21,11 +21,10 @@ float mob_hp_mult(uint8_t r) {
     return m;
 }
 float mob_size_mult(uint8_t r) {
-    // 1.75x per rarity tier, compounding (1.0x at Common), but capped: an
-    // uncapped 1.75^8 = 88x at Unique produces map-spanning mobs that blow up
-    // the spatial hash / collision resolution (15s+ ticks). 5x (~= the old 1.2^8
-    // ceiling that the engine handled fine) keeps high tiers performant.
-    return std::min(std::pow(1.75f, (float)r), 5.0f);
+    // 1.5x per rarity tier, compounding (1.0x at Common, ~25.6x at Unique). No
+    // cap: the adaptive-stride terrain collision (Shared/Tilemap.hh push_circle)
+    // bounds per-mob cost, so large high-rarity mobs stay performant.
+    return std::pow(1.5f, (float)r);
 }
 
 // Rarity of a dropped item given the MOB's rarity, or DROP_NOTHING for no drop.

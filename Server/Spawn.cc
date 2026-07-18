@@ -286,7 +286,7 @@ void player_spawn(Simulation *sim, Entity &camera, Entity &player) {
         LoadoutSlot &slot = player.loadout[i];
         player.set_loadout_ids(i, id);
         player.set_loadout_rarities(i, rarity);
-        slot.update_id(sim, id);
+        slot.update_id(sim, id, rarity);
         slot.force_reload();
     }
 

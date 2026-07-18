@@ -44,15 +44,15 @@ PetalID::T LoadoutSlot::get_petal_id() const {
     return id;
 }
 
-void LoadoutSlot::update_id(Simulation *sim, PetalID::T petal_id) {
-    struct PetalData const &petal_data = PETAL_DATA[id];
-    for (uint32_t j = 0; j < size(); ++j) {
+void LoadoutSlot::update_id(Simulation *sim, PetalID::T petal_id, uint8_t new_rarity) {
+    for (uint32_t j = 0; j < size(); ++j) {   // old size (old id + rarity)
         LoadoutPetal &petal_slot = petals[j];
         if (sim->ent_alive(petal_slot.ent_id))
             sim->request_delete(petal_slot.ent_id);
     }
     reset();
     id = petal_id;
+    rarity = new_rarity;
 }
 
 void LoadoutSlot::force_reload() {
@@ -62,6 +62,9 @@ void LoadoutSlot::force_reload() {
 }
 
 uint32_t LoadoutSlot::size() const {
+    // Light: number of orbiting dots scales with rarity (1/2/3/5).
+    if (id == PetalID::kLight)
+        return light_petal_count(rarity);
     if (PETAL_DATA[id].attributes.split_projectile)
         return 1;
     return std::min(static_cast<uint32_t>(PETAL_DATA[id].count), MAX_PETALS_IN_CLUMP);
