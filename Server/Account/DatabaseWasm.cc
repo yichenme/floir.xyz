@@ -86,6 +86,15 @@ EM_JS(int, ejs_set_progress, (char const *user, int level, int xp), {
     return global['dbSetProgress'](UTF8ToString(user), level, xp) ? 1 : 0;
 });
 
+EM_JS(int, ejs_add_kill, (char const *user, int mob, int rarity), {
+    return global['dbAddKill'](UTF8ToString(user), mob, rarity) ? 1 : 0;
+});
+
+EM_JS(char *, ejs_get_kills, (char const *user), {
+    var json = global['dbGetKills'](UTF8ToString(user));
+    return json === null ? 0 : global['__allocUtf8'](json);
+});
+
 EM_JS(int, ejs_save_database, (), {
     try {
         global['saveDatabase']();
@@ -279,5 +288,27 @@ int AccountDB::read_progress(std::string const &user, uint8_t &level, uint32_t &
 int AccountDB::write_progress(std::string const &user, uint8_t level, uint32_t xp) {
     ejs_ensure_ready();
     return ejs_set_progress(user.c_str(), level, xp);
+}
+
+void AccountDB::add_kill(std::string const &user, uint8_t mob, uint8_t rarity) {
+    ejs_ensure_ready();
+    ejs_add_kill(user.c_str(), mob, rarity);
+}
+
+int AccountDB::read_kills(std::string const &user, std::vector<KillEntry> &out) {
+    ejs_ensure_ready();
+    char *json_ptr = ejs_get_kills(user.c_str());
+    if (!json_ptr) return 0;
+    // Reuses the inventory triple parser: "type" carries the mob id here.
+    std::vector<std::array<long, 3>> const parsed = parse_petal_json(take_owned(json_ptr));
+    out.clear();
+    out.reserve(parsed.size());
+    for (auto const &item : parsed)
+        out.push_back(KillEntry{
+            static_cast<uint8_t>(item[0]),
+            static_cast<uint8_t>(item[1]),
+            static_cast<uint64_t>(item[2])
+        });
+    return 1;
 }
 #endif

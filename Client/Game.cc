@@ -34,6 +34,7 @@ namespace Game {
     std::vector<PetalStack> inventory_stacks;
     std::vector<uint32_t> inventory_display_order;
     uint32_t inventory_version = 0;
+    std::array<std::array<uint64_t, RarityID::kNumRarities>, MobID::kNumMobs> mob_kills = {};
     std::array<PetalID::T, 2 * MAX_SLOT_COUNT> cached_loadout = {PetalID::kNone};
 
     double timestamp = 0;

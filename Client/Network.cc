@@ -70,6 +70,18 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
                 });
             break;
         }
+        case Clientbound::kKillsUpdate: {
+            uint32_t n = reader.read<uint32_t>();
+            for (auto &row : Game::mob_kills) row.fill(0);
+            for (uint32_t i = 0; i < n; ++i) {
+                uint8_t mob = reader.read<uint8_t>();
+                uint8_t rarity = reader.read<uint8_t>();
+                uint64_t count = reader.read<uint64_t>();
+                if (mob < MobID::kNumMobs && rarity < RarityID::kNumRarities)
+                    Game::mob_kills[mob][rarity] = count;
+            }
+            break;
+        }
         default:
             break;
     }

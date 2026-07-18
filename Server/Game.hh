@@ -21,4 +21,7 @@ public:
     // Resolves the Client owning a camera without a second registry; used by
     // Collision/Death to reach account state from ECS entities.
     Client *client_for_camera(EntityID const &);
+    // Same, but matches by raw entity id (mob_damage / drop-owner keys store the
+    // camera's uint16 id without its generation hash).
+    Client *client_for_camera_id(EntityID::id_type);
 };

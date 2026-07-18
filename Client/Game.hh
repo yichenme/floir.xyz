@@ -33,6 +33,9 @@ namespace Game {
     // Bumped on every inventory sync; lets a slot stay blank after an equip
     // until the server-confirmed removal actually lands (no card flash).
     extern uint32_t inventory_version;
+    // Per-(mob, rarity) kill tally from kKillsUpdate; drives the Mob Gallery
+    // (only killed mob/rarity combos are shown, with their counts).
+    extern std::array<std::array<uint64_t, RarityID::kNumRarities>, MobID::kNumMobs> mob_kills;
     
     extern double timestamp;
     

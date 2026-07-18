@@ -159,10 +159,12 @@ static void make_petal_tooltip(PetalID::T id, uint8_t rarity) {
             new Ui::StaticText(20, PETAL_DATA[id].name, { .fill = 0xffffffff, .h_justify = Style::Left }),
             new Ui::DynamicText(16, [=](){
                 float reload = PETAL_DATA[id].reload * get_reload_factor();
-                std::string rld_str = reload == 0 ? "" :
-                    PETAL_DATA[id].attributes.secondary_reload == 0 ? std::format("{:.1f}s ⟳", reload) :
-                    std::format("{:.1f} + {:.1f}s ⟳", reload, PETAL_DATA[id].attributes.secondary_reload);
-                return rld_str;
+                // Show both reload phases with their own "s" (e.g. 0.1s + 0.1s),
+                // no reload icon.
+                if (reload == 0) return std::string("");
+                if (PETAL_DATA[id].attributes.secondary_reload == 0)
+                    return std::format("{:.1f}s", reload);
+                return std::format("{:.1f}s + {:.1f}s", reload, PETAL_DATA[id].attributes.secondary_reload);
             }, { .fill = 0xffffffff, .v_justify = Style::Top }),
             5, 10, {}
         ),

@@ -8,10 +8,12 @@
 
 // kAuthResponse: uint8 success, string session_key_or_error
 // kInventoryUpdate: uint32 n, then n × (uint8 type, uint8 rarity, uint64 count)
+// kKillsUpdate: uint32 n, then n × (uint8 mob, uint8 rarity, uint64 count)
 enum Clientbound {
     kClientUpdate,
     kAuthResponse,
-    kInventoryUpdate
+    kInventoryUpdate,
+    kKillsUpdate
 };
 
 // kRegister / kLogin: string username, string password

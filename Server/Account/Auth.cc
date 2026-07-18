@@ -15,6 +15,7 @@ static void on_authenticated(Client *client, std::string const &user, std::strin
     client->logged_in = 1;
     send_auth_response(client, 1, session_key);
     InventoryOps::sync_inventory_update(client);
+    InventoryOps::sync_kills_update(client);
 }
 
 void handle_register(Client *client, Reader &reader) {

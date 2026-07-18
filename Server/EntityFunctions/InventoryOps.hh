@@ -26,6 +26,7 @@ namespace InventoryOps {
     void pickup_drop(Simulation *sim, Client *client, Entity &player, Entity &drop);
 
     void sync_inventory_update(Client *client);
+    void sync_kills_update(Client *client);
     void persist_account_petals(Client *client, Entity &player);
     void apply_account_loadout_to_camera(Client *client, Entity &camera);
 }

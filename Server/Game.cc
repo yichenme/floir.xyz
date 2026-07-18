@@ -118,6 +118,12 @@ Client *GameInstance::client_for_camera(EntityID const &camera) {
     return nullptr;
 }
 
+Client *GameInstance::client_for_camera_id(EntityID::id_type id) {
+    for (Client *client : clients)
+        if (client->camera.id == id) return client;
+    return nullptr;
+}
+
 void GameInstance::remove_client(Client *client) {
     DEBUG_ONLY(assert(client->game == this);)
     clients.erase(client);

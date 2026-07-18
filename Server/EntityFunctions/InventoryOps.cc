@@ -133,6 +133,21 @@ void sync_inventory_update(Client *client) {
     client->send_packet(writer.packet, writer.at - writer.packet);
 }
 
+void sync_kills_update(Client *client) {
+    if (client == nullptr || client->username.empty()) return;
+    std::vector<AccountDB::KillEntry> kills;
+    AccountDB::read_kills(client->username, kills);
+    Writer writer(Server::OUTGOING_PACKET);
+    writer.write<uint8_t>(Clientbound::kKillsUpdate);
+    writer.write<uint32_t>(kills.size());
+    for (AccountDB::KillEntry const &k : kills) {
+        writer.write<uint8_t>(k.mob);
+        writer.write<uint8_t>(k.rarity);
+        writer.write<uint64_t>(k.count);
+    }
+    client->send_packet(writer.packet, writer.at - writer.packet);
+}
+
 void persist_account_petals(Client *client, Entity &player) {
     std::string const username = client != nullptr ? client->username : player.get_account_name();
     if (username.empty()) return;

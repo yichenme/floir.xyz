@@ -122,6 +122,33 @@ global.dbSetInventory = (user, inventoryJson) => {
     return true;
 };
 
+// Per-account mob kill tally, keyed by (mobId * 9 + rarity) where 9 == number
+// of rarities (RarityID::kNumRarities). Only mobs actually killed appear.
+const KILL_NUM_RARITIES = 9;
+global.dbAddKill = (user, mob, rarity) => {
+    global.loadDatabase();
+    const acct = global.db[user];
+    if (!acct) return false;
+    acct.kills = acct.kills || {};
+    const key = (mob | 0) * KILL_NUM_RARITIES + (rarity | 0);
+    acct.kills[key] = (acct.kills[key] | 0) + 1;
+    return true;
+};
+
+global.dbGetKills = (user) => {
+    global.loadDatabase();
+    const acct = global.db[user];
+    if (!acct || !acct.kills) return '[]';
+    // Emit the same flat {"type","rarity","count"} shape as inventory so the C++
+    // side can reuse parse_petal_json ("type" carries the mob id here).
+    const out = [];
+    for (const k in acct.kills) {
+        const key = k | 0, c = acct.kills[k] | 0;
+        if (c > 0) out.push({ type: Math.floor(key / KILL_NUM_RARITIES), rarity: key % KILL_NUM_RARITIES, count: c });
+    }
+    return JSON.stringify(out);
+};
+
 global.dbGetProgress = (user) => {
     global.loadDatabase();
     const acct = global.db[user];

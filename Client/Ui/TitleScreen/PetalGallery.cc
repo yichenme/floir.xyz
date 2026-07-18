@@ -30,26 +30,26 @@ void GalleryPetal::on_event(uint8_t event) {
 }
 
 
+static bool is_retired_petal(PetalID::T i) {
+    // Retired / removed petals (kept in the enum only so saved account petal IDs
+    // don't renumber). kTringer folded into kStinger.
+    return i == PetalID::kHeavyLegacy || i == PetalID::kAzalea ||
+           i == PetalID::kBlueIris || i == PetalID::kTriweb ||
+           i == PetalID::kTricac || i == PetalID::kPoisonCactus ||
+           i == PetalID::kTwin || i == PetalID::kTriplet || i == PetalID::kTringer;
+}
+
 static Element *make_scroll() {
-    Element *elt = new Ui::VContainer({}, 10, 8, {});
-    // Grouped by rarity, highest rarity at the top (matches the reference layout).
-    // Every petal is shown at every rarity.
-    for (int r = RarityID::kNumRarities - 1; r >= 0; --r) {
-        for (PetalID::T i = PetalID::kBasic; i < PetalID::kNumPetals;) {
-            Element *row = new Ui::HContainer({}, 0, 8, { .v_justify = Style::Top });
-            for (uint8_t j = 0; j < 5 && i < PetalID::kNumPetals;) {
-                // Skip retired / removed petals (kept in the enum only so saved
-                // account petal IDs don't renumber).
-                if (i == PetalID::kHeavyLegacy || i == PetalID::kAzalea ||
-                    i == PetalID::kBlueIris || i == PetalID::kTriweb ||
-                    i == PetalID::kTricac || i == PetalID::kPoisonCactus ||
-                    i == PetalID::kTwin || i == PetalID::kTriplet) { ++i; continue; }
-                row->add_child(new GalleryPetal(i, 52, (uint8_t) r));
-                ++j; ++i;
-            }
-            row->refactor();
-            elt->add_child(row);
-        }
+    Element *elt = new Ui::VContainer({}, 10, 6, {});
+    // One row per petal, columns are the rarities (every petal exists at every
+    // rarity) -- no rarity grouping.
+    for (PetalID::T i = PetalID::kBasic; i < PetalID::kNumPetals; ++i) {
+        if (is_retired_petal(i)) continue;
+        Element *row = new Ui::HContainer({}, 0, 6, { .v_justify = Style::Top });
+        for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)
+            row->add_child(new GalleryPetal(i, 44, r));
+        row->refactor();
+        elt->add_child(row);
     }
     return new Ui::ScrollContainer(elt, 340);
 }

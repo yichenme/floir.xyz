@@ -95,6 +95,7 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             // Each droppable item's rarity is rolled from the mob's rarity (see
             // roll_drop_rarity). Unique mobs roll the Super row 10x -> ~10 items.
             int const rolls = (mob_rarity == RarityID::kUnique) ? 10 : 1;
+            bool credited_kill = false;
             for (auto const &looter : looters) {
                 std::vector<std::pair<PetalID::T, uint8_t>> drops;
                 for (uint32_t i = 0; i < mob_data.drops.size(); ++i)
@@ -104,7 +105,17 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
                             drops.push_back({mob_data.drops[i], rar});
                     }
                 _alloc_drops(sim, drops, ent.get_x(), ent.get_y(), looter.first);
+                // Credit this mob (at its rarity) to each eligible looter's
+                // account for the Mob Gallery kill tally. The gallery is only
+                // viewable at the title screen, so the client copy is pushed on
+                // login and on flower death (below), not per-kill.
+                Client *lc = Server::game.client_for_camera_id(looter.first);
+                if (lc != nullptr && !lc->username.empty()) {
+                    AccountDB::add_kill(lc->username, (uint8_t)ent.get_mob_id(), mob_rarity);
+                    credited_kill = true;
+                }
             }
+            if (credited_kill) AccountDB::save();
         }
         if (ent.get_mob_id() == MobID::kAntHole && 
             BitMath::at(ent.flags, EntityFlags::kSpawnedFromZone) && 
@@ -160,6 +171,9 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
                 AccountDB::save();
             }
         }
+        // Returning to the title screen: refresh the Mob Gallery kill tally the
+        // client will show (kills accrued during this life are now persisted).
+        InventoryOps::sync_kills_update(client);
     } else if (ent.has_component(kDrop)) {
         if (BitMath::at(ent.flags, EntityFlags::kIsDespawning))
             PetalTracker::remove_petal(sim, ent.get_drop_id());

@@ -29,4 +29,10 @@ namespace AccountDB {
 
     int read_progress(std::string const &user, uint8_t &level, uint32_t &xp);
     int write_progress(std::string const &user, uint8_t level, uint32_t xp);
+
+    // Per-account mob kill tally (mob id + rarity -> count). Only killed combos
+    // are stored. Callers batch a save() after crediting a death.
+    struct KillEntry { uint8_t mob; uint8_t rarity; uint64_t count; };
+    void add_kill(std::string const &user, uint8_t mob, uint8_t rarity);
+    int read_kills(std::string const &user, std::vector<KillEntry> &out);
 }
