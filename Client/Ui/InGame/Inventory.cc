@@ -41,19 +41,7 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
     // The slot stays put in the grid; the single dragged petal is drawn by the
     // Window as a floating preview. Release is polled here (no kMouseUp event).
     style.animate = [this](Element *elt, Renderer &ctx){
-        // Pop 90%->110%->100% when this stack gains petals.
-        if (index < Game::inventory_display_order.size()) {
-            uint32_t cnt = Game::inventory_stacks[Game::inventory_display_order[index]].count;
-            if (cnt > last_count) pop_t = 0;
-            last_count = cnt;
-        }
-        float pop = 1.0f;
-        if (pop_t <= 1.0f) {
-            pop = pop_t < 0.5f ? lerp(0.9f, 1.1f, pop_t * 2)
-                               : lerp(1.1f, 1.0f, (pop_t - 0.5f) * 2);
-            pop_t += (float) Ui::dt / 260.0f;
-        }
-        ctx.scale((float) elt->animation * pop);
+        ctx.scale((float) elt->animation);
         if (!selected) return;
         if (BitMath::at(Input::mouse_buttons_released, Input::LeftMouse)) {
             uint8_t potential_swap = find_viable_target(Input::mouse_x, Input::mouse_y);

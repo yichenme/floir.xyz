@@ -285,7 +285,9 @@ void Game::tick(double time) {
             renderer.fill_rect(0,0,renderer.width,renderer.height);
         }
         game_ui_window.render(game_ui_renderer);
-        renderer.set_global_alpha(0.85);
+        // Composite the in-game UI fully opaque (was 0.85) so panels -- the
+        // inventory in particular -- don't show the game world through them.
+        renderer.set_global_alpha(1.0);
         renderer.translate(renderer.width/2,renderer.height/2);
         renderer.draw_image(game_ui_renderer);
         //process keybind petal switches: R swaps every main/secondary pair at

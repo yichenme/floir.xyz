@@ -48,6 +48,7 @@ void Window::on_render(Renderer &ctx) {
     static uint8_t was_dragging = 0;
     static uint8_t rel_to_slot = 0;      // released onto a loadout slot?
     static double drag_start_ts = 0;     // when this drag began (for the shake)
+    static float pv_scale = 1.0f;        // lerped size (grow to 1.25, fit to 1.0)
 
     bool const dragging = Ui::dragging_inventory_index != -1 && Game::alive() &&
                           (uint32_t)Ui::dragging_inventory_index < Game::inventory_stacks.size();
@@ -59,23 +60,21 @@ void Window::on_render(Renderer &ctx) {
             UiLoadoutSlot *slot = Ui::UiLoadout::petal_backgrounds[swap];
             tx = slot->screen_x; ty = slot->screen_y;
         }
-        if (!was_dragging) { pv_x = tx; pv_y = ty; drag_start_ts = Game::timestamp; }
+        if (!was_dragging) { pv_x = tx; pv_y = ty; drag_start_ts = Game::timestamp; pv_scale = 1.0f; }
         pv_x = lerp(pv_x, tx, Ui::lerp_amount * 2.5);
         pv_y = lerp(pv_y, ty, Ui::lerp_amount * 2.5);
+        // Smoothly lerp the size like the loadout petal card: grow toward 125%
+        // while free-dragging, shrink to fit (1.0) when stuck to a slot.
+        pv_scale = lerp(pv_scale, snapped ? 1.0f : 1.25f, Ui::lerp_amount * 2.5);
         RenderContext c(&ctx);
         ctx.reset_transform();
         ctx.translate(pv_x, pv_y);
-        if (snapped) {
-            // Stuck to a slot: fit it exactly (full slot size, no shake) so the
-            // preview perfectly covers the slot's old petal / blank underneath.
-            ctx.scale(Ui::scale);
-        } else {
-            // Free drag: enlarge to 125% and shake fast (a small right tilt then
-            // rocking ~10 degrees left/right).
+        if (!snapped) {
+            // Free drag: shake fast (a small right tilt then rocking ~10 degrees).
             float const t = (float)(Game::timestamp - drag_start_ts);
             ctx.rotate(sinf(t * 0.045f) * (10.0f * (float)M_PI / 180.0f));
-            ctx.scale(Ui::scale * 1.25f);
         }
+        ctx.scale(Ui::scale * pv_scale);
         draw_loadout_background(ctx, Game::inventory_stacks[Ui::dragging_inventory_index].type, 1, 1, Game::inventory_stacks[Ui::dragging_inventory_index].rarity);
         rel_type = Game::inventory_stacks[Ui::dragging_inventory_index].type;
         rel_rarity = Game::inventory_stacks[Ui::dragging_inventory_index].rarity;
@@ -103,10 +102,12 @@ void Window::on_render(Renderer &ctx) {
             pv_x = lerp(pv_x, rel_tx, decay);
             pv_y = lerp(pv_y, rel_ty, decay);
             release_anim = lerp(release_anim, 0, decay);
+            // Onto a slot: settle to fit size (1.0), covering it. Miss: shrink away.
+            pv_scale = lerp(pv_scale, rel_to_slot ? 1.0f : 0.0f, decay);
             RenderContext c(&ctx);
             ctx.reset_transform();
             ctx.translate(pv_x, pv_y);
-            ctx.scale(Ui::scale * (rel_to_slot ? 1.0f : release_anim));
+            ctx.scale(Ui::scale * (rel_to_slot ? 1.0f : pv_scale));
             draw_loadout_background(ctx, rel_type, 1, 1, rel_rarity);
         }
     }
