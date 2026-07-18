@@ -14,7 +14,9 @@
 using namespace Ui;
 
 MobileJoyStick::MobileJoyStick(float w, float h, float r) : Element(w,h,{}), joystick_radius(r) {
-    style.should_render = [](){ return Input::is_mobile && Game::alive(); };
+    // Not while a panel (inventory / craft) is open: the pad must not swallow the
+    // touch that's dragging a petal, and movement is frozen there anyway.
+    style.should_render = [](){ return Input::is_mobile && Game::alive() && Ui::panel_open == Ui::Panel::kNone; };
     style.no_animation = 1;
 }
 
@@ -59,14 +61,20 @@ Element *Ui::make_mobile_attack_button() {
                 BitMath::set(Input::game_inputs.flags, InputFlags::kAttacking);
             else if (e == Ui::kClick)
                 BitMath::unset(Input::game_inputs.flags, InputFlags::kAttacking);
-        }, nullptr, { .fill = 0x40000000, .line_width = 0, .round_radius = 50, 
+        }, nullptr, { .fill = 0x40000000, .line_width = 0, .round_radius = 50,
             .should_render = [](){ return Input::is_mobile && Game::alive(); },
             .h_justify = Style::Right, .v_justify = Style::Bottom,
-            .no_animation = 1
+            .no_animation = 1,
+            // Bottom-right, left of the minimap; shifts up while the map is
+            // expanded so it doesn't sit under it, then drops back.
+            .animate = [](Element *e, Renderer &ctx){
+                e->y = Ui::minimap_expanded ? -290.0f : -130.0f;
+                ctx.scale((float) e->animation);
+            }
         }
     );
-    elt->x = -350;
-    elt->y = -200;
+    elt->x = -240;
+    elt->y = -130;
     return elt;
 }
 
@@ -77,14 +85,18 @@ Element *Ui::make_mobile_defend_button() {
                 BitMath::set(Input::game_inputs.flags, InputFlags::kDefending);
             else if (e == Ui::kClick)
                 BitMath::unset(Input::game_inputs.flags, InputFlags::kDefending);
-        }, nullptr, { .fill = 0x40000000, .line_width = 0, .round_radius = 50, 
+        }, nullptr, { .fill = 0x40000000, .line_width = 0, .round_radius = 50,
             .should_render = [](){ return Input::is_mobile && Game::alive(); },
             .h_justify = Style::Right, .v_justify = Style::Bottom,
-            .no_animation = 1
+            .no_animation = 1,
+            .animate = [](Element *e, Renderer &ctx){
+                e->y = Ui::minimap_expanded ? -470.0f : -310.0f;
+                ctx.scale((float) e->animation);
+            }
         }
     );
-    elt->x = -150;
-    elt->y = -250;
+    elt->x = -240;
+    elt->y = -310;
     return elt;
 }
 
@@ -105,10 +117,14 @@ Element *Ui::make_mobile_hitbox_button() {
         { .fill = 0x40000000, .line_width = 0, .round_radius = 30,
             .should_render = [](){ return Input::is_mobile && Game::alive(); },
             .h_justify = Style::Right, .v_justify = Style::Bottom,
-            .no_animation = 1
+            .no_animation = 1,
+            .animate = [](Element *e, Renderer &ctx){
+                e->y = Ui::minimap_expanded ? -620.0f : -460.0f;
+                ctx.scale((float) e->animation);
+            }
         }
     );
-    elt->x = -370;
-    elt->y = -440;
+    elt->x = -240;
+    elt->y = -460;
     return elt;
 }

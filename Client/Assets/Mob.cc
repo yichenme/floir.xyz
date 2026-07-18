@@ -630,6 +630,10 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.fill();
             break;
         case MobID::kQueenAnt:
+            // Art was drawn at absolute coords with no radius scaling, so it
+            // stayed a fixed size while the hitbox grows with radius/rarity.
+            // Scale it to the hitbox (base radius is 50 -> natural size there).
+            ctx.scale(radius / 50.0f);
             ctx.begin_path();
             ctx.arc(-25,0,33.5);
             ctx.set_fill(0xff454545);

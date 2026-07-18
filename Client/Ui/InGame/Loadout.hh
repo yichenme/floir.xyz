@@ -30,6 +30,12 @@ namespace Ui {
         uint8_t curr_pos;
         uint8_t no_change_ticks;
         uint8_t selected;
+        // Pointer position when this petal was pressed, and whether it has since
+        // moved far, to tell a short click (swap main/secondary) from a drag.
+        // Tracked across frames because the release frame's pointer position is
+        // unreliable on mobile (it snaps back to the slot).
+        float down_x = 0, down_y = 0;
+        uint8_t moved_far = 0;
         PetalID::T petal_id;
         PetalID::T last_id;
         UiLoadoutPetal(uint8_t);

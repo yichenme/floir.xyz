@@ -33,6 +33,7 @@ set(SRCS
     Socket.cc
     StaticData.cc
     Storage.cc
+    Ui/InGame/BossBar.cc
     Ui/InGame/Chat.cc
     Ui/InGame/Inventory.cc
     Ui/InGame/Leaderboard.cc

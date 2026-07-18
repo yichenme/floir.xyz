@@ -275,7 +275,7 @@ int AccountDB::write_inventory(std::string const &user, std::vector<PetalStack> 
     return ejs_set_inventory(user.c_str(), json.c_str());
 }
 
-int AccountDB::read_progress(std::string const &user, uint8_t &level, uint32_t &xp) {
+int AccountDB::read_progress(std::string const &user, uint32_t &level, uint32_t &xp) {
     ejs_ensure_ready();
     char *json_ptr = ejs_get_progress(user.c_str());
     if (!json_ptr) return 0;
@@ -285,7 +285,7 @@ int AccountDB::read_progress(std::string const &user, uint8_t &level, uint32_t &
     return 1;
 }
 
-int AccountDB::write_progress(std::string const &user, uint8_t level, uint32_t xp) {
+int AccountDB::write_progress(std::string const &user, uint32_t level, uint32_t xp) {
     ejs_ensure_ready();
     return ejs_set_progress(user.c_str(), level, xp);
 }

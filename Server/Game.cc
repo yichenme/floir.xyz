@@ -109,8 +109,8 @@ void GameInstance::persist_alive_progress() {
         // Bank on the camera too so an immediate death can't regress it, then
         // write through to the account (mirrors the flower-death path).
         camera.set_respawn_score(score);
-        camera.set_respawn_level((uint8_t)level);
-        AccountDB::write_progress(client->username, (uint8_t)level, score);
+        camera.set_respawn_level(level);
+        AccountDB::write_progress(client->username, level, score);
         InventoryOps::persist_account_petals(client, flower);
         dirty = true;
     }

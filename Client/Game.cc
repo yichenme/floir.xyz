@@ -140,6 +140,9 @@ void Game::init() {
         Ui::make_leaderboard()
     );
     game_ui_window.add_child(
+        Ui::make_boss_bars()
+    );
+    game_ui_window.add_child(
         Ui::make_stat_screen()
     );
     game_ui_window.add_child(
@@ -368,6 +371,17 @@ void Game::tick(double time) {
         uint8_t attack = Input::keys_held.contains(' ') || BitMath::at(Input::mouse_buttons_state, Input::LeftMouse);
         uint8_t defend = Input::keys_held.contains('\x10') || BitMath::at(Input::mouse_buttons_state, Input::RightMouse);
         Input::game_inputs.flags = (attack << InputFlags::kAttacking) | (defend << InputFlags::kDefending);
+    }
+
+    // Close any in-game panel on death so a stale panel_open doesn't keep
+    // movement frozen after respawn (the panel itself is alive-gated).
+    if (!alive() && Ui::panel_open == Ui::Panel::kInventory)
+        Ui::panel_open = Ui::Panel::kNone;
+    // A panel (inventory / craft) being open freezes movement: the player holds
+    // still and touches drive the panel instead of the joystick.
+    if (Ui::panel_open != Ui::Panel::kNone) {
+        Input::game_inputs.x = 0;
+        Input::game_inputs.y = 0;
     }
 
     if (socket.ready && alive()) send_inputs();

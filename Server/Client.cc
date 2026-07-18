@@ -143,7 +143,7 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             // Restore the account's saved peak level so progress survives a
             // fresh connection too, not just deaths within one connection (see
             // EntityFunctions/Death.cc's write_progress for the save side).
-            uint8_t saved_level = 0; uint32_t saved_xp = 0;
+            uint32_t saved_level = 0; uint32_t saved_xp = 0;
             if (AccountDB::read_progress(client->username, saved_level, saved_xp)) {
                 // Restore the exact peak score (partial XP included). Fall back to
                 // the level's base if an older account only had a level saved.

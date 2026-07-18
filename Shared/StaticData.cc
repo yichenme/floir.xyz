@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-uint32_t const MAX_LEVEL = 99;
+uint32_t const MAX_LEVEL = 999;
 uint32_t const TPS = 20;
 
 //these two are based on the base game's 20 TPS
@@ -1083,7 +1083,14 @@ float summon_base_damage(uint8_t mob_id) {
 }
 
 uint32_t score_to_pass_level(uint32_t level) {
-    return (uint32_t)(pow(1.06, level - 1) * level) + 3;
+    // Levels 1-99 are UNCHANGED, so every existing player keeps the exact same
+    // level and XP after the cap was raised to 999. The 1.06^(n-1) curve would
+    // explode past 99 (L999 would need ~10^25 XP), so beyond 99 it continues as
+    // a linear ramp from the L99 cost -- a long but reachable end-game grind.
+    if (level < 100)
+        return (uint32_t)(pow(1.06, level - 1) * level) + 3;
+    double const cost99 = pow(1.06, 98) * 99 + 3;
+    return (uint32_t)(cost99 + (double)(level - 99) * 2000.0);
 }
 
 uint32_t score_to_level(uint32_t score) {
@@ -1113,8 +1120,13 @@ uint32_t loadout_slots_at_level(uint32_t level) {
 
 float hp_at_level(uint32_t level) {
     if (level > MAX_LEVEL) level = MAX_LEVEL;
-    // 200 * 3^(0.05*(n-1)) -- ~+5.6% HP per level, ~3x every 20 levels.
-    return 200.0f * std::pow(3.0f, 0.05f * ((float)level - 1.0f));
+    // Levels 1-99 unchanged: 200 * 3^(0.05*(n-1)) (~+5.6%/level, ~3x per 20).
+    if (level < 100)
+        return 200.0f * std::pow(3.0f, 0.05f * ((float)level - 1.0f));
+    // Past 99 the exponential would blow up (L999 -> ~10^24 HP), so continue
+    // linearly from the L99 value: +1% of L99 HP per level, ~10x L99 at 999.
+    float const hp99 = 200.0f * std::pow(3.0f, 0.05f * 98.0f);
+    return hp99 * (1.0f + 0.01f * (float)(level - 99));
 }
 
 uint32_t light_petal_count(uint8_t rarity) {

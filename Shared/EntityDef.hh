@@ -41,7 +41,7 @@ SINGLE(Physics, angle, Float)
 
 #define FIELDS_Camera \
 SINGLE(Camera, player, EntityID) \
-SINGLE(Camera, respawn_level, uint8_t) \
+SINGLE(Camera, respawn_level, uint32_t) \
 SINGLE(Camera, respawn_score, uint32_t) \
 MULTIPLE(Camera, inventory, PetalID::T, 2 * MAX_SLOT_COUNT) \
 MULTIPLE(Camera, inventory_rarity, uint8_t, 2 * MAX_SLOT_COUNT) \

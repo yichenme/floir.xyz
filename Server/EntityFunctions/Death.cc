@@ -94,7 +94,7 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             float threshold_pct = 0.05f;   // Common..Ultra
             uint32_t max_looters = 4;
             if (mob_rarity == RarityID::kSuper)       { threshold_pct = 0.01f;  max_looters = 25; }
-            else if (mob_rarity == RarityID::kUnique) { threshold_pct = 0.005f; max_looters = 50; }
+            else if (mob_rarity == RarityID::kUnique) { threshold_pct = 0.005f; max_looters = 100; }
             float const threshold = ent.max_health * threshold_pct;
             std::vector<std::pair<uint16_t, float>> looters;
             for (auto const &kv : ent.mob_damage)
@@ -199,7 +199,7 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
         {
             std::string const username = client != nullptr ? client->username : ent.get_account_name();
             if (!username.empty()) {
-                AccountDB::write_progress(username, (uint8_t)respawn_level, respawn_score);
+                AccountDB::write_progress(username, respawn_level, respawn_score);
                 AccountDB::save();
             }
         }

@@ -147,6 +147,11 @@ UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
         UiLoadoutSlot *parent_slot = Ui::UiLoadout::petal_backgrounds[curr_pos];
         if (selected && Game::alive()) {
             style.layer = 1;
+            // Latch "dragged" the moment the pointer leaves the press point, so a
+            // click vs drag can be told at release even when the release-frame
+            // position is unreliable (mobile snaps it back to the slot).
+            if (!released && std::max(fabsf(mouse_x - down_x), fabsf(mouse_y - down_y)) > 12 * Ui::scale)
+                moved_far = 1;
             uint8_t potential_swap = find_viable_target(mouse_x, mouse_y);
             if (potential_swap != ((uint8_t)-1) && potential_swap != static_to_dynamic(static_pos)) {
                 if (released) {
@@ -192,6 +197,15 @@ UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
             //Ui::UiLoadout::petal_selected = nullptr;
         ctx.scale((float) animation);
         if (released && selected) {
+            // A short click (never dragged) toggles this slot's main<->secondary
+            // pair -- a drag onto another slot was already handled above.
+            if (!moved_far) {
+                uint8_t const counterpart = (static_pos < Game::loadout_count)
+                    ? (uint8_t)(static_pos + Game::loadout_count)
+                    : (uint8_t)(static_pos - Game::loadout_count);
+                if (counterpart != static_pos && counterpart < 2 * Game::loadout_count)
+                    ui_swap_petals(static_pos, counterpart);
+            }
             --Ui::UiLoadout::num_petals_selected;
             selected = 0;
         }
@@ -232,6 +246,14 @@ void UiLoadoutPetal::on_event(uint8_t event) {
         Ui::UiLoadout::selected_with_keys = MAX_SLOT_COUNT;
         if (Input::touches.contains(touch_id))
             persistent_touch_id = touch_id;
+        // Remember where the press started so release can tell a click from a drag.
+        down_x = Input::mouse_x;
+        down_y = Input::mouse_y;
+        moved_far = 0;
+        if (Input::is_mobile) {
+            auto it = Input::touches.find(touch_id);
+            if (it != Input::touches.end()) { down_x = it->second.x; down_y = it->second.y; }
+        }
     }
     if (event != kFocusLost && (!selected || Input::is_mobile) && last_id != PetalID::kNone) {
         rendering_tooltip = 1;

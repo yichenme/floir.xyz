@@ -27,8 +27,8 @@ namespace AccountDB {
     int read_inventory(std::string const &user, std::vector<PetalStack> &out);
     int write_inventory(std::string const &user, std::vector<PetalStack> const &in);
 
-    int read_progress(std::string const &user, uint8_t &level, uint32_t &xp);
-    int write_progress(std::string const &user, uint8_t level, uint32_t xp);
+    int read_progress(std::string const &user, uint32_t &level, uint32_t &xp);
+    int write_progress(std::string const &user, uint32_t level, uint32_t xp);
 
     // Per-account mob kill tally (mob id + rarity -> count). Only killed combos
     // are stored. Callers batch a save() after crediting a death.
