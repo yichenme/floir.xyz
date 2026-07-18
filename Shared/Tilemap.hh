@@ -35612,7 +35612,7 @@ namespace Tilemap {
         // bodies (players, normal mobs) use stride 1 = full 2-unit precision;
         // only very large mobs sample coarser, which is imperceptible at their
         // scale. Solid neighbour tests and face rectangles use the same stride.
-        const int SAMPLES=32;
+        const int SAMPLES=24;
         int span=(int)std::ceil(2.0f*rad/U)+3;
         int st=span/SAMPLES; if (st<1) st=1;
         float const Ub=U*st;

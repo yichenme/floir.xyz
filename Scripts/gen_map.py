@@ -794,7 +794,7 @@ def write_tilemap_header(layers, objgroups, W, H, terrain):
         '        // Adaptive resolution: cap samples per axis so a large body scan',
         '        // stays bounded instead of O((2rad/U)^2). Small bodies use stride 1',
         '        // (full precision); big mobs sample coarser (imperceptible at scale).',
-        '        const int SAMPLES=32;',
+        '        const int SAMPLES=24;',
         '        int span=(int)std::ceil(2.0f*rad/U)+3;',
         '        int st=span/SAMPLES; if (st<1) st=1;',
         '        float const Ub=U*st;',
