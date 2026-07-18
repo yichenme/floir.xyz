@@ -35568,10 +35568,9 @@ namespace Tilemap {
         return _usolid((int)std::floor(x/COLL_UNIT), (int)std::floor(y/COLL_UNIT));
     }
 
-    // Adaptive stride mirroring push_circle below: cost is O((2*rad/COLL_UNIT)^2)
-    // unstrided, which is fine for player-scale bodies but unbounded for a
-    // large high-rarity mob (radius can run into the hundreds of units) --
-    // without this, a single call can scan hundreds of thousands of sub-cells.
+    // Adaptive stride mirroring push_circle below: unstrided cost is
+    // O((2*rad/COLL_UNIT)^2), fine for player-scale bodies but unbounded
+    // for a large high-rarity mob (radius can run into the hundreds).
     inline bool solid_circle(float x, float y, float rad) {
         int x0=(int)std::floor((x-rad)/COLL_UNIT), x1=(int)std::floor((x+rad)/COLL_UNIT);
         int y0=(int)std::floor((y-rad)/COLL_UNIT), y1=(int)std::floor((y+rad)/COLL_UNIT);
@@ -35589,15 +35588,9 @@ namespace Tilemap {
         return false;
     }
 
-    // Push a circle out of the solid units. Only EXPOSED unit faces (those
-    // bordering an empty unit) collide, so a body slides smoothly along a
-    // wall instead of catching on the internal seam between two solid units.
-    // Deepest correction per pass so concave corners settle without jitter.
-    // Cheap coarse pre-check: is any part of this circle's bounding box near a
-    // cell that contains solid terrain? Reads only the per-cell CELL_MASK
-    // (GRID_W x GRID_H = a few thousand bytes) instead of the millions of
-    // sub-cells push_circle would otherwise scan. Out-of-bounds cells count as
-    // solid (arena edge), matching _usolid. Empty (m==0) cells are skippable.
+    // Cheap coarse pre-check: is any part of this circle bounding box near a
+    // cell containing solid terrain? Reads only per-cell CELL_MASK instead of
+    // the millions of sub-cells push_circle would scan. OOB = solid (arena edge).
     inline bool _near_solid_cells(float x, float y, float rad) {
         int c0=(int)std::floor((x-rad)/CELL_SIZE), c1=(int)std::floor((x+rad)/CELL_SIZE);
         int r0=(int)std::floor((y-rad)/CELL_SIZE), r1=(int)std::floor((y+rad)/CELL_SIZE);
@@ -35608,17 +35601,17 @@ namespace Tilemap {
         return false;
     }
 
+    // Push a circle out of the solid units. Only EXPOSED unit faces (those
+    // bordering an empty unit) collide, so a body slides smoothly along a
+    // wall instead of catching on the internal seam between two solid units.
+    // Deepest correction per pass so concave corners settle without jitter.
     inline void push_circle(float &x, float &y, float rad) {
         const float U=COLL_UNIT;
-        // Fast path: nothing solid anywhere near this circle -> nothing to push
-        // out of. Skips the sub-cell scan for the common case of a body moving
-        // through open terrain (the vast majority of entities/ticks).
+        // Fast path: nothing solid near this circle -> nothing to resolve.
         if (!_near_solid_cells(x, y, rad)) return;
-        // Adaptive resolution: cap samples per axis (~SAMPLES) so a large body's
-        // scan cost stays bounded instead of growing as O((2rad/U)^2). Small
-        // bodies (players, normal mobs) use stride 1 = full 2-unit precision;
-        // only very large mobs sample coarser, which is imperceptible at their
-        // scale. Solid neighbour tests and face rectangles use the same stride.
+        // Adaptive resolution: cap samples per axis so a large body scan
+        // stays bounded instead of O((2rad/U)^2). Small bodies use stride 1
+        // (full precision); big mobs sample coarser (imperceptible at scale).
         const int SAMPLES=24;
         int span=(int)std::ceil(2.0f*rad/U)+3;
         int st=span/SAMPLES; if (st<1) st=1;

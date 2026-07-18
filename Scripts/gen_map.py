@@ -659,6 +659,18 @@ def write_tilemap_header(layers, objgroups, W, H, terrain):
 
     _sync_collision_editor(gm, GW, GH)
 
+    # Downscaled walkable/blocked overview PNG, straight from the same `gm`
+    # bitmap the in-game minimap's Tilemap::solid_at() is compiled from (white
+    # = walkable, black = blocked) -- so the admin panel's spawn minimap is a
+    # pixel-accurate match to the real one instead of an approximation.
+    try:
+        from PIL import Image
+        overview = Image.frombytes('L', (GW, GH), bytes(0 if v else 255 for v in gm))
+        overview = overview.resize((500, round(500 * GH / GW)), Image.NEAREST)
+        overview.convert('1').save(os.path.join(ROOT, 'Server/map-overview.png'))
+    except Exception as e:
+        print('map-overview.png export skipped:', e)
+
     # ---- slice into per-cell sub-masks; classify empty/full/detailed + dedup ----
     CELL_MASK = [0] * (W * H)
     detail = []

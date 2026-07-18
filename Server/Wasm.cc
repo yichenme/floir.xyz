@@ -157,6 +157,10 @@ WebSocketServer::WebSocketServer() {
                     encodeType = "application/json";
                     file = "map-data.json";
                     break;
+                case "/map-overview.png":
+                    encodeType = "image/png";
+                    file = "map-overview.png";
+                    break;
                 default:
                     file = "";
                     break;

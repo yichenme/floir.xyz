@@ -128,10 +128,15 @@
         }
     }
 
-    // --- Spawn minimap: zone rectangles fetched once from Shared/StaticData.hh
-    // MAP_DATA (via /admin/zones.json, generated server-side so this file never
-    // hand-copies balance data), right-click converts canvas -> world coords.
+    // --- Spawn minimap: the SAME walkable/blocked bitmap the in-game minimap
+    // draws from (Client/Ui/InGame/Map.cc samples Tilemap::solid_at() into a
+    // black/white silhouette -- /map-overview.png is that identical bitmap,
+    // rendered once by Scripts/gen_map.py from the same source data, so this
+    // is a pixel-accurate match rather than an approximation). Zone bounds
+    // (still fetched from /admin/zones.json) are only used for the world size
+    // and the right-click -> world-coordinate conversion, not drawn.
     var ARENA_W = 25000, ARENA_H = 25500;
+    var mapImg = new Image();
     async function loadZones(){
         try {
             const r = await fetch('/admin/zones.json');
@@ -141,20 +146,16 @@
                 ARENA_H = Math.max.apply(null, zones.map(function(z){ return z.bottom; }));
             }
         } catch (e) { zones = []; }
-        drawMap();
+        mapImg.onload = drawMap;
+        mapImg.src = '/map-overview.png';   // ETag/no-cache revalidation is server-side (Wasm.cc)
     }
 
     function drawMap(){
         const cv = document.getElementById('mapCanvas');
         const ctx = cv.getContext('2d');
         ctx.clearRect(0, 0, cv.width, cv.height);
-        zones.forEach(function(z){
-            ctx.fillStyle = '#' + z.color.toString(16).padStart(6, '0');
-            ctx.fillRect(
-                z.left / ARENA_W * cv.width, z.top / ARENA_H * cv.height,
-                (z.right - z.left) / ARENA_W * cv.width, (z.bottom - z.top) / ARENA_H * cv.height
-            );
-        });
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(mapImg, 0, 0, cv.width, cv.height);
     }
 
     document.getElementById('mapCanvas').addEventListener('contextmenu', async function(e){
