@@ -576,7 +576,8 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .count = 1,
         .rarity = RarityID::kUnique,
         .attributes = {
-            .icon_angle = M_PI / 4 + 1
+            .icon_angle = M_PI / 4 + 1,
+            .spawns = MobID::kSquare
         }
     },
     {

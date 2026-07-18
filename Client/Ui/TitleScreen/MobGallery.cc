@@ -123,7 +123,7 @@ static Element *make_mob_stat_container(MobID::T id, uint8_t rarity) {
 
 static Element *make_mob_card(MobID::T id, uint8_t rarity) {
     Element *elt = new Ui::VContainer({
-        new Ui::Element(300,0),
+        new Ui::Element(340,0),
         new Ui::HFlexContainer(
             new Ui::VContainer({
                 new Ui::StaticText(18, MOB_DATA[id].name, { .fill = 0xffffffff, .h_justify = Style::Left }),

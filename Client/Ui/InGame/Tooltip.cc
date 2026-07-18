@@ -114,7 +114,7 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     if (attrs.extra_rotation_speed > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Rotation Speed:", { .fill = 0xffcde23b }),
-            new Ui::StaticText(12, "+" + format_number(attrs.extra_rotation_speed) + " rad/s")
+            new Ui::StaticText(12, "+" + format_number(attrs.extra_rotation_speed * (1 + 0.4f * rarity)) + " rad/s")
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.spawns != MobID::kNumMobs && attrs.spawn_count == 0) {
@@ -127,6 +127,19 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Spawns:", { .fill = 0xffd2eb34 }),
             new Ui::StaticText(12, format_number(attrs.spawn_count) + "x " + (MOB_DATA[attrs.spawns].name))
+        }, 0, 5, { .h_justify = Style::Left }));
+    }
+    // Summon stats for spawning petals (eggs, Stick, Square). HP/damage scale
+    // x3 per rarity, matching the petal's rarity.
+    if (attrs.spawns != MobID::kNumMobs) {
+        struct MobData const &sm = MOB_DATA[attrs.spawns];
+        stats.push_back(new Ui::HContainer({
+            new Ui::StaticText(12, "Summon HP:", { .fill = 0xff77ff77 }),
+            new Ui::StaticText(12, format_number((sm.health.lower + sm.health.upper) / 2.0f * mult))
+        }, 0, 5, { .h_justify = Style::Left }));
+        stats.push_back(new Ui::HContainer({
+            new Ui::StaticText(12, "Summon Damage:", { .fill = 0xffff7777 }),
+            new Ui::StaticText(12, format_number(sm.damage * mult))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.vision_factor < 1) {
@@ -152,7 +165,11 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.extra_reload_factor != 1) {
-        float const pct = 100 * (attrs.extra_reload_factor - 1);
+        // Reduction deepens per rarity (mirrors Server/Process/Flower.cc):
+        // Golden Leaf -5% -> -5*(rarity+1)%.
+        float factor = attrs.extra_reload_factor;
+        if (factor < 1) factor = 1 - (1 - factor) * (1 + rarity);
+        float const pct = 100 * (factor - 1);
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Reload Factor:", { .fill = 0xff7777ff }),
             new Ui::StaticText(12, (pct > 0 ? "+" : "-") + format_pct(pct > 0 ? pct : -pct))

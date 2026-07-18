@@ -46,7 +46,13 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
         buffs.extra_range = std::fmax(attrs.extra_range, buffs.extra_range);
         buffs.extra_damage = std::fmax(buffs.extra_damage, attrs.extra_body_damage * rarity_pow3(slot.rarity));
         buffs.damage_factor *= attrs.extra_damage_factor;
-        buffs.reload_factor *= attrs.extra_reload_factor;
+        // Reload-factor reductions deepen one step per rarity (Golden Leaf: -5%
+        // at Common, -5% more each tier up).
+        {
+            float rf = attrs.extra_reload_factor;
+            if (rf < 1.f) rf = std::fmax(0.1f, 1.f - (1.f - rf) * (1 + slot.rarity));
+            buffs.reload_factor *= rf;
+        }
         if (slot_petal_id == PetalID::kYinYang)
             ++buffs.yinyang_count;
         if (!player.loadout[i].already_spawned) continue;
@@ -54,7 +60,7 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
             buffs.heal += attrs.constant_heal * rarity_pow3(slot.rarity) / TPS;
         else if (slot_petal_id == PetalID::kYucca && BitMath::at(player.input, InputFlags::kDefending) && !BitMath::at(player.input, InputFlags::kAttacking))
             buffs.heal += attrs.constant_heal * rarity_pow3(slot.rarity) / TPS;
-        buffs.extra_rot += attrs.extra_rotation_speed;
+        buffs.extra_rot += attrs.extra_rotation_speed * (1 + 0.4f * slot.rarity);   // Faster: +0.2 rad/s per rarity (base 0.5)
         buffs.extra_health += attrs.extra_health * rarity_pow3(slot.rarity);   // flower-HP buff x3/rarity (Cactus)
         player.damage_reflection = std::fmax(player.damage_reflection, attrs.damage_reflection);
         player.poison_armor = std::fmax(player.poison_armor, attrs.poison_armor * rarity_pow3(slot.rarity) / TPS);   // Lotus x3/rarity
