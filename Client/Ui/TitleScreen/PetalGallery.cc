@@ -38,7 +38,11 @@ static Element *make_scroll() {
         for (PetalID::T i = PetalID::kBasic; i < PetalID::kNumPetals;) {
             Element *row = new Ui::HContainer({}, 0, 8, { .v_justify = Style::Top });
             for (uint8_t j = 0; j < 5 && i < PetalID::kNumPetals;) {
-                if (i == PetalID::kHeavyLegacy) { ++i; continue; }  // retired petal
+                // Skip retired / removed petals (kept in the enum only so saved
+                // account petal IDs don't renumber).
+                if (i == PetalID::kHeavyLegacy || i == PetalID::kAzalea ||
+                    i == PetalID::kBlueIris || i == PetalID::kTriweb ||
+                    i == PetalID::kTricac || i == PetalID::kPoisonCactus) { ++i; continue; }
                 row->add_child(new GalleryPetal(i, 52, (uint8_t) r));
                 ++j; ++i;
             }

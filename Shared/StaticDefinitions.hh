@@ -48,23 +48,24 @@ namespace PetalID {
         kPeas,
         kSand,
         kPincer,
-        kDahlia,
+        kDahlia, // "Triple Rose", displayed as "Dahlia"
         kTriplet,
         kAntEgg,
-        kBlueIris,
+        kBlueIris, // removed from game; kept to preserve saved petal-ID numbering
+
         kPollen,
         kPoisonPeas,
         kBeetleEgg,
-        kAzalea,
+        kAzalea, // "Triangled Rose"; removed from game (numbering kept for accounts)
         kStick,
         kTringer,
-        kTriweb,
+        kTriweb, // "Triple Web"; removed from game (numbering kept for accounts)
         kAntennae,
-        kTricac,
+        kTricac, // "Triple Cactus"; removed from game (numbering kept for accounts)
         kHeavy, // formerly "Heaviest"; the old kHeavy is now kHeavyLegacy.
         kThirdEye,
         kObserver,
-        kPoisonCactus,
+        kPoisonCactus, // "Purple Cactus"; removed from game (numbering kept for accounts)
         kSalt,
         kUniqueBasic,
         kSquare,

@@ -287,7 +287,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         }
     },
     {
-        .name = "Rose",
+        .name = "Dahlia",
         .description = "Its healing properties are amazing. Not so good at combat though",
         .health = 5.0,
         .damage = 5.0,
@@ -801,7 +801,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {30.0},
         .xp = 5,
         .drops = {
-            PetalID::kDahlia, PetalID::kWing, PetalID::kYinYang, PetalID::kAzalea
+            PetalID::kDahlia, PetalID::kWing, PetalID::kYinYang
         },
         .attributes = {}
     },
@@ -830,7 +830,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {30.0, 60.0},
         .xp = 2,
         .drops = {
-            PetalID::kStinger, PetalID::kYucca, PetalID::kCactus, PetalID::kPoisonCactus, PetalID::kTricac
+            PetalID::kStinger, PetalID::kYucca, PetalID::kCactus
         },
         .attributes = {
             .stationary = 1
@@ -875,7 +875,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {35.0},
         .xp = 3,
         .drops = {
-            PetalID::kIris, PetalID::kPoisonPeas, PetalID::kBlueIris
+            PetalID::kIris, PetalID::kPoisonPeas
         },
         .attributes = { 
             .segments = 10, 
@@ -940,7 +940,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {15.0},
         .xp = 8,
         .drops = {
-            PetalID::kStinger, PetalID::kWeb, PetalID::kFaster, PetalID::kTriweb
+            PetalID::kStinger, PetalID::kWeb, PetalID::kFaster
         },
         .attributes = { 
             .poison_damage = {
