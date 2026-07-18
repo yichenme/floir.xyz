@@ -99,6 +99,18 @@ void Window::on_render(Renderer &ctx) {
                 rel_hold = 0;
                 pv_x = rel_tx; pv_y = rel_ty; pv_scale = rel_scale;
                 release_anim = 1;
+            } else if (hypotf(Input::mouse_x - Ui::drag_start_mouse_x,
+                              Input::mouse_y - Ui::drag_start_mouse_y) < 10 * Ui::scale
+                       && find_equip_target() != 255) {
+                // A click (barely moved): fly the card into the first blank
+                // loadout slot (empty, so nothing to flash under it).
+                uint8_t dyn = static_to_dynamic(find_equip_target());
+                UiLoadoutSlot *slot = Ui::UiLoadout::petal_backgrounds[dyn];
+                rel_tx = slot->screen_x; rel_ty = slot->screen_y; rel_to_slot = 1;
+                rel_scale = slot->width / 60.0f;
+                rel_static = find_equip_target();
+                rel_hold = 0;
+                release_anim = 1;
             } else if (Ui::panel_open == Panel::kInventory) {
                 // Inventory open: fly the petal back to the slot it came from (it
                 // shrinks into that same spot as the slot re-shows the card, so

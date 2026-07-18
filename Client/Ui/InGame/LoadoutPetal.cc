@@ -29,7 +29,17 @@ void Ui::ui_swap_petals(uint8_t static_pos1, uint8_t static_pos2) {
     //found static pos, now swap
     UiLoadoutPetal *a1 = Ui::UiLoadout::petal_slots[static_pos1];
     UiLoadoutPetal *a2 = Ui::UiLoadout::petal_slots[static_pos2];
-    if (a1->petal_id == a2->petal_id) return;
+    // Only skip a truly identical swap (same petal AND same rarity) -- swapping
+    // same-type different-rarity petals is a real, useful swap.
+    if (a1->petal_id == a2->petal_id) {
+        uint8_t r1 = 0, r2 = 0;
+        if (Game::alive()) {
+            Entity const &player = Game::simulation.get_ent(Game::player_id);
+            r1 = player.get_loadout_rarities(static_pos1);
+            r2 = player.get_loadout_rarities(static_pos2);
+        }
+        if (r1 == r2) return;
+    }
     a2->petal_id = Game::cached_loadout[static_pos1];
     a1->petal_id = Game::cached_loadout[static_pos2];
     a1->static_pos = static_pos2;
@@ -70,7 +80,7 @@ UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
     style.should_render = [&](){
         if (!Game::alive()) return false;
         //coincidentally also works for trashing
-        if (static_pos >= MAX_SLOT_COUNT + Game::loadout_count) return false;
+        if (static_pos >= 2 * Game::loadout_count) return false;
         if (curr_pos == 2 * MAX_SLOT_COUNT) return false;
         if (Game::alive()) {
             Entity const &player = Game::simulation.get_ent(Game::player_id);

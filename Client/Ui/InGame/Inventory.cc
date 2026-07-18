@@ -27,10 +27,10 @@ static float const INVENTORY_SLOT_SIZE = 60;
 
 // Clicking a stack has no explicit target slot, so mirror drag-to-store:
 // fill the first empty loadout slot, or bump slot 0 if the loadout is full.
-static uint8_t find_equip_target() {
+uint8_t Ui::find_equip_target() {
     for (uint8_t i = 0; i < 2 * Game::loadout_count; ++i)
         if (Game::cached_loadout[i] == PetalID::kNone) return i;
-    return 0;
+    return 255;   // loadout full -> no target (click does nothing)
 }
 
 InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
@@ -51,8 +51,9 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
             } else {
                 float dist = hypotf(Input::mouse_x - Ui::drag_start_mouse_x,
                                     Input::mouse_y - Ui::drag_start_mouse_y);
-                if (dist < 10 * Ui::scale) {
-                    Game::equip_petal(Game::inventory_display_order[index],find_equip_target());
+                uint8_t const t = find_equip_target();
+                if (dist < 10 * Ui::scale && t != 255) {
+                    Game::equip_petal(Game::inventory_display_order[index], t);
                     equip_pending = 1; equip_version = Game::inventory_version;
                 }
             }

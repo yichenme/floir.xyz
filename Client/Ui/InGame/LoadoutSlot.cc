@@ -13,7 +13,12 @@ UiLoadoutSlot::UiLoadoutSlot(uint8_t pos) : Element(70, 70, { .fill = 0xffeeeeee
     style.line_width = width / 12;
     style.round_radius = width / 20;
     style.should_render = [=](){
-        if (pos >= MAX_SLOT_COUNT || pos < Game::loadout_count) return true;
+        // The Store slot (last background) always shows so petals can be stored.
+        if (pos == 2 * MAX_SLOT_COUNT) return true;
+        // Main slots [0, loadout_count); secondary row [MAX_SLOT_COUNT, +count)
+        // -- the number of secondary slots equals the number of main slots.
+        if (pos < Game::loadout_count) return true;
+        if (pos >= MAX_SLOT_COUNT && pos < MAX_SLOT_COUNT + Game::loadout_count) return true;
         return false;
     };
     position = pos;

@@ -51,6 +51,7 @@ namespace Ui {
     Element *make_loadout_backgrounds();
     void make_petal_tooltips();
     uint8_t find_viable_target(float, float);
+    uint8_t find_equip_target();   // first blank loadout slot (static pos), 255 if full
     uint8_t dynamic_to_static(uint8_t);
     uint8_t static_to_dynamic(uint8_t);
 
