@@ -2,6 +2,7 @@
 
 #include <Client/Account.hh>
 #include <Client/Input.hh>
+#include <Client/StaticData.hh>
 #include <Client/Ui/Extern.hh>
 #include <Client/Ui/Ui.hh>
 
@@ -74,7 +75,18 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
             std::string sender, message;
             reader.read<std::string>(sender);
             reader.read<std::string>(message);
-            Game::chat_messages.push_back(sender + ": " + message);
+            Game::chat_messages.push_back({ sender + ": " + message, 0xffffffff });
+            while (Game::chat_messages.size() > 8) Game::chat_messages.erase(Game::chat_messages.begin());
+            break;
+        }
+        case Clientbound::kSystemMessage: {
+            uint8_t kind = reader.read<uint8_t>();
+            std::string message;
+            reader.read<std::string>(message);
+            // Plain coloured text, no sender label: super-green or unique-grey.
+            uint32_t const color = kind == SystemMsgKind::kSysUnique
+                ? RARITY_COLORS[RarityID::kUnique] : RARITY_COLORS[RarityID::kSuper];
+            Game::chat_messages.push_back({ message, color });
             while (Game::chat_messages.size() > 8) Game::chat_messages.erase(Game::chat_messages.begin());
             break;
         }

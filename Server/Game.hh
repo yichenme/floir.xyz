@@ -32,4 +32,9 @@ public:
     Client *client_for_camera_id(EntityID::id_type);
     // Send one packet to every connected client (e.g. a chat broadcast).
     void broadcast(uint8_t const *packet, size_t len);
+    // Broadcast a coloured system line into everyone's chat (kind = SystemMsgKind).
+    void system_message(uint8_t kind, std::string const &text);
+    // Disconnect any OTHER connection logged into the same account (multi-tab
+    // kick): the newest tab to enter the game wins.
+    void kick_other_sessions(Client const *keep, std::string const &username);
 };

@@ -133,6 +133,22 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
                 }
             }
             if (credited_kill) AccountDB::save();
+            // Announce Super/Unique mob kills in everyone's chat (coloured, no
+            // label). With a squad, name every squad member (see Squad); solo,
+            // just the killer.
+            if (mob_rarity >= RarityID::kSuper) {
+                std::string killer_name = "someone";
+                if (sim->ent_exists(ent.last_damaged_by)) {
+                    EntityID kid = sim->get_ent(ent.last_damaged_by).base_entity;
+                    if (sim->ent_alive(kid) && sim->get_ent(kid).has_component(kName)
+                        && !sim->get_ent(kid).get_name().empty())
+                        killer_name = sim->get_ent(kid).get_name();
+                }
+                bool const uniq = mob_rarity >= RarityID::kUnique;
+                std::string const msg = std::string("A ") + (uniq ? "unique " : "super ")
+                    + MOB_DATA[ent.get_mob_id()].name + " has been killed by " + killer_name + "!";
+                Server::game.system_message(uniq ? SystemMsgKind::kSysUnique : SystemMsgKind::kSysSuper, msg);
+            }
         }
         if (ent.get_mob_id() == MobID::kAntHole &&
             BitMath::at(ent.flags, EntityFlags::kSpawnedFromZone) &&

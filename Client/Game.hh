@@ -23,9 +23,11 @@ namespace Game {
     extern EntityID player_id;
     extern std::string nickname;
     extern std::string disconnect_message;
-    // Chat: the text being typed, and the recent message log (newest last).
+    // Chat: the text being typed, and the recent message log (newest last). A
+    // system line carries a colour and no sender label (color != white).
     extern std::string chat_input;
-    extern std::vector<std::string> chat_messages;
+    struct ChatMessage { std::string text; uint32_t color; };
+    extern std::vector<ChatMessage> chat_messages;
     void send_chat(std::string const &);
     extern std::array<uint8_t, PetalID::kNumPetals> seen_petals;
     extern std::array<uint8_t, MobID::kNumMobs> seen_mobs;

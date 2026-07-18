@@ -34,7 +34,8 @@ namespace {
             for (int k = 0; k < show; ++k) {
                 RenderContext c(&ctx);
                 ctx.translate(-width / 2, height / 2 - 6 - k * 18);
-                ctx.draw_text(Game::chat_messages[n - 1 - k].c_str(), { .fill = 0xffffffff, .size = 14 });
+                Game::ChatMessage const &m = Game::chat_messages[n - 1 - k];
+                ctx.draw_text(m.text.c_str(), { .fill = m.color, .size = 14 });
             }
             ctx.center_text_align();   // restore default for the rest of the UI
         }

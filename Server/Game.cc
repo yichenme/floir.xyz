@@ -170,6 +170,25 @@ void GameInstance::broadcast(uint8_t const *packet, size_t len) {
         client->send_packet(packet, len);
 }
 
+void GameInstance::system_message(uint8_t kind, std::string const &text) {
+    Writer writer(Server::OUTGOING_PACKET);
+    writer.write<uint8_t>(Clientbound::kSystemMessage);
+    writer.write<uint8_t>(kind);
+    writer.write<std::string>(text);
+    broadcast(writer.packet, writer.at - writer.packet);
+}
+
+void GameInstance::kick_other_sessions(Client const *keep, std::string const &username) {
+    if (username.empty()) return;
+    // Copy first: disconnect() mutates the client set as it removes them.
+    std::vector<Client *> doomed;
+    for (Client *client : clients)
+        if (client != keep && client->logged_in && client->username == username)
+            doomed.push_back(client);
+    for (Client *client : doomed)
+        client->disconnect(CloseReason::kServer, "Logged in from another tab");
+}
+
 void GameInstance::remove_client(Client *client) {
     DEBUG_ONLY(assert(client->game == this);)
     clients.erase(client);

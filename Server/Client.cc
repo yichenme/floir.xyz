@@ -132,6 +132,9 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
         case Serverbound::kClientSpawn: {
             if (!client->logged_in) break;
             if (client->alive()) break;
+            // Entering the game claims the account: kick any other tab still
+            // logged into it so a player can't run two games at once.
+            client->game->kick_other_sessions(client, client->username);
             //check string length
             std::string name;
             if (client->check_invalid(validator.validate_string(MAX_NAME_LENGTH))) return;

@@ -30,7 +30,7 @@ namespace Game {
     std::string nickname;
     std::string disconnect_message;
     std::string chat_input;
-    std::vector<std::string> chat_messages;
+    std::vector<ChatMessage> chat_messages;
     std::array<uint8_t, PetalID::kNumPetals> seen_petals;
     std::array<uint8_t, MobID::kNumMobs> seen_mobs;
     std::vector<PetalStack> inventory_stacks;

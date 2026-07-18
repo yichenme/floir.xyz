@@ -10,12 +10,21 @@
 // kInventoryUpdate: uint32 n, then n × (uint8 type, uint8 rarity, uint64 count)
 // kKillsUpdate: uint32 n, then n × (uint8 mob, uint8 rarity, uint64 count)
 // kChatMessage: string sender, string message
+// kSystemMessage: uint8 kind (SystemMsgKind), string message -- shown in chat as
+//   plain coloured text (no sender label)
 enum Clientbound {
     kClientUpdate,
     kAuthResponse,
     kInventoryUpdate,
     kKillsUpdate,
-    kChatMessage
+    kChatMessage,
+    kSystemMessage
+};
+
+// Colour band for a system chat line.
+enum SystemMsgKind {
+    kSysSuper,    // super-green (super petal crafted / super mob killed)
+    kSysUnique    // unique-grey (unique mob killed)
 };
 
 // kRegister / kLogin: string username, string password
