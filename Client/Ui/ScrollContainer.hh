@@ -15,6 +15,7 @@ namespace Ui {
     class ScrollContainer : public HContainer {
     public:
         float lerp_scroll;
+        float max_height;   // cap; actual height shrinks to fit shorter content
         ScrollContainer(Element *, float);
 
         virtual void on_render(Renderer &) override;

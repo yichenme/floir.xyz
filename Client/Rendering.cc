@@ -164,6 +164,8 @@ void Game::render_game() {
         render_web(renderer, ent);
     });
     simulation.for_each<kDrop>([](Simulation *sim, Entity const &ent){
+        // Individual loot: only show drops that are mine (or shared, owner 0).
+        if (ent.get_drop_owner() != 0 && ent.get_drop_owner() != Game::camera_id.id) return;
         RenderContext context(&renderer);
         renderer.translate(ent.get_x(), ent.get_y());
         renderer.rotate(ent.get_angle() + (ent.animation - 1) * 3 * M_PI);

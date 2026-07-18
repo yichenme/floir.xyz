@@ -31,6 +31,10 @@ static bool _should_interact(Entity const &ent1, Entity const &ent2) {
 static void _pickup_drop(Simulation *sim, Entity &player, Entity &drop) {
     if (!sim->ent_alive(player.get_parent())) return;
     if (drop.immunity_ticks > 0) return;
+    // Individual loot: an owned drop can only be collected by its owner (the
+    // camera it was assigned to on the mob's death). owner 0 = shared/legacy.
+    uint32_t const owner = drop.get_drop_owner();
+    if (owner != 0 && owner != player.get_parent().id) return;
     Client *client = Server::game.client_for_camera(player.get_parent());
     InventoryOps::pickup_drop(sim, client, player, drop);
 }

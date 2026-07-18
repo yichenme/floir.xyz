@@ -80,7 +80,8 @@ SINGLE(Mob, mob_rarity, uint8_t)
 
 #define FIELDS_Drop \
 SINGLE(Drop, drop_id, PetalID::T) \
-SINGLE(Drop, drop_rarity, uint8_t)
+SINGLE(Drop, drop_rarity, uint8_t) \
+SINGLE(Drop, drop_owner, uint32_t)
 
 #define FIELDS_Segmented
 

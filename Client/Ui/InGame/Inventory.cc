@@ -62,6 +62,9 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
 void InventoryStackSlot::on_render(Renderer &ctx) {
     if (index >= Game::inventory_display_order.size()) return;
     PetalStack const &stack = Game::inventory_stacks[Game::inventory_display_order[index]];
+    // Dragging the last (or only) one out: leave the slot empty so a single
+    // petal visibly leaves the inventory instead of lingering as a ghost.
+    if (selected && stack.count <= 1) return;
     draw_loadout_background(ctx, stack.type, 1, 1, stack.rarity);
     // While dragging one out, show the remaining count (999 -> 998).
     uint32_t shown = stack.count;
@@ -95,11 +98,15 @@ void InventoryStackSlot::on_event(uint8_t event) {
 static Element *make_inventory_grid() {
     Element *grid = new Ui::VContainer({}, 10, 10, {});
     for (uint32_t i = 0; i < INVENTORY_DISPLAY_CAP;) {
+        uint32_t const start = i;   // index of this row's first slot
         Element *row = new Ui::HContainer({}, 0, 10, { .v_justify = Style::Top });
         for (uint32_t j = 0; j < INVENTORY_COLUMNS && i < INVENTORY_DISPLAY_CAP; ++j, ++i)
             row->add_child(new InventoryStackSlot(i));
         row->refactor();
         row->width = INVENTORY_COLUMNS * INVENTORY_SLOT_SIZE + (INVENTORY_COLUMNS - 1) * 10;
+        // Hide (and drop from layout) rows with no petals, so the panel height
+        // tracks the number of filled rows instead of leaving blank space.
+        row->style.should_render = [start](){ return start < Game::inventory_display_order.size(); };
         grid->add_child(row);
     }
     return new Ui::ScrollContainer(grid, 300);

@@ -50,6 +50,8 @@ void Window::on_render(Renderer &ctx) {
     static double drag_start_ts = 0;     // when this drag began
     static float pv_scale = 1.0f;        // lerped size, matched to the loadout card
     static float rel_scale = 1.0f;       // fit scale of the slot released onto
+    static uint8_t rel_static = 2 * MAX_SLOT_COUNT;  // target static slot on release
+    static float rel_hold = 0;           // ms spent covering while awaiting confirm
 
     bool const dragging = Ui::dragging_inventory_index != -1 && Game::alive() &&
                           (uint32_t)Ui::dragging_inventory_index < Game::inventory_stacks.size();
@@ -92,6 +94,8 @@ void Window::on_render(Renderer &ctx) {
                 UiLoadoutSlot *slot = Ui::UiLoadout::petal_backgrounds[swap];
                 rel_tx = slot->screen_x; rel_ty = slot->screen_y; rel_to_slot = 1;
                 rel_scale = slot->width / 60.0f;
+                rel_static = dynamic_to_static(swap);
+                rel_hold = 0;
             } else {
                 rel_tx = Ui::inventory_icon_x; rel_ty = Ui::inventory_icon_y; rel_to_slot = 0;
             }
@@ -99,12 +103,20 @@ void Window::on_render(Renderer &ctx) {
             was_dragging = 0;
         }
         if (release_anim > 0.01 && rel_type != PetalID::kNone) {
-            // Onto a slot: settle to the slot's fit size, covering it until the
-            // server's loadout update lands. A miss shrinks away to the icon.
+            // Onto a slot: hold the card at full size covering the slot until the
+            // server's loadout update actually lands (cached_loadout matches), so
+            // the old card never flashes through. Time out after ~1s in case the
+            // equip was rejected. A miss just shrinks away to the icon.
+            bool confirmed = true;
+            if (rel_to_slot) {
+                rel_hold += (float) Ui::dt;
+                confirmed = (rel_static < 2 * MAX_SLOT_COUNT &&
+                             Game::cached_loadout[rel_static] == rel_type) || rel_hold > 1000;
+            }
             float const decay = Ui::lerp_amount * (rel_to_slot ? 1.5 : 3);
             pv_x = lerp(pv_x, rel_tx, decay);
             pv_y = lerp(pv_y, rel_ty, decay);
-            release_anim = lerp(release_anim, 0, decay);
+            if (confirmed) release_anim = lerp(release_anim, 0, decay);
             pv_scale = lerp(pv_scale, rel_to_slot ? rel_scale : 0.0f, decay);
             RenderContext c(&ctx);
             ctx.reset_transform();

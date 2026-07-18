@@ -7,6 +7,7 @@
 #include <Helpers/Vector.hh>
 
 #include <cstdint>
+#include <unordered_map>
 
 SERVER_ONLY(class Writer;)
 CLIENT_ONLY(class Reader;)
@@ -71,6 +72,9 @@ public:
 #undef MULTIPLE
 
 #ifdef SERVERSIDE
+    // Per-player (keyed by camera id) cumulative damage dealt to this mob, used
+    // to pick eligible looters for the individual-loot system. Cleared on spawn.
+    std::unordered_map<uint16_t, float> mob_damage;
     void write(Writer *, uint8_t);
 
     template<bool>

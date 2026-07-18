@@ -13,10 +13,11 @@
 #include <Shared/RarityScale.hh>
 #include <Shared/Simulation.hh>
 
+#include <algorithm>
 #include <iostream>
 #include <utility>
 
-static void _alloc_drops(Simulation *sim, std::vector<std::pair<PetalID::T, uint8_t>> &drops, float x, float y) {
+static void _alloc_drops(Simulation *sim, std::vector<std::pair<PetalID::T, uint8_t>> &drops, float x, float y, uint32_t owner) {
     // Keep only one Unique-tier petal of a kind in the world at a time.
     for (size_t i = drops.size(); i > 0; --i) {
         PetalID::T const id = drops[i - 1].first;
@@ -25,7 +26,7 @@ static void _alloc_drops(Simulation *sim, std::vector<std::pair<PetalID::T, uint
     }
     size_t const count = drops.size();
     for (size_t i = 0; i < count; ++i) {
-        Entity &drop = alloc_drop(sim, drops[i].first, drops[i].second);
+        Entity &drop = alloc_drop(sim, drops[i].first, drops[i].second, owner);
         drop.set_x(x);
         drop.set_y(y);
         if (count > 1)
@@ -75,18 +76,35 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             Map::remove_mob(sim, ent.zone);
         if (!natural_despawn && !(BitMath::at(ent.flags, EntityFlags::kNoDrops))) {
             struct MobData const &mob_data = MOB_DATA[ent.get_mob_id()];
+            uint8_t const mob_rarity = ent.get_mob_rarity();
+            // Individual loot: a player loots a mob only if they dealt at least a
+            // rarity-based fraction of its max HP, and only the top-damage players
+            // loot, capped by rarity. Each eligible player gets their OWN drop set
+            // (owned drops are visible/collectable only by that player).
+            float threshold_pct = 0.05f;   // Common..Ultra
+            uint32_t max_looters = 4;
+            if (mob_rarity == RarityID::kSuper)       { threshold_pct = 0.01f;  max_looters = 25; }
+            else if (mob_rarity == RarityID::kUnique) { threshold_pct = 0.005f; max_looters = 50; }
+            float const threshold = ent.max_health * threshold_pct;
+            std::vector<std::pair<uint16_t, float>> looters;
+            for (auto const &kv : ent.mob_damage)
+                if (kv.second >= threshold) looters.push_back({kv.first, kv.second});
+            std::sort(looters.begin(), looters.end(),
+                [](auto const &a, auto const &b){ return a.second > b.second; });
+            if (looters.size() > max_looters) looters.resize(max_looters);
             // Each droppable item's rarity is rolled from the mob's rarity (see
             // roll_drop_rarity). Unique mobs roll the Super row 10x -> ~10 items.
-            std::vector<std::pair<PetalID::T, uint8_t>> drops;
-            uint8_t const mob_rarity = ent.get_mob_rarity();
             int const rolls = (mob_rarity == RarityID::kUnique) ? 10 : 1;
-            for (uint32_t i = 0; i < mob_data.drops.size(); ++i)
-                for (int k = 0; k < rolls; ++k) {
-                    uint8_t const rar = roll_drop_rarity(mob_rarity);
-                    if (rar != DROP_NOTHING)
-                        drops.push_back({mob_data.drops[i], rar});
-                }
-            _alloc_drops(sim, drops, ent.get_x(), ent.get_y());
+            for (auto const &looter : looters) {
+                std::vector<std::pair<PetalID::T, uint8_t>> drops;
+                for (uint32_t i = 0; i < mob_data.drops.size(); ++i)
+                    for (int k = 0; k < rolls; ++k) {
+                        uint8_t const rar = roll_drop_rarity(mob_rarity);
+                        if (rar != DROP_NOTHING)
+                            drops.push_back({mob_data.drops[i], rar});
+                    }
+                _alloc_drops(sim, drops, ent.get_x(), ent.get_y(), looter.first);
+            }
         }
         if (ent.get_mob_id() == MobID::kAntHole && 
             BitMath::at(ent.flags, EntityFlags::kSpawnedFromZone) && 

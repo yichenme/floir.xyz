@@ -21,6 +21,7 @@ void ScrollBar::on_event(uint8_t event) {
 }
 
 ScrollContainer::ScrollContainer(Element *content, float max_height) : HContainer({content, new ScrollBar()}, 0, 10, {}) {
+    this->max_height = max_height;
     height = max_height;
     lerp_scroll = 0;
 }
@@ -29,6 +30,9 @@ void ScrollContainer::on_render(Renderer &ctx) {
     DEBUG_ONLY(assert(children.size() == 2));
     Element *scroll = children[1];
     Element *content = children[0];
+    // Shrink to fit content shorter than the cap (no trailing blank space);
+    // stay at the cap and scroll when content is taller.
+    height = content->height < max_height ? content->height : max_height;
     if (height < content->height) {
         scroll->height = height * height / content->height;
         float ratio = height == scroll->height ? 1 : (content->height - height) / (height - scroll->height);

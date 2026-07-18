@@ -19,7 +19,7 @@ uint8_t inherited_spawn_rarity(Entity const &parent) {
     return RarityID::kCommon;
 }
 
-Entity &alloc_drop(Simulation *sim, PetalID::T drop_id, uint8_t rarity) {
+Entity &alloc_drop(Simulation *sim, PetalID::T drop_id, uint8_t rarity, uint32_t owner) {
     DEBUG_ONLY(assert(drop_id < PetalID::kNumPetals);)
     PetalTracker::add_petal(sim, drop_id);
     Entity &drop = sim->alloc_ent();
@@ -34,6 +34,7 @@ Entity &alloc_drop(Simulation *sim, PetalID::T drop_id, uint8_t rarity) {
     drop.add_component(kDrop);
     drop.set_drop_id(drop_id);
     drop.set_drop_rarity(rarity);
+    drop.set_drop_owner(owner);   // camera id of the sole looter (0 = shared)
     entity_set_despawn_tick(drop, 10 * (2 + rarity) * TPS);
     drop.immunity_ticks = TPS / 3;
     return drop;
@@ -47,6 +48,7 @@ static Entity &__alloc_mob(
     struct MobData const &data = MOB_DATA[mob_id];
     float seed = frand();
     Entity &mob = sim->alloc_ent();
+    mob.mob_damage.clear();   // fresh per-player loot-damage tally
 
     mob.add_component(kPhysics);
     mob.set_radius(data.radius.get_single(seed));

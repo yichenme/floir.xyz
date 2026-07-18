@@ -33,6 +33,16 @@ void inflict_damage(Simulation *sim, EntityID const atk_id, EntityID const def_i
     defender.set_damaged(1);
     defender.health = fclamp(defender.health - amt, 0, defender.health);  
     float damage_dealt = old_health - defender.health;
+    // Individual-loot: attribute damage on a mob to the attacking player's
+    // camera (persistent identity), so on death we can pick the eligible looters.
+    if (damage_dealt > 0 && defender.has_component(kMob) && sim->ent_alive(atk_id)) {
+        Entity &atk = sim->get_ent(atk_id);
+        if (sim->ent_alive(atk.base_entity)) {
+            Entity &owner = sim->get_ent(atk.base_entity);
+            if (owner.has_component(kFlower) && sim->ent_alive(owner.get_parent()))
+                defender.mob_damage[owner.get_parent().id] += damage_dealt;
+        }
+    }
     //ant hole spawns
     //floor start, ceil end
     if (defender.has_component(kMob) && defender.get_mob_id() == MobID::kAntHole) {
