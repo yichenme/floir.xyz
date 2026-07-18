@@ -42,4 +42,6 @@ namespace Ui {
     extern float drag_start_mouse_y;
     extern float inventory_icon_x;
     extern float inventory_icon_y;
+    extern float inventory_drag_origin_x;   // screen pos of the slot a drag began from
+    extern float inventory_drag_origin_y;
 };

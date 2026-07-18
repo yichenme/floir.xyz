@@ -27,4 +27,6 @@ namespace Ui {
     float drag_start_mouse_y = 0;
     float inventory_icon_x = 0;
     float inventory_icon_y = 0;
+    float inventory_drag_origin_x = 0;
+    float inventory_drag_origin_y = 0;
 }

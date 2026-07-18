@@ -30,6 +30,9 @@ namespace Game {
     // Indices into inventory_stacks, sorted by rarity (highest first) so the
     // inventory panel can group by rarity while equip still uses the real index.
     extern std::vector<uint32_t> inventory_display_order;
+    // Bumped on every inventory sync; lets a slot stay blank after an equip
+    // until the server-confirmed removal actually lands (no card flash).
+    extern uint32_t inventory_version;
     
     extern double timestamp;
     

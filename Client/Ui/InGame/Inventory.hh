@@ -13,6 +13,8 @@ namespace Ui {
         float drag_y;
         uint32_t last_count = 0;
         float pop_t = 2;   // >1 = no pop playing
+        uint8_t equip_pending = 0;   // just equipped from here; stay blank until sync
+        uint32_t equip_version = 0;
         InventoryStackSlot(uint32_t);
 
         virtual void on_render(Renderer &) override;

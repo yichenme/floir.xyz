@@ -58,6 +58,9 @@ extern "C" {
     void key_event(char *code, uint8_t type) {
         char button = _get_key_from_code(std::string(code));
         if (type == 0) {
+            // Rising edge: only when not already held (ignore keyrepeat).
+            if (!Input::keys_held.contains(button))
+                Input::keys_pressed_this_tick.insert(button);
             Input::keys_held.insert(button);
             Input::keys_held_this_tick.insert(button);
         }

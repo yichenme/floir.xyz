@@ -47,6 +47,7 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
         }
         case Clientbound::kInventoryUpdate: {
             uint32_t n = reader.read<uint32_t>();
+            ++Game::inventory_version;
             inventory_stacks.clear();
             inventory_stacks.reserve(n);
             for (uint32_t i = 0; i < n; ++i) {

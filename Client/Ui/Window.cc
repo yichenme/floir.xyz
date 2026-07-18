@@ -87,19 +87,29 @@ void Window::on_render(Renderer &ctx) {
         was_dragging = 1;
     } else {
         if (was_dragging) {
-            // Just released: target the snapped slot if within stick distance,
-            // else fly back to the inventory icon.
             uint8_t swap = find_viable_target(Input::mouse_x, Input::mouse_y);
             if (swap != ((uint8_t)-1) && swap < 2 * MAX_SLOT_COUNT) {
+                // Placed on a loadout slot: snap the cover straight onto the slot
+                // (no travel) and hold it there until the server confirms, so the
+                // old card never flashes through.
                 UiLoadoutSlot *slot = Ui::UiLoadout::petal_backgrounds[swap];
                 rel_tx = slot->screen_x; rel_ty = slot->screen_y; rel_to_slot = 1;
                 rel_scale = slot->width / 60.0f;
                 rel_static = dynamic_to_static(swap);
                 rel_hold = 0;
+                pv_x = rel_tx; pv_y = rel_ty; pv_scale = rel_scale;
+                release_anim = 1;
+            } else if (Ui::panel_open == Panel::kInventory) {
+                // Inventory open: fly the petal back to the slot it came from (it
+                // shrinks into that same spot as the slot re-shows the card, so
+                // there's a real return animation and no double-to-the-icon).
+                rel_tx = Ui::inventory_drag_origin_x; rel_ty = Ui::inventory_drag_origin_y; rel_to_slot = 0;
+                release_anim = 1;
             } else {
+                // Inventory closed: fly the preview back to the inventory icon.
                 rel_tx = Ui::inventory_icon_x; rel_ty = Ui::inventory_icon_y; rel_to_slot = 0;
+                release_anim = 1;
             }
-            release_anim = 1;
             was_dragging = 0;
         }
         if (release_anim > 0.01 && rel_type != PetalID::kNone) {

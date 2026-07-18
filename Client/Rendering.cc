@@ -219,7 +219,7 @@ void Game::render_game() {
     // The rarity label is kept but rendered at 0% opacity (present, invisible).
     if (Game::show_hitboxes) {
         simulation.for_each<kPetal>([](Simulation *sim, Entity const &ent){
-            uint8_t rarity = PETAL_DATA[ent.get_petal_id()].rarity;
+            uint8_t rarity = ent.get_petal_rarity();   // the petal's actual rarity, not its base
             uint32_t rcol = RARITY_COLORS[rarity];
             RenderContext context(&renderer);
             renderer.translate(ent.get_x(), ent.get_y());

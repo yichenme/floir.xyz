@@ -33,6 +33,7 @@ namespace Game {
     std::array<uint8_t, MobID::kNumMobs> seen_mobs;
     std::vector<PetalStack> inventory_stacks;
     std::vector<uint32_t> inventory_display_order;
+    uint32_t inventory_version = 0;
     std::array<PetalID::T, 2 * MAX_SLOT_COUNT> cached_loadout = {PetalID::kNone};
 
     double timestamp = 0;
@@ -230,7 +231,7 @@ void Game::tick(double time) {
         player_id = simulation.get_ent(camera_id).get_player();
         Entity const &player = simulation.get_ent(player_id);
         Game::loadout_count = player.get_loadout_count();
-        for (uint32_t i = 0; i < MAX_SLOT_COUNT + Game::loadout_count; ++i) {
+        for (uint32_t i = 0; i < 2 * Game::loadout_count; ++i) {
             cached_loadout[i] = player.get_loadout_ids(i);
             Game::seen_petals[cached_loadout[i]] = 1;
         }
@@ -293,11 +294,11 @@ void Game::tick(double time) {
         //process keybind petal switches: R swaps every main/secondary pair at
         // once; each number key SLOT_KEYBINDS[i] directly swaps just that one
         // main/secondary pair (no more Q/E navigate-then-swap).
-        if (Input::keys_held_this_tick.contains('R'))
+        if (Input::keys_pressed_this_tick.contains('R'))
             Game::swap_all_petals();
         else {
             for (uint8_t i = 0; i < Game::loadout_count; ++i) {
-                if (Input::keys_held_this_tick.contains(SLOT_KEYBINDS[i])) {
+                if (Input::keys_pressed_this_tick.contains(SLOT_KEYBINDS[i])) {
                     Ui::ui_swap_petals(i, i + Game::loadout_count);
                     break;
                 }

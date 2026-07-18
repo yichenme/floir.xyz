@@ -45,6 +45,9 @@ namespace Input {
     //use these for game inputs that can be held down
     extern std::unordered_set<char> keys_held;
     extern std::unordered_set<char> keys_held_this_tick;
+    // Rising edge only (key newly pressed this tick, not keyrepeat) -- use for
+    // one-shot actions like petal swaps so holding a key doesn't re-fire.
+    extern std::unordered_set<char> keys_pressed_this_tick;
     extern std::unordered_map<uint32_t, Touch> touches;
     //use these for text input
     //extern std::vector<uint32_t> keys_pressed_this_tick;

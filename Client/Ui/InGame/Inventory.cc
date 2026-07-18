@@ -28,7 +28,7 @@ static float const INVENTORY_SLOT_SIZE = 60;
 // Clicking a stack has no explicit target slot, so mirror drag-to-store:
 // fill the first empty loadout slot, or bump slot 0 if the loadout is full.
 static uint8_t find_equip_target() {
-    for (uint8_t i = 0; i < Game::loadout_count + MAX_SLOT_COUNT; ++i)
+    for (uint8_t i = 0; i < 2 * Game::loadout_count; ++i)
         if (Game::cached_loadout[i] == PetalID::kNone) return i;
     return 0;
 }
@@ -47,11 +47,14 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
             uint8_t potential_swap = find_viable_target(Input::mouse_x, Input::mouse_y);
             if (potential_swap != ((uint8_t)-1) && potential_swap < 2 * MAX_SLOT_COUNT) {
                 Game::equip_petal(Game::inventory_display_order[index],dynamic_to_static(potential_swap));
+                equip_pending = 1; equip_version = Game::inventory_version;
             } else {
                 float dist = hypotf(Input::mouse_x - Ui::drag_start_mouse_x,
                                     Input::mouse_y - Ui::drag_start_mouse_y);
-                if (dist < 10 * Ui::scale)
+                if (dist < 10 * Ui::scale) {
                     Game::equip_petal(Game::inventory_display_order[index],find_equip_target());
+                    equip_pending = 1; equip_version = Game::inventory_version;
+                }
             }
             selected = 0;
             Ui::dragging_inventory_index = -1;
@@ -60,6 +63,12 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
 }
 
 void InventoryStackSlot::on_render(Renderer &ctx) {
+    // Just equipped from this slot: keep it blank until the server-confirmed
+    // inventory update lands (version bumps), so the card doesn't flash back.
+    if (equip_pending) {
+        if (Game::inventory_version != equip_version) equip_pending = 0;
+        else return;
+    }
     if (index >= Game::inventory_display_order.size()) return;
     PetalStack const &stack = Game::inventory_stacks[Game::inventory_display_order[index]];
     // Dragging the last (or only) one out: leave the slot empty so a single
@@ -87,6 +96,10 @@ void InventoryStackSlot::on_event(uint8_t event) {
         Ui::dragging_inventory_index = real;
         Ui::drag_start_mouse_x = Input::mouse_x;
         Ui::drag_start_mouse_y = Input::mouse_y;
+        // Remember this slot's screen position so an un-placed release can fly
+        // the petal back to it.
+        Ui::inventory_drag_origin_x = screen_x;
+        Ui::inventory_drag_origin_y = screen_y;
     }
     if (event != kFocusLost && !selected) {
         rendering_tooltip = 1;
