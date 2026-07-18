@@ -46,23 +46,36 @@ void Window::on_render(Renderer &ctx) {
     static PetalID::T rel_type = PetalID::kNone;
     static uint8_t rel_rarity = 255;
     static uint8_t was_dragging = 0;
+    static uint8_t rel_to_slot = 0;      // released onto a loadout slot?
+    static double drag_start_ts = 0;     // when this drag began (for the shake)
 
     bool const dragging = Ui::dragging_inventory_index != -1 && Game::alive() &&
                           (uint32_t)Ui::dragging_inventory_index < Game::inventory_stacks.size();
     if (dragging) {
         float tx = Input::mouse_x, ty = Input::mouse_y;
         uint8_t swap = find_viable_target(Input::mouse_x, Input::mouse_y);
-        if (swap != ((uint8_t)-1) && swap < 2 * MAX_SLOT_COUNT) {
+        bool const snapped = swap != ((uint8_t)-1) && swap < 2 * MAX_SLOT_COUNT;
+        if (snapped) {
             UiLoadoutSlot *slot = Ui::UiLoadout::petal_backgrounds[swap];
             tx = slot->screen_x; ty = slot->screen_y;
         }
-        if (!was_dragging) { pv_x = tx; pv_y = ty; }
+        if (!was_dragging) { pv_x = tx; pv_y = ty; drag_start_ts = Game::timestamp; }
         pv_x = lerp(pv_x, tx, Ui::lerp_amount * 2.5);
         pv_y = lerp(pv_y, ty, Ui::lerp_amount * 2.5);
         RenderContext c(&ctx);
         ctx.reset_transform();
         ctx.translate(pv_x, pv_y);
-        ctx.scale(Ui::scale);
+        if (snapped) {
+            // Stuck to a slot: fit it exactly (full slot size, no shake) so the
+            // preview perfectly covers the slot's old petal / blank underneath.
+            ctx.scale(Ui::scale);
+        } else {
+            // Free drag: enlarge to 125% and shake fast (a small right tilt then
+            // rocking ~10 degrees left/right).
+            float const t = (float)(Game::timestamp - drag_start_ts);
+            ctx.rotate(sinf(t * 0.045f) * (10.0f * (float)M_PI / 180.0f));
+            ctx.scale(Ui::scale * 1.25f);
+        }
         draw_loadout_background(ctx, Game::inventory_stacks[Ui::dragging_inventory_index].type, 1, 1, Game::inventory_stacks[Ui::dragging_inventory_index].rarity);
         rel_type = Game::inventory_stacks[Ui::dragging_inventory_index].type;
         rel_rarity = Game::inventory_stacks[Ui::dragging_inventory_index].rarity;
@@ -74,21 +87,26 @@ void Window::on_render(Renderer &ctx) {
             uint8_t swap = find_viable_target(Input::mouse_x, Input::mouse_y);
             if (swap != ((uint8_t)-1) && swap < 2 * MAX_SLOT_COUNT) {
                 UiLoadoutSlot *slot = Ui::UiLoadout::petal_backgrounds[swap];
-                rel_tx = slot->screen_x; rel_ty = slot->screen_y;
+                rel_tx = slot->screen_x; rel_ty = slot->screen_y; rel_to_slot = 1;
             } else {
-                rel_tx = Ui::inventory_icon_x; rel_ty = Ui::inventory_icon_y;
+                rel_tx = Ui::inventory_icon_x; rel_ty = Ui::inventory_icon_y; rel_to_slot = 0;
             }
             release_anim = 1;
             was_dragging = 0;
         }
         if (release_anim > 0.01 && rel_type != PetalID::kNone) {
-            pv_x = lerp(pv_x, rel_tx, Ui::lerp_amount * 3);
-            pv_y = lerp(pv_y, rel_ty, Ui::lerp_amount * 3);
-            release_anim = lerp(release_anim, 0, Ui::lerp_amount * 3);
+            // Onto a slot: linger a little longer at full size so the petal
+            // keeps covering the slot until the server's loadout update lands
+            // (both are the same petal, so overlap is seamless). A miss shrinks
+            // away back to the inventory icon as before.
+            float const decay = Ui::lerp_amount * (rel_to_slot ? 1.5 : 3);
+            pv_x = lerp(pv_x, rel_tx, decay);
+            pv_y = lerp(pv_y, rel_ty, decay);
+            release_anim = lerp(release_anim, 0, decay);
             RenderContext c(&ctx);
             ctx.reset_transform();
             ctx.translate(pv_x, pv_y);
-            ctx.scale(Ui::scale * release_anim);
+            ctx.scale(Ui::scale * (rel_to_slot ? 1.0f : release_anim));
             draw_loadout_background(ctx, rel_type, 1, 1, rel_rarity);
         }
     }
