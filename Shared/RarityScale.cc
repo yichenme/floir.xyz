@@ -30,23 +30,20 @@ float mob_size_mult(uint8_t r) {
 // Rarity of a dropped item given the MOB's rarity, or DROP_NOTHING for no drop.
 // (Unique mobs roll the Super row 10x -- handled by the caller.)
 uint8_t roll_drop_rarity(uint8_t mob_rarity) {
+    // A dropped item is either the mob's own rarity ("same") or one tier lower,
+    // with the same-rarity odds shrinking sharply as rarity climbs. Unique is
+    // never a drop rarity (Super mobs cap the ladder at Super/Ultra).
     float const r = frand();
     switch (mob_rarity) {
-        case RarityID::kCommon:    return r < 0.60f ? RarityID::kCommon : DROP_NOTHING;
-        case RarityID::kUncommon:  return r < 0.40f ? RarityID::kCommon
-                                        : (r < 0.80f ? RarityID::kUncommon : DROP_NOTHING);
-        case RarityID::kRare:      return r < 0.10f ? RarityID::kRare
-                                        : (r < 0.80f ? RarityID::kUncommon : RarityID::kCommon);
-        case RarityID::kEpic:      return r < 0.10f ? RarityID::kEpic
-                                        : (r < 0.80f ? RarityID::kRare : RarityID::kUncommon);
-        case RarityID::kLegendary: return r < 0.10f ? RarityID::kLegendary
-                                        : (r < 0.80f ? RarityID::kEpic : RarityID::kRare);
-        case RarityID::kMythic:    return r < 0.05f ? RarityID::kMythic
-                                        : (r < 0.80f ? RarityID::kLegendary : RarityID::kEpic);
-        case RarityID::kUltra:     return r < 0.05f ? RarityID::kUltra
-                                        : (r < 0.80f ? RarityID::kMythic : RarityID::kLegendary);
-        case RarityID::kSuper:     return r < 0.75f ? RarityID::kUltra : RarityID::kMythic;
-        case RarityID::kUnique:    return r < 0.75f ? RarityID::kUltra : RarityID::kMythic;
+        case RarityID::kCommon:    return RarityID::kCommon;
+        case RarityID::kUncommon:  return r < 0.64f ? RarityID::kUncommon  : RarityID::kCommon;
+        case RarityID::kRare:      return r < 0.32f ? RarityID::kRare      : RarityID::kUncommon;
+        case RarityID::kEpic:      return r < 0.16f ? RarityID::kEpic      : RarityID::kRare;
+        case RarityID::kLegendary: return r < 0.08f ? RarityID::kLegendary : RarityID::kEpic;
+        case RarityID::kMythic:    return r < 0.04f ? RarityID::kMythic    : RarityID::kLegendary;
+        case RarityID::kUltra:     return r < 0.02f ? RarityID::kUltra     : RarityID::kMythic;
+        case RarityID::kSuper:     return r < 0.01f ? RarityID::kSuper     : RarityID::kUltra;
+        case RarityID::kUnique:    return r < 0.01f ? RarityID::kSuper     : RarityID::kUltra;
         default:                   return DROP_NOTHING;
     }
 }

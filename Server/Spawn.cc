@@ -198,8 +198,11 @@ Entity &alloc_petal(Simulation *sim, PetalID::T petal_id, Entity const &parent, 
     petal.health = petal.max_health = petal_data.health * hp_mult;
     petal.damage = petal_data.damage * petal_damage_mult(rarity);
     petal.set_health_ratio(1);
+    // Poison and armor both scale x3 per rarity (Iris/Grapes/Pincer poison,
+    // Bone armor, ...), matching the damage/HP multiplier.
     petal.poison_damage = petal_data.attributes.poison_damage;
-    petal.armor = petal_data.attributes.armor;
+    petal.poison_damage.damage *= rarity_pow3(rarity);
+    petal.armor = petal_data.attributes.armor * rarity_pow3(rarity);
     petal.slow_inflict = TPS * petal_data.attributes.slow_inflict_seconds;
 
     if (parent.id == NULL_ENTITY) petal.base_entity = petal.id;

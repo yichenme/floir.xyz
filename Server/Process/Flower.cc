@@ -44,7 +44,7 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
             player.set_equip_flags(player.get_equip_flags() | (1 << attrs.equipment));
         buffs.vision_factor = std::min(buffs.vision_factor, attrs.vision_factor);
         buffs.extra_range = std::fmax(attrs.extra_range, buffs.extra_range);
-        buffs.extra_damage = std::fmax(buffs.extra_damage, attrs.extra_body_damage);
+        buffs.extra_damage = std::fmax(buffs.extra_damage, attrs.extra_body_damage * rarity_pow3(slot.rarity));
         buffs.damage_factor *= attrs.extra_damage_factor;
         buffs.reload_factor *= attrs.extra_reload_factor;
         if (slot_petal_id == PetalID::kYinYang)
@@ -55,9 +55,9 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
         else if (slot_petal_id == PetalID::kYucca && BitMath::at(player.input, InputFlags::kDefending) && !BitMath::at(player.input, InputFlags::kAttacking))
             buffs.heal += attrs.constant_heal * rarity_pow3(slot.rarity) / TPS;
         buffs.extra_rot += attrs.extra_rotation_speed;
-        buffs.extra_health += attrs.extra_health;
+        buffs.extra_health += attrs.extra_health * rarity_pow3(slot.rarity);   // flower-HP buff x3/rarity (Cactus)
         player.damage_reflection = std::fmax(player.damage_reflection, attrs.damage_reflection);
-        player.poison_armor = std::fmax(player.poison_armor, attrs.poison_armor / TPS);
+        player.poison_armor = std::fmax(player.poison_armor, attrs.poison_armor * rarity_pow3(slot.rarity) / TPS);   // Lotus x3/rarity
         if (slot_petal_id == PetalID::kPoisonCactus)
             buffs.is_poisonous = 1;
     }

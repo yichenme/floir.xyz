@@ -46,9 +46,9 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .name = "Light",
         .description = "Weaker than most petals, but reloads very quickly. Higher rarities gain more dots",
         .health = 5.0,
-        .damage = 10.0,
+        .damage = 5.0,
         .radius = 7.0,
-        .reload = 1.0,
+        .reload = 0.5,
         .count = 1,
         .rarity = RarityID::kCommon,
         .attributes = {}
@@ -70,7 +70,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .health = 1.0,
         .damage = 100.0,
         .radius = 7.0,
-        .reload = 3.5,
+        .reload = 10.0,
         .count = 1,
         .rarity = RarityID::kUncommon,
         .attributes = {}
@@ -78,8 +78,8 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Leaf",
         .description = "Gathers energy from the sun to passively heal your flower",
-        .health = 12.0,
-        .damage = 16.0,
+        .health = 10.0,
+        .damage = 8.0,
         .radius = 10.0,
         .reload = 1.0,
         .count = 1,
@@ -103,15 +103,15 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Rose",
         .description = "Its healing properties are amazing. Not so good at combat though",
-        .health = 5.0,
-        .damage = 5.0,
+        .health = 1.67,
+        .damage = 1.67,
         .radius = 10.0,
         .reload = 3.5,
         .count = 1,
         .rarity = RarityID::kUncommon,
-        .attributes = { 
+        .attributes = {
             .secondary_reload = 1.0,
-            .burst_heal = 8,
+            .burst_heal = 3.5,
             .defend_only = 1
         }
     },
@@ -121,12 +121,12 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .health = 5.0,
         .damage = 5.0,
         .radius = 7.0,
-        .reload = 5.0,
+        .reload = 6.0,
         .count = 1,
         .rarity = RarityID::kUncommon,
-        .attributes = { 
+        .attributes = {
             .poison_damage = {
-                .damage = 23.333333,
+                .damage = 15.0,
                 .time = 3.0
             }
         }
@@ -137,7 +137,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .health = 10.0,
         .damage = 35.0,
         .radius = 10.0,
-        .reload = 3.5,
+        .reload = 3.0,
         .count = 1,
         .rarity = RarityID::kRare,
         .attributes = {
@@ -151,9 +151,9 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .name = "Dandelion",
         .description = "Its interesting properties prevent healing effects on affected units",
         .health = 10.0,
-        .damage = 10.0,
+        .damage = 5.0,
         .radius = 10.0,
-        .reload = 1.0,
+        .reload = 2.0,
         .count = 1,
         .rarity = RarityID::kRare,
         .attributes = {
@@ -171,7 +171,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .count = 1,
         .rarity = RarityID::kRare,
         .attributes = {
-            .secondary_reload = 0.5,
+            .secondary_reload = 0.7,
             .defend_only = 1,
         }
     },
@@ -179,22 +179,22 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .name = "Faster",
         .description = "It's so light it makes your other petals spin faster",
         .health = 5.0,
-        .damage = 7.0,
+        .damage = 8.0,
         .radius = 7.0,
         .reload = 0.5,
         .count = 1,
         .rarity = RarityID::kRare,
         .attributes = {
-            .extra_rotation_speed = 1.0
+            .extra_rotation_speed = 0.5
         }
     },
     {
         .name = "Rock",
         .description = "Even more durable, but slower to recharge",
-        .health = 100.0,
+        .health = 80.0,
         .damage = 10.0,
         .radius = 12.0,
-        .reload = 7.5,
+        .reload = 10.0,
         .count = 1,
         .rarity = RarityID::kRare,
         .attributes = {}
@@ -203,20 +203,20 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .name = "Cactus",
         .description = "Not very strong, but somehow increases your maximum health",
         .health = 15.0,
-        .damage = 5.0, 
+        .damage = 7.0,
         .radius = 10.0,
         .reload = 1.0,
         .count = 1,
         .rarity = RarityID::kRare,
         .attributes = {
-            .extra_health = 20
+            .extra_health = 30
         }
     },
     {
         .name = "Web",
         .description = "It's really sticky",
-        .health = 10.0,
-        .damage = 5.0,
+        .health = 0.8,
+        .damage = 0.5,
         .radius = 10.0,
         .reload = 3.0,
         .count = 1,
@@ -232,7 +232,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .health = 15.0,
         .damage = 15.0,
         .radius = 10.0,
-        .reload = 2.5,
+        .reload = 1.25,
         .count = 1,
         .rarity = RarityID::kRare,
         .attributes = {
@@ -245,7 +245,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .health = 5.0,
         .damage = 8.0,
         .radius = 7.0,
-        .reload = 1.5,
+        .reload = 1.4,
         .count = 4,
         .rarity = RarityID::kRare,
         .attributes = {
@@ -258,8 +258,8 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Sand",
         .description = "It's coarse, rough, and gets everywhere",
-        .health = 10.0,
-        .damage = 4.0,
+        .health = 5.0,
+        .damage = 5.0,
         .radius = 7.0,
         .reload = 1.5,
         .count = 4,
@@ -271,17 +271,17 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Pincer",
         .description = "Stuns and poisons targets for a short duration",
-        .health = 10.0,
-        .damage = 10.0,
+        .health = 15.0,
+        .damage = 5.0,
         .radius = 10.0,
-        .reload = 2.5,
+        .reload = 2.0,
         .count = 1,
         .rarity = RarityID::kRare,
         .attributes = {
             .slow_inflict_seconds = 2,
             .poison_damage = {
                 .damage = 5.0,
-                .time = 1.0
+                .time = 3.0
             },
             .icon_angle = 0.7
         }
@@ -298,7 +298,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .attributes = { 
             .clump_radius = 10,
             .secondary_reload = 1.0,
-            .burst_heal = 3.5,
+            .burst_heal = 2.0,
             .defend_only = 1
         }
     },
@@ -316,13 +316,13 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Egg",
         .description = "Something interesting might pop out of this",
-        .health = 50.0,
-        .damage = 1.0,
+        .health = 1.0,
+        .damage = 0.0,
         .radius = 12.5,
-        .reload = 1.0,
+        .reload = 60.0,
         .count = 2,
         .rarity = RarityID::kEpic,
-        .attributes = { 
+        .attributes = {
             .secondary_reload = 2.5,
             .defend_only = 1,
             .rotation_style = PetalAttributes::kNoRot,
@@ -348,10 +348,10 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Pollen",
         .description = "Asthmatics beware",
-        .health = 7.0,
+        .health = 5.0,
         .damage = 8.0,
         .radius = 7.0,
-        .reload = 1.5,
+        .reload = 1.0,
         .count = 3,
         .rarity = RarityID::kEpic,
         .attributes = {
@@ -363,7 +363,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .name = "Grapes",
         .description = "4 in 1 deal, now with a secret ingredient: poison",
         .health = 5.0,
-        .damage = 2.0,
+        .damage = 4.0,
         .radius = 7.0,
         .reload = 1.5,
         .count = 4,
@@ -372,8 +372,8 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
             .clump_radius = 8,
             .secondary_reload = 0.5,
             .poison_damage = {
-                .damage = 20.0,
-                .time = 0.5
+                .damage = 5.0,
+                .time = 3.0
             },
             .defend_only = 1,
             .split_projectile = 1,
@@ -382,13 +382,13 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Egg",
         .description = "Something interesting might pop out of this",
-        .health = 50.0,
-        .damage = 1.0,
+        .health = 1.0,
+        .damage = 0.0,
         .radius = 15.0,
-        .reload = 1.0,
+        .reload = 60.0,
         .count = 1,
         .rarity = RarityID::kEpic,
-        .attributes = { 
+        .attributes = {
             .secondary_reload = 2.5,
             .defend_only = 1,
             .rotation_style = PetalAttributes::kNoRot,
@@ -413,18 +413,18 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Stick",
         .description = "Harnesses the power of the wind",
-        .health = 10.0,
-        .damage = 1.0,
+        .health = 20.0,
+        .damage = 10.0,
         .radius = 15.0,
-        .reload = 3.0,
+        .reload = 4.0,
         .count = 1,
         .rarity = RarityID::kLegendary,
-        .attributes = { 
-            .secondary_reload = 4.0,
+        .attributes = {
+            .secondary_reload = 5.0,
             .defend_only = 1,
             .icon_angle = 1,
             .spawns = MobID::kSandstorm,
-            .spawn_count = 2
+            .spawn_count = 4
         }
     },
     {
@@ -486,10 +486,10 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Heavy",
         .description = "This thing is so heavy that nothing gets in the way",
-        .health = 200.0,
-        .damage = 10.0,
+        .health = 20.0,
+        .damage = 20.0,
         .radius = 12.0,
-        .reload = 15.0,
+        .reload = 5.5,
         .count = 1,
         .rarity = RarityID::kEpic,
         .attributes = {}
@@ -511,7 +511,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Observer",
         .description = "The one who sees all",
-        .health = 0.0,
+        .health = 1.0,
         .damage = 0.0,
         .radius = 12.5,
         .reload = 0.0,
@@ -549,7 +549,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .count = 1,
         .rarity = RarityID::kRare,
         .attributes = {
-            .damage_reflection = 0.25
+            .damage_reflection = 0.10
         }
     },
     {
@@ -579,10 +579,10 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Moon",
         .description = "Where did this come from?",
-        .health = 1000.0,
-        .damage = 3.0,
+        .health = 100.0,
+        .damage = 10.0,
         .radius = 50.0,
-        .reload = 10.0,
+        .reload = 5.0,
         .count = 1,
         .rarity = RarityID::kUnique,
         .attributes = {
@@ -595,35 +595,35 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .health = 5.0,
         .damage = 5.0,
         .radius = 12.0,
-        .reload = 2.0,
+        .reload = 6.0,
         .count = 1,
         .rarity = RarityID::kEpic,
         .attributes = {
-            .poison_armor = 5,
+            .poison_armor = 14,
             .icon_angle = 0.1
         }
     },
     {
         .name = "Cutter",
         .description = "Increases the flower's body damage",
-        .health = 0.0,
-        .damage = 0.0,
+        .health = 10.0,
+        .damage = 10.0,
         .radius = 40.0,
-        .reload = 0.0,
-        .count = 0,
+        .reload = 2.5,
+        .count = 1,
         .rarity = RarityID::kEpic,
-        .attributes = { 
-            .extra_body_damage = 15,
+        .attributes = {
+            .extra_body_damage = 10,
             .equipment = EquipmentFlags::kCutter
         }
     },
     {
         .name = "Yin Yang",
         .description = "Alters the flower's petal rotation in interesting ways",
-        .health = 15.0,
-        .damage = 15.0,
+        .health = 10.0,
+        .damage = 10.0,
         .radius = 10.0,
-        .reload = 2.5,
+        .reload = 1.0,
         .count = 1,
         .rarity = RarityID::kEpic,
         .attributes = {}
@@ -631,10 +631,10 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Yggdrasil",
         .description = "Unfortunately, its powers are useless here",
-        .health = 1.0,
-        .damage = 1.0,
+        .health = 5.0,
+        .damage = 0.0,
         .radius = 12.0,
-        .reload = 10.0,
+        .reload = 300.0,
         .count = 1,
         .rarity = RarityID::kUnique,
         .attributes = {
@@ -645,8 +645,8 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Rice",
         .description = "Spawns instantly, but not very strong",
-        .health = 1.0,
-        .damage = 4.0,
+        .health = 5.0,
+        .damage = 8.0,
         .radius = 13.0,
         .reload = 0.05,
         .count = 1,
@@ -658,14 +658,14 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Bone",
         .description = "Sturdy",
-        .health = 12.0,
-        .damage = 15.0,
+        .health = 30.0,
+        .damage = 10.0,
         .radius = 12.0,
-        .reload = 2.5,
+        .reload = 3.0,
         .count = 1,
         .rarity = RarityID::kLegendary,
         .attributes = {
-            .armor = 8,
+            .armor = 10,
             .icon_angle = 1
         }
     },
@@ -675,21 +675,21 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .health = 10.0,
         .damage = 5.0,
         .radius = 10.0,
-        .reload = 1.0,
+        .reload = 2.0,
         .count = 1,
         .rarity = RarityID::kUncommon,
         .attributes = {
-            .constant_heal = 1.5,
+            .constant_heal = 10,
             .icon_angle = -1
         }
     },
     {
-        .name = "Corn", 
+        .name = "Corn",
         .description = "Takes a long time to spawn, but has a lot of health",
-        .health = 500.0,
-        .damage = 2.5,
+        .health = 1000.0,
+        .damage = 2.0,
         .radius = 16.0,
-        .reload = 10.0,
+        .reload = 35.0,
         .count = 1,
         .rarity = RarityID::kEpic,
         .attributes = {
@@ -698,7 +698,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     },
     {
         .name = "Leaf",
-        .description = "Allows your petals to recharge slower but do more damage",
+        .description = "Reloads all your petals faster",
         .health = 10.0,
         .damage = 8.0,
         .radius = 10.0,
@@ -706,8 +706,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .count = 1,
         .rarity = RarityID::kLegendary,
         .attributes = {
-            .extra_damage_factor = 1.2,
-            .extra_reload_factor = 1.2,
+            .extra_reload_factor = 0.95,
             .icon_angle = -1
         }
     },

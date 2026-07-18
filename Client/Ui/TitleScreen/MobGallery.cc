@@ -46,15 +46,15 @@ void GalleryMob::on_render(Renderer &ctx) {
 static void drop_rarity_dist(uint8_t mob_rarity, float out[RarityID::kNumRarities]) {
     for (int i = 0; i < RarityID::kNumRarities; ++i) out[i] = 0;
     switch (mob_rarity) {
-        case RarityID::kCommon:    out[RarityID::kCommon] = 0.60f; break;
-        case RarityID::kUncommon:  out[RarityID::kCommon] = 0.40f; out[RarityID::kUncommon] = 0.40f; break;
-        case RarityID::kRare:      out[RarityID::kRare] = 0.10f; out[RarityID::kUncommon] = 0.70f; out[RarityID::kCommon] = 0.20f; break;
-        case RarityID::kEpic:      out[RarityID::kEpic] = 0.10f; out[RarityID::kRare] = 0.70f; out[RarityID::kUncommon] = 0.20f; break;
-        case RarityID::kLegendary: out[RarityID::kLegendary] = 0.10f; out[RarityID::kEpic] = 0.70f; out[RarityID::kRare] = 0.20f; break;
-        case RarityID::kMythic:    out[RarityID::kMythic] = 0.05f; out[RarityID::kLegendary] = 0.75f; out[RarityID::kEpic] = 0.20f; break;
-        case RarityID::kUltra:     out[RarityID::kUltra] = 0.05f; out[RarityID::kMythic] = 0.75f; out[RarityID::kLegendary] = 0.20f; break;
+        case RarityID::kCommon:    out[RarityID::kCommon] = 1.00f; break;
+        case RarityID::kUncommon:  out[RarityID::kUncommon] = 0.64f; out[RarityID::kCommon] = 0.36f; break;
+        case RarityID::kRare:      out[RarityID::kRare] = 0.32f; out[RarityID::kUncommon] = 0.68f; break;
+        case RarityID::kEpic:      out[RarityID::kEpic] = 0.16f; out[RarityID::kRare] = 0.84f; break;
+        case RarityID::kLegendary: out[RarityID::kLegendary] = 0.08f; out[RarityID::kEpic] = 0.92f; break;
+        case RarityID::kMythic:    out[RarityID::kMythic] = 0.04f; out[RarityID::kLegendary] = 0.96f; break;
+        case RarityID::kUltra:     out[RarityID::kUltra] = 0.02f; out[RarityID::kMythic] = 0.98f; break;
         case RarityID::kSuper:
-        case RarityID::kUnique:     out[RarityID::kUltra] = 0.75f; out[RarityID::kMythic] = 0.25f; break;
+        case RarityID::kUnique:     out[RarityID::kSuper] = 0.01f; out[RarityID::kUltra] = 0.99f; break;
     }
 }
 
@@ -227,9 +227,9 @@ static Element *make_scroll() {
     // layout so only killed mobs appear.
     for (MobID::T k = 0; k < MobID::kNumMobs; ++k) {
         MobID::T const id = id_list[k];
-        Element *row = new Ui::HContainer({}, 0, 5, { .v_justify = Style::Top });
+        Element *row = new Ui::HContainer({}, 0, 4, { .v_justify = Style::Top });
         for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)
-            row->add_child(new GalleryMobCell(id, r, 42));
+            row->add_child(new GalleryMobCell(id, r, 36));
         row->refactor();
         row->style.should_render = [id](){ return mob_killed_any(id); };
         elt->add_child(row);

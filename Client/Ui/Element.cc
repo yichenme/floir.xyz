@@ -122,13 +122,21 @@ void Element::on_render_tooltip(Renderer &ctx) {
     if (tooltip != nullptr) {
         tooltip->refactor();
         ctx.reset_transform();
-        if (screen_x < (tooltip->width / 2 + 10) * Ui::scale)
-            ctx.translate((tooltip->width / 2 + 10) * Ui::scale, screen_y);
-        else if (screen_x > Ui::window_width - (tooltip->width / 2 + 10) * Ui::scale)
-            ctx.translate(Ui::window_width - (tooltip->width / 2 + 10) * Ui::scale, screen_y);
-        else ctx.translate(screen_x, screen_y);
-        ctx.scale(Ui::scale);
-        ctx.translate(0, -(height + tooltip->height) / 2 - 5);
+        // Position the tooltip in absolute screen space (never clipped by the
+        // panel it belongs to) and keep the whole box on screen: prefer above
+        // the element, drop below if it would clip the top, and clamp both axes
+        // to the window so a big card (e.g. a mob's stats+drops) is fully shown.
+        float const s = Ui::scale;
+        float const tw = tooltip->width * s, th = tooltip->height * s;
+        float cx = screen_x;
+        float cy = screen_y - (height * s + th) / 2 - 5 * s;
+        if (cy - th / 2 < 10) cy = screen_y + (height * s + th) / 2 + 5 * s;
+        float const cx_min = tw / 2 + 10, cx_max = Ui::window_width - tw / 2 - 10;
+        float const cy_min = th / 2 + 10, cy_max = Ui::window_height - th / 2 - 10;
+        cx = cx < cx_min ? cx_min : (cx > cx_max ? cx_max : cx);
+        cy = cy < cy_min ? cy_min : (cy > cy_max ? cy_max : cy);
+        ctx.translate(cx, cy);
+        ctx.scale(s);
         ctx.set_global_alpha((float) tooltip_animation);
         tooltip->on_render(ctx);
     }
