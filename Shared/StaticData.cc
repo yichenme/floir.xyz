@@ -739,7 +739,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {14.0},
         .xp = 3,
         .drops = {
-            PetalID::kLight, PetalID::kLeaf, PetalID::kCorn, PetalID::kBone
+            PetalID::kLeaf, PetalID::kCorn, PetalID::kBone
         }, 
         .attributes = {}
     },
@@ -752,7 +752,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {14.0},
         .xp = 5,
         .drops = {
-            PetalID::kLight, PetalID::kIris, PetalID::kWing, PetalID::kFaster
+            PetalID::kWing, PetalID::kFaster
         }, 
         .attributes = {}
     },
@@ -765,7 +765,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {20.0},
         .xp = 4,
         .drops = {
-            PetalID::kLight, PetalID::kStinger, PetalID::kWing
+            PetalID::kStinger, PetalID::kPollen
         },
         .attributes = {}
     },
@@ -791,7 +791,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {35.0},
         .xp = 10,
         .drops = {
-            PetalID::kLight, PetalID::kIris, PetalID::kSalt, PetalID::kWing
+            PetalID::kSalt, PetalID::kBeetleEgg
         },
         .attributes = {}
     },
@@ -804,7 +804,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {30.0},
         .xp = 5,
         .drops = {
-            PetalID::kDahlia, PetalID::kWing, PetalID::kYinYang
+            PetalID::kDahlia, PetalID::kYinYang
         },
         .attributes = {}
     },
@@ -817,7 +817,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {40.0},
         .xp = 12,
         .drops = {
-            PetalID::kDandelion, PetalID::kMissile, PetalID::kWing, PetalID::kBubble, PetalID::kAntennae
+            PetalID::kAntennae, PetalID::kObserver, PetalID::kMissile
         },
         .attributes = {
             .aggro_radius = 600,
@@ -833,7 +833,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {30.0, 60.0},
         .xp = 2,
         .drops = {
-            PetalID::kStinger, PetalID::kYucca, PetalID::kCactus
+            PetalID::kCactus
         },
         .attributes = {
             .stationary = 1
@@ -848,7 +848,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {10.0, 25.0},
         .xp = 1,
         .drops = {
-            PetalID::kLight, PetalID::kRock
+            PetalID::kMoon, PetalID::kRock, PetalID::kHeavy
         },
         .attributes = {
             .stationary = 1
@@ -863,7 +863,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {35.0},
         .xp = 2,
         .drops = {
-            PetalID::kLight, PetalID::kLeaf, PetalID::kPeas, PetalID::kGoldenLeaf
+            PetalID::kLeaf, PetalID::kPeas, PetalID::kGoldenLeaf
         },
         .attributes = {
             .segments = 10
@@ -943,7 +943,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {15.0},
         .xp = 8,
         .drops = {
-            PetalID::kStinger, PetalID::kWeb, PetalID::kFaster
+            PetalID::kWeb, PetalID::kFaster, PetalID::kThirdEye
         },
         .attributes = { 
             .poison_damage = {
@@ -961,7 +961,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {45.0},
         .xp = 25,
         .drops = {
-            PetalID::kLight, PetalID::kIris, PetalID::kWing, PetalID::kAntEgg
+            PetalID::kAntEgg
         },
         .attributes = {
             .stationary = 1 
@@ -976,7 +976,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {25.0},
         .xp = 15,
         .drops = {
-            PetalID::kLight, PetalID::kIris, PetalID::kWing, PetalID::kAntEgg, PetalID::kStinger
+            PetalID::kWing, PetalID::kAntEgg
         },
         .attributes = {
             .aggro_radius = 750
@@ -991,7 +991,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {30.0},
         .xp = 30,
         .drops = {
-            PetalID::kDahlia, PetalID::kWing, PetalID::kBubble, PetalID::kYggdrasil
+            PetalID::kDahlia, PetalID::kYggdrasil
         },
         .attributes = {}
     },

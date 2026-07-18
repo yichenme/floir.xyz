@@ -17,10 +17,19 @@ Element *Ui::UiLoadout::petal_tooltips[PetalID::kNumPetals][RarityID::kNumRariti
 
 static float get_reload_factor() {
     if (!Game::alive()) return 1;
+    // Final Reload = Original x product over equipped Golden Leaves of
+    // (1 - reduction), where each leaf's reduction scales with its rarity
+    // (matches Server/Process/Flower.cc). Multiplying per leaf gives the
+    // (1 - r)^(#leaves) behaviour.
     float factor = 1;
     Entity &player = Game::simulation.get_ent(Game::player_id);
     for (uint32_t i = 0; i < player.get_loadout_count(); ++i) {
-        factor *= PETAL_DATA[player.get_loadout_ids(i)].attributes.extra_reload_factor;
+        float rf = PETAL_DATA[player.get_loadout_ids(i)].attributes.extra_reload_factor;
+        if (rf < 1.f) {
+            rf = 1.f - (1.f - rf) * (1 + player.get_loadout_rarities(i));
+            if (rf < 0.1f) rf = 0.1f;
+        }
+        factor *= rf;
     }
     return factor;
 }
