@@ -59,20 +59,23 @@ static void drop_rarity_dist(uint8_t mob_rarity, float out[RarityID::kNumRaritie
 }
 
 static Element *make_mob_drops(MobID::T id, uint8_t rarity) {
-    Element *elt = new Ui::HContainer({}, 0, 6, { .h_justify = Style::Left });
+    Element *elt = new Ui::HContainer({}, 0, 12, { .h_justify = Style::Left });
     struct MobData const &data = MOB_DATA[id];
     float dist[RarityID::kNumRarities];
     drop_rarity_dist(rarity, dist);
-    // Show each drop once, at the highest rarity it can roll (the mob's own tier)
-    // with that chance -- so every mob's drops fit a single row, same as common.
-    uint8_t show_r = 0; float show_pct = 0;
-    for (int r = RarityID::kNumRarities - 1; r >= 0; --r)
-        if (dist[r] > 0) { show_r = (uint8_t) r; show_pct = dist[r]; break; }
+    // Each drop shows every rarity it can roll (highest first) SIDE BY SIDE, so
+    // uncommon+ (two rarities) still fits one row instead of stacking two rows.
     for (uint32_t i = 0; i < data.drops.size(); ++i) {
-        elt->add_child(new Ui::VContainer({
-            new GalleryPetal(data.drops[i], 42, show_r),
-            new StaticText(11, format_pct(show_pct * 100))
-        }, 0, 4, { .h_justify = Style::Left }));
+        Element *group = new Ui::HContainer({}, 0, 4, { .h_justify = Style::Left });
+        for (int r = RarityID::kNumRarities - 1; r >= 0; --r) {
+            if (dist[r] <= 0) continue;
+            group->add_child(new Ui::VContainer({
+                new GalleryPetal(data.drops[i], 36, (uint8_t) r),
+                new StaticText(11, format_pct(dist[r] * 100))
+            }, 0, 4, { .h_justify = Style::Left }));
+        }
+        group->refactor();
+        elt->add_child(group);
     }
     return elt;
 }
