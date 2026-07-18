@@ -71,6 +71,18 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
             cy += sdy;
             Tilemap::push_circle(cx, cy, r);
         }
+        // push_circle samples large bodies coarsely (an adaptive stride caps its
+        // cost -- see Tilemap), so a big high-rarity mob can end a step still
+        // overlapping a block it should have been stopped by. If the resolved
+        // spot is still solid, reject the move and stay at the last valid
+        // position, so mobs are actually blocked instead of drifting through.
+        // Gated by the cheap near-solid pre-check, so open-terrain bodies and
+        // fully-resolved small mobs/players pay nothing extra.
+        if (Tilemap::_near_solid_cells(cx, cy, r) && Tilemap::solid_circle(cx, cy, r)
+            && !Tilemap::solid_circle(prev_x, prev_y, r)) {
+            cx = prev_x;
+            cy = prev_y;
+        }
         ent.set_x(cx);
         ent.set_y(cy);
     }

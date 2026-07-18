@@ -104,8 +104,14 @@ void tick_petal_behavior(Simulation *sim, Entity &petal) {
             break;
         }
         case PetalID::kBubble:
-            // Kickback removed: the bubble no longer launches the flower on
-            // defend. It stays a passive petal with no recoil.
+            // Short kickback: launch the flower away from the bubble on defend,
+            // at half the original strength (20 -> 10) for a shorter hop.
+            if (BitMath::at(player.input, InputFlags::kDefending)) {
+                Vector v(player.get_x() - petal.get_x(), player.get_y() - petal.get_y());
+                v.set_magnitude(PLAYER_ACCELERATION * 10);
+                player.velocity += v;
+                sim->request_delete(petal.id);
+            }
             break;
         case PetalID::kPollen:
             if (BitMath::at(player.input, InputFlags::kAttacking) || BitMath::at(player.input, InputFlags::kDefending)) {

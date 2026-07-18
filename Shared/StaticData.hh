@@ -23,6 +23,13 @@ extern float const BASE_BODY_DAMAGE;
 extern std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA;
 extern std::array<struct MobData, MobID::kNumMobs> const MOB_DATA;
 
+// Base HP / body-damage of a PETAL-summoned mob (Ant Egg, Beetle Egg, Stick,
+// Square). Kept separate from MOB_DATA so wild spawns keep their own balance;
+// summons scale x3 per rarity from these bases. Both the server (actual summon
+// stats) and the client (petal tooltip) read these so display == reality.
+float summon_base_health(uint8_t mob_id);
+float summon_base_damage(uint8_t mob_id);
+
 // Biomes on the 25000x25500 arena, in override order (get_zone_from_pos picks
 // the last match). Each biome is cut into 7 difficulty bands (Common..Ultra,
 // see RarityID) along one axis; Garden bands are emitted first, then Jungle,
@@ -38,7 +45,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kBabyAnt, 100000 },
             { MobID::kSpider, 90000 },
             { MobID::kCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 0, .color = 0xff58c05c, .name = "Garden · Common"
@@ -53,7 +60,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kBabyAnt, 100000 },
             { MobID::kSpider, 90000 },
             { MobID::kCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 1, .color = 0xff50ae53, .name = "Garden · Uncommon"
@@ -68,7 +75,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kBabyAnt, 100000 },
             { MobID::kSpider, 90000 },
             { MobID::kCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 2, .color = 0xff489d4b, .name = "Garden · Rare"
@@ -83,7 +90,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kBabyAnt, 100000 },
             { MobID::kSpider, 90000 },
             { MobID::kCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 3, .color = 0xff408c43, .name = "Garden · Epic"
@@ -98,7 +105,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kBabyAnt, 100000 },
             { MobID::kSpider, 90000 },
             { MobID::kCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 4, .color = 0xff387a3a, .name = "Garden · Legendary"
@@ -113,7 +120,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kBabyAnt, 100000 },
             { MobID::kSpider, 90000 },
             { MobID::kCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 5, .color = 0xff306932, .name = "Garden · Mythic"
@@ -128,7 +135,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kBabyAnt, 100000 },
             { MobID::kSpider, 90000 },
             { MobID::kCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 6, .color = 0xff28582a, .name = "Garden · Ultra"
@@ -142,7 +149,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
             { MobID::kEvilCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 0, .color = 0xff3a8f4a, .name = "Jungle · Common"
@@ -156,7 +163,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
             { MobID::kEvilCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 1, .color = 0xff348243, .name = "Jungle · Uncommon"
@@ -170,7 +177,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
             { MobID::kEvilCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 2, .color = 0xff2f753c, .name = "Jungle · Rare"
@@ -184,7 +191,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
             { MobID::kEvilCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 3, .color = 0xff2a6836, .name = "Jungle · Epic"
@@ -198,7 +205,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
             { MobID::kEvilCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 4, .color = 0xff255b2f, .name = "Jungle · Legendary"
@@ -212,7 +219,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
             { MobID::kEvilCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 5, .color = 0xff1f4e28, .name = "Jungle · Mythic"
@@ -226,7 +233,7 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
             { MobID::kEvilCentipede, 60000 },
-            { MobID::kAntHole, 40000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 6, .color = 0xff1a4122, .name = "Jungle · Ultra"

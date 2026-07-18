@@ -146,14 +146,13 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     // Summon stats for spawning petals (eggs, Stick, Square). HP/damage scale
     // x3 per rarity, matching the petal's rarity.
     if (attrs.spawns != MobID::kNumMobs) {
-        struct MobData const &sm = MOB_DATA[attrs.spawns];
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Summon HP:", { .fill = 0xff77ff77 }),
-            new Ui::StaticText(12, format_number((sm.health.lower + sm.health.upper) / 2.0f * mult))
+            new Ui::StaticText(12, format_number(summon_base_health(attrs.spawns) * mult))
         }, 0, 5, { .h_justify = Style::Left }));
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Summon Damage:", { .fill = 0xffff7777 }),
-            new Ui::StaticText(12, format_number(sm.damage * mult))
+            new Ui::StaticText(12, format_number(summon_base_damage(attrs.spawns) * mult))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.vision_factor < 1) {

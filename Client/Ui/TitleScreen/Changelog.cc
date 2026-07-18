@@ -34,6 +34,14 @@ static Element *make_changelog_contents() {
     Element *elt = new Ui::VContainer({
         make_date("July 18th 2026"),
         make_entries({
+            "Summons (Ant Egg, Beetle Egg, Stick, Square) now spawn the right count, and their HP, damage and size scale with the petal's rarity to match the tooltip",
+            "Spider webs now grow along with the spider",
+            "Bubble gives a short dash again when you defend",
+            "Your progress auto-saves while you play, so a server update no longer resets your run",
+            "Rebalanced spawns: spiders roam the garden, jungle ladybugs and ant holes now appear, and rarer ant holes keep the map running smoothly",
+            "Centipedes and loot no longer slip into walls or water, and large mobs are properly blocked by terrain",
+            "Mobile: send chat with a button, toggle hitboxes with an on-screen button, and drag petals out of your inventory by touch",
+            "The Queen Ant is now a proper size",
             "Fixed the lag: the server now holds a full 20 ticks per second even on a busy map",
             "Item drops now roll their rarity from the mob's rarity, and mobs grow larger with rarity",
             "Ants and spiders keep their proportions at every rarity (mouth and legs scale with the body)",

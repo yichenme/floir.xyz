@@ -228,13 +228,29 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
                     if (petal_data.attributes.spawns != MobID::kNumMobs &&
                         petal.secondary_reload > sec_reload_ticks) {
                         uint8_t spawn_id = petal_data.attributes.spawns;
-                        Entity &mob = alloc_mob(sim, spawn_id, petal.get_x(), petal.get_y(), petal.get_team(), inherited_spawn_rarity(petal), [&](Entity &mob){
+                        // Summons scale with the PETAL's rarity (petals aren't
+                        // mobs, so inherited_spawn_rarity would force Common).
+                        uint8_t const summon_rarity = petal.get_petal_rarity();
+                        Entity &mob = alloc_mob(sim, spawn_id, petal.get_x(), petal.get_y(), petal.get_team(), summon_rarity, [&](Entity &mob){
                             mob.set_parent(player.id);
                             mob.set_color(player.get_color());
                             mob.base_entity = player.id;
                             BitMath::set(mob.flags, EntityFlags::kDieOnParentDeath);
                             BitMath::set(mob.flags, EntityFlags::kNoDrops);
                             BitMath::set(mob.flags, EntityFlags::kIsDetached);
+                            // Fixed summon stats scaled x3 per rarity (not the
+                            // wild-mob HP curve), so a summon matches its petal
+                            // tooltip exactly. See summon_base_* in StaticData.
+                            float const s = rarity_pow3(summon_rarity);
+                            mob.max_health = mob.health = summon_base_health(spawn_id) * s;
+                            mob.damage = summon_base_damage(spawn_id) * s;
+                            mob.set_health_ratio(1);
+                            // Summons grow gentler than wild mobs: 1.2x/tier
+                            // instead of the 1.4x mob_size_mult already applied,
+                            // so a high-rarity summon isn't oversized. Divide out
+                            // the 1.4x scaling and re-apply 1.2x.
+                            mob.set_radius(mob.get_radius() / mob_size_mult(summon_rarity)
+                                           * powf(1.2f, (float)summon_rarity));
                         });
                     
                         if (petal_data.attributes.spawn_count == 0) {

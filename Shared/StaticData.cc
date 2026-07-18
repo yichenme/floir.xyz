@@ -329,7 +329,9 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
             .secondary_reload = 2.5,
             .defend_only = 1,
             .rotation_style = PetalAttributes::kNoRot,
-            .spawns = MobID::kSoldierAnt
+            .spawns = MobID::kSoldierAnt,
+            // 2 eggs (count) x 2 concurrent each -> ~4 Soldier Ants alive.
+            .spawn_count = 2
         }
     },
     {
@@ -973,7 +975,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .rarity = RarityID::kRare,
         .health = {350.0},
         .damage = 10.0,
-        .radius = {25.0},
+        .radius = {50.0},
         .xp = 15,
         .drops = {
             PetalID::kWing, PetalID::kAntEgg
@@ -1059,6 +1061,26 @@ std::array<StaticArray<float, MAX_DROPS_PER_MOB>, MobID::kNumMobs> const MOB_DRO
     }
     return ret;
 }();
+
+float summon_base_health(uint8_t mob_id) {
+    switch (mob_id) {
+        case MobID::kSoldierAnt: return 50.f;
+        case MobID::kBeetle:     return 250.f;
+        case MobID::kSquare:     return 100.f;
+        case MobID::kSandstorm:  return 30.f;
+        default: return (MOB_DATA[mob_id].health.lower + MOB_DATA[mob_id].health.upper) / 2.f;
+    }
+}
+
+float summon_base_damage(uint8_t mob_id) {
+    switch (mob_id) {
+        case MobID::kSoldierAnt: return 10.f;
+        case MobID::kBeetle:     return 250.f;
+        case MobID::kSquare:     return 250.f;
+        case MobID::kSandstorm:  return 30.f;
+        default: return MOB_DATA[mob_id].damage;
+    }
+}
 
 uint32_t score_to_pass_level(uint32_t level) {
     return (uint32_t)(pow(1.06, level - 1) * level) + 3;
