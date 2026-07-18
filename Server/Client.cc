@@ -189,9 +189,9 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             Entity &player = simulation->get_ent(camera.get_player());
             if (client->check_invalid(validator.validate_uint8() && validator.validate_uint8())) return;
             uint8_t pos1 = reader.read<uint8_t>();
-            if (pos1 >= MAX_SLOT_COUNT + player.get_loadout_count()) break;
+            if (pos1 >= 2 * player.get_loadout_count()) break;
             uint8_t pos2 = reader.read<uint8_t>();
-            if (pos2 >= MAX_SLOT_COUNT + player.get_loadout_count()) break;
+            if (pos2 >= 2 * player.get_loadout_count()) break;
             PetalID::T tmp = player.get_loadout_ids(pos1);
             uint8_t tmp_rarity = player.get_loadout_rarities(pos1);
             player.set_loadout_ids(pos1, player.get_loadout_ids(pos2));

@@ -46,7 +46,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .name = "Light",
         .description = "Weaker than most petals, but reloads very quickly. Higher rarities gain more dots",
         .health = 5.0,
-        .damage = 8.0,
+        .damage = 10.0,
         .radius = 7.0,
         .reload = 1.0,
         .count = 1,
@@ -66,9 +66,9 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     },
     {
         .name = "Stinger",
-        .description = "It really hurts, but it's really fragile",
-        .health = 5.0,
-        .damage = 35.0,
+        .description = "It really hurts, but it's really fragile. Higher rarities gain more stingers",
+        .health = 1.0,
+        .damage = 100.0,
         .radius = 7.0,
         .reload = 3.5,
         .count = 1,
@@ -78,14 +78,14 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     {
         .name = "Leaf",
         .description = "Gathers energy from the sun to passively heal your flower",
-        .health = 10.0,
-        .damage = 8.0,
+        .health = 12.0,
+        .damage = 16.0,
         .radius = 10.0,
         .reload = 1.0,
         .count = 1,
         .rarity = RarityID::kUncommon,
         .attributes = {
-            .constant_heal = 1,
+            .constant_heal = 3,
             .icon_angle = -1
         }
     },
@@ -111,7 +111,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .rarity = RarityID::kUncommon,
         .attributes = { 
             .secondary_reload = 1.0,
-            .burst_heal = 10,
+            .burst_heal = 8,
             .defend_only = 1
         }
     },
@@ -126,8 +126,8 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .rarity = RarityID::kUncommon,
         .attributes = { 
             .poison_damage = {
-                .damage = 10.0,
-                .time = 6.0
+                .damage = 23.333333,
+                .time = 3.0
             }
         }
     },
@@ -973,7 +973,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {25.0},
         .xp = 15,
         .drops = {
-            PetalID::kLight, PetalID::kIris, PetalID::kWing, PetalID::kAntEgg, PetalID::kTringer
+            PetalID::kLight, PetalID::kIris, PetalID::kWing, PetalID::kAntEgg, PetalID::kStinger
         },
         .attributes = {
             .aggro_radius = 750
@@ -1098,5 +1098,12 @@ uint32_t light_petal_count(uint8_t rarity) {
     if (rarity >= RarityID::kMythic) return 5;
     if (rarity >= RarityID::kEpic) return 3;
     if (rarity >= RarityID::kUncommon) return 2;
+    return 1;
+}
+
+uint32_t stinger_count(uint8_t rarity) {
+    // Single stinger through Legendary; triple at Mythic; penta at Ultra+.
+    if (rarity >= RarityID::kUltra) return 5;
+    if (rarity >= RarityID::kMythic) return 3;
     return 1;
 }

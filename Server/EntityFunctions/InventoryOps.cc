@@ -51,7 +51,7 @@ namespace {
 
 void store_from_loadout(Client *client, Entity &player, uint8_t static_pos) {
     if (client == nullptr) return;
-    if (static_pos >= player.get_loadout_count() + MAX_SLOT_COUNT) return;
+    if (static_pos >= 2 * player.get_loadout_count()) return;
     PetalID::T const id = player.get_loadout_ids(static_pos);
     if (id == PetalID::kNone) return;
     uint8_t const rarity = player.get_loadout_rarities(static_pos);
@@ -67,7 +67,7 @@ void store_from_loadout(Client *client, Entity &player, uint8_t static_pos) {
 
 void equip_to_loadout(Client *client, Entity &player, uint32_t inv_index, uint8_t static_pos) {
     if (client == nullptr) return;
-    if (static_pos >= player.get_loadout_count() + MAX_SLOT_COUNT) return;
+    if (static_pos >= 2 * player.get_loadout_count()) return;
     std::vector<PetalStack> inv = load_inventory(client);
     PetalItem taken;
     if (!take_one(inv, inv_index, taken)) return;
@@ -94,7 +94,7 @@ void pickup_drop(Simulation *sim, Client *client, Entity &player, Entity &drop) 
     uint8_t const rarity = drop.get_drop_rarity();
     if (player.has_component(kScore))
         player.set_petals_collected(player.get_petals_collected() + 1);
-    for (uint32_t i = 0; i < player.get_loadout_count() + MAX_SLOT_COUNT; ++i) {
+    for (uint32_t i = 0; i < 2 * player.get_loadout_count(); ++i) {
         if (player.get_loadout_ids(i) != PetalID::kNone) continue;
         player.set_loadout_ids(i, id);
         player.set_loadout_rarities(i, rarity);

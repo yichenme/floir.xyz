@@ -69,16 +69,19 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
             new Ui::StaticText(12, format_pct(attrs.damage_reflection * 100))
         }, 0, 5, { .h_justify = Style::Left }));
     }
+    // Heal scales with rarity (x3 per tier, mirrors Server/Process/Flower.cc
+    // and Petal.cc which apply rarity_pow3 to the heal amounts).
+    float const heal_mult = rarity_pow3(rarity);
     if (attrs.constant_heal > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Heal:", { .fill = 0xffff96cb }),
-            new Ui::StaticText(12, format_number(attrs.constant_heal) + "/s")
+            new Ui::StaticText(12, format_number(attrs.constant_heal * heal_mult) + "/s")
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.burst_heal > 0) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Heal:", { .fill = 0xffff96cb }),
-            new Ui::StaticText(12, format_number(attrs.burst_heal))
+            new Ui::StaticText(12, format_number(attrs.burst_heal * heal_mult))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.poison_damage.damage > 0) {

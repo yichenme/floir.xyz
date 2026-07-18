@@ -916,6 +916,9 @@ void draw_static_petal(PetalID::T id, Renderer &ctx, uint8_t rarity) {
     // Light shows 1/2/3/5 dots by rarity (see light_petal_count).
     if (id == PetalID::kLight)
         count = light_petal_count(rarity == 255 ? data.rarity : rarity);
+    // Stinger shows 1/3/5 stingers by rarity (see stinger_count).
+    if (id == PetalID::kStinger)
+        count = stinger_count(rarity == 255 ? data.rarity : rarity);
     for (uint32_t i = 0; i < count; ++i) {
         RenderContext context(&ctx);
         float rad = 10;

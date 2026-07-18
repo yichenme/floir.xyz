@@ -335,3 +335,4 @@ extern float hp_at_level(uint32_t);
 
 // Light petal: number of orbiting dots by rarity (common 1 -> mythic+ 5).
 extern uint32_t light_petal_count(uint8_t rarity);
+extern uint32_t stinger_count(uint8_t rarity);

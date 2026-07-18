@@ -11,6 +11,30 @@ const path = require('path');
 
 const DB_PATH = path.join(__dirname, '..', 'database.json');
 
+// Petal IDs that have been removed from the game. They stay numbered in the
+// PetalID enum (so surviving petals keep their saved IDs), but any copies still
+// sitting in accounts are purged: dropped from inventory, and cleared to an
+// empty slot (type 0) in loadouts. kTringer (29) folded into kStinger.
+const RETIRED_PETALS = new Set([3, 6, 21, 23, 27, 29, 30, 32, 36]);
+
+global.purgeRetiredPetals = () => {
+    let changed = false;
+    for (const user of Object.keys(global.db)) {
+        const acct = global.db[user];
+        if (!acct) continue;
+        if (Array.isArray(acct.inventory)) {
+            const kept = acct.inventory.filter((s) => !RETIRED_PETALS.has(s.type | 0));
+            if (kept.length !== acct.inventory.length) { acct.inventory = kept; changed = true; }
+        }
+        if (Array.isArray(acct.loadout)) {
+            for (const slot of acct.loadout) {
+                if (slot && RETIRED_PETALS.has(slot.type | 0)) { slot.type = 0; slot.rarity = 0; changed = true; }
+            }
+        }
+    }
+    if (changed) global.saveDatabase();
+};
+
 global.loadDatabase = () => {
     if (!global.db) {
         try {
@@ -18,6 +42,8 @@ global.loadDatabase = () => {
         } catch {
             global.db = {};
         }
+        // One-time cleanup per process: strip retired petals from all accounts.
+        global.purgeRetiredPetals();
     }
 };
 
@@ -110,4 +136,39 @@ global.dbSetProgress = (user, level, xp) => {
     acct.xp = xp;
     global.saveDatabase();
     return true;
+};
+
+// --- Admin panel (served at /admin via Server/Wasm.cc) -----------------------
+// Single hardcoded admin credential; every request re-sends it (over HTTPS).
+const ADMIN_USER = 'admin';
+const ADMIN_PASS = 'loveKK88';
+
+global.adminApi = (bodyStr) => {
+    let req;
+    try { req = JSON.parse(bodyStr || '{}'); } catch { return JSON.stringify({ ok: false, error: 'bad request' }); }
+    if (req.user !== ADMIN_USER || req.password !== ADMIN_PASS)
+        return JSON.stringify({ ok: false, error: 'invalid admin credentials' });
+    global.loadDatabase();
+    if (req.action === 'search') {
+        const q = String(req.query || '').toLowerCase();
+        const users = Object.keys(global.db)
+            .filter((u) => u.toLowerCase().includes(q))
+            .sort()
+            .slice(0, 100);
+        return JSON.stringify({ ok: true, users });
+    }
+    if (req.action === 'give') {
+        const acct = global.db[req.target];
+        if (!acct) return JSON.stringify({ ok: false, error: 'no such account' });
+        const type = req.type | 0;
+        const rarity = req.rarity | 0;
+        const count = Math.max(1, req.count | 0);
+        acct.inventory = acct.inventory || [];
+        const ex = acct.inventory.find((s) => s.type === type && s.rarity === rarity);
+        if (ex) ex.count = (ex.count | 0) + count;
+        else acct.inventory.push({ type, rarity, count });
+        global.saveDatabase();
+        return JSON.stringify({ ok: true, message: 'gave ' + count + ' to ' + req.target });
+    }
+    return JSON.stringify({ ok: false, error: 'unknown action' });
 };

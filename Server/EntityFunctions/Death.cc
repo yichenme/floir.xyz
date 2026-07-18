@@ -123,7 +123,7 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
         // dropped or reshuffled — they're persisted onto the account instead
         // (see InventoryOps::persist_account_petals) and restored unchanged
         // on next spawn via InventoryOps::apply_account_loadout_to_camera.
-        for (uint32_t i = 0; i < ent.get_loadout_count() + MAX_SLOT_COUNT; ++i) {
+        for (uint32_t i = 0; i < 2 * ent.get_loadout_count(); ++i) {
             DEBUG_ONLY(assert(ent.get_loadout_ids(i) < PetalID::kNumPetals));
             PetalTracker::remove_petal(sim, ent.get_loadout_ids(i));
         }

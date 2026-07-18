@@ -44,18 +44,26 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
         ctx.scale((float) elt->animation);
         if (!selected) return;
         if (BitMath::at(Input::mouse_buttons_released, Input::LeftMouse)) {
+            // Equip one from this stack. If the stack has more than one, just
+            // decrement it optimistically (the slot stays, showing count-1)
+            // instead of blanking; only a last-copy equip blanks the slot until
+            // the server-confirmed inventory update lands.
+            auto equip_one = [this](uint32_t real, uint8_t static_target){
+                Game::equip_petal(real, static_target);
+                if (Game::inventory_stacks[real].count > 1)
+                    --Game::inventory_stacks[real].count;
+                else { equip_pending = 1; equip_version = Game::inventory_version; }
+            };
+            uint32_t const real = Game::inventory_display_order[index];
             uint8_t potential_swap = find_viable_target(Input::mouse_x, Input::mouse_y);
             if (potential_swap != ((uint8_t)-1) && potential_swap < 2 * MAX_SLOT_COUNT) {
-                Game::equip_petal(Game::inventory_display_order[index],dynamic_to_static(potential_swap));
-                equip_pending = 1; equip_version = Game::inventory_version;
+                equip_one(real, dynamic_to_static(potential_swap));
             } else {
                 float dist = hypotf(Input::mouse_x - Ui::drag_start_mouse_x,
                                     Input::mouse_y - Ui::drag_start_mouse_y);
                 uint8_t const t = find_equip_target();
-                if (dist < 10 * Ui::scale && t != 255) {
-                    Game::equip_petal(Game::inventory_display_order[index], t);
-                    equip_pending = 1; equip_version = Game::inventory_version;
-                }
+                if (dist < 10 * Ui::scale && t != 255)
+                    equip_one(real, t);
             }
             selected = 0;
             Ui::dragging_inventory_index = -1;

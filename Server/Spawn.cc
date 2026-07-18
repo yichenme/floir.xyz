@@ -193,7 +193,9 @@ Entity &alloc_petal(Simulation *sim, PetalID::T petal_id, Entity const &parent, 
     petal.set_petal_rarity(rarity);
     petal.set_split_projectile(petal_data.attributes.split_projectile);
     petal.add_component(kHealth);
-    petal.health = petal.max_health = petal_data.health * petal_hp_mult(rarity);
+    // Stinger is always 1 HP regardless of rarity -- it stays a glass cannon.
+    float const hp_mult = (petal_id == PetalID::kStinger) ? 1.0f : petal_hp_mult(rarity);
+    petal.health = petal.max_health = petal_data.health * hp_mult;
     petal.damage = petal_data.damage * petal_damage_mult(rarity);
     petal.set_health_ratio(1);
     petal.poison_damage = petal_data.attributes.poison_damage;
@@ -290,7 +292,7 @@ void player_spawn(Simulation *sim, Entity &camera, Entity &player) {
         slot.force_reload();
     }
 
-    for (uint32_t i = player.get_loadout_count(); i < player.get_loadout_count() + MAX_SLOT_COUNT; ++i) {
+    for (uint32_t i = player.get_loadout_count(); i < 2 * player.get_loadout_count(); ++i) {
         player.set_loadout_ids(i, camera.get_inventory(i));
         player.set_loadout_rarities(i, camera.get_inventory_rarity(i));
     }

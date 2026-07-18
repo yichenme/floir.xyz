@@ -72,8 +72,13 @@
     var RARITIES = ["Common","Uncommon","Rare","Epic","Legendary","Mythic","Ultra","Super","Unique"];
     var creds = null, target = null;
 
+    // Retired/removed petal IDs (kept numbered for account compatibility, but
+    // never giveable). Mirrors RETIRED_PETALS in Server/Account/database.js.
+    // Index 0 (None) is also hidden. kTringer (29) folded into Stinger.
+    var RETIRED = new Set([0,3,6,21,23,27,29,30,32,36]);
     function fillSelect(el, arr){ el.innerHTML = arr.map(function(n,i){ return '<option value="'+i+'">'+n+' ('+i+')</option>'; }).join(''); }
-    fillSelect(document.getElementById('petal'), PETALS);
+    function fillPetalSelect(el, arr){ el.innerHTML = arr.map(function(n,i){ return RETIRED.has(i) ? '' : '<option value="'+i+'">'+n+' ('+i+')</option>'; }).join(''); }
+    fillPetalSelect(document.getElementById('petal'), PETALS);
     fillSelect(document.getElementById('rarity'), RARITIES);
 
     async function api(payload){

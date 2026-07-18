@@ -65,6 +65,9 @@ uint32_t LoadoutSlot::size() const {
     // Light: number of orbiting dots scales with rarity (1/2/3/5).
     if (id == PetalID::kLight)
         return light_petal_count(rarity);
+    // Stinger: single -> triple (Mythic) -> penta (Ultra+).
+    if (id == PetalID::kStinger)
+        return stinger_count(rarity);
     if (PETAL_DATA[id].attributes.split_projectile)
         return 1;
     return std::min(static_cast<uint32_t>(PETAL_DATA[id].count), MAX_PETALS_IN_CLUMP);

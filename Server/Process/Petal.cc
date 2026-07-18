@@ -5,6 +5,7 @@
 #include <Shared/Entity.hh>
 #include <Shared/Simulation.hh>
 #include <Shared/StaticData.hh>
+#include <Shared/RarityScale.hh>
 
 #include <cmath>
 
@@ -67,7 +68,7 @@ void tick_petal_behavior(Simulation *sim, Entity &petal) {
     if (petal_data.attributes.burst_heal > 0 && player.health < player.max_health && player.dandy_ticks == 0) {
         Vector delta(player.get_x() - petal.get_x(), player.get_y() - petal.get_y());
         if (delta.magnitude() < petal.get_radius()) {
-            inflict_heal(sim, player, petal_data.attributes.burst_heal);
+            inflict_heal(sim, player, petal_data.attributes.burst_heal * rarity_pow3(petal.get_petal_rarity()));
             sim->request_delete(petal.id);
             return;
         }

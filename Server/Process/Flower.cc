@@ -5,6 +5,7 @@
 #include <Shared/Entity.hh>
 #include <Shared/Simulation.hh>
 #include <Shared/StaticData.hh>
+#include <Shared/RarityScale.hh>
 
 #include <cmath>
 
@@ -49,10 +50,10 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
         if (slot_petal_id == PetalID::kYinYang)
             ++buffs.yinyang_count;
         if (!player.loadout[i].already_spawned) continue;
-        if (slot_petal_id == PetalID::kLeaf) 
-            buffs.heal += attrs.constant_heal / TPS;
-        else if (slot_petal_id == PetalID::kYucca && BitMath::at(player.input, InputFlags::kDefending) && !BitMath::at(player.input, InputFlags::kAttacking)) 
-            buffs.heal += attrs.constant_heal / TPS;
+        if (slot_petal_id == PetalID::kLeaf)
+            buffs.heal += attrs.constant_heal * rarity_pow3(slot.rarity) / TPS;
+        else if (slot_petal_id == PetalID::kYucca && BitMath::at(player.input, InputFlags::kDefending) && !BitMath::at(player.input, InputFlags::kAttacking))
+            buffs.heal += attrs.constant_heal * rarity_pow3(slot.rarity) / TPS;
         buffs.extra_rot += attrs.extra_rotation_speed;
         buffs.extra_health += attrs.extra_health;
         player.damage_reflection = std::fmax(player.damage_reflection, attrs.damage_reflection);
