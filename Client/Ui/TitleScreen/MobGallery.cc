@@ -137,7 +137,9 @@ static Element *make_mob_card(MobID::T id, uint8_t rarity) {
         new Ui::Element(0,10),
         make_mob_stat_container(id, rarity),
         new Ui::Element(0,10),
-        make_mob_drops(id, rarity)
+        make_mob_drops(id, rarity),
+        // Bottom breathing room so the drop-% row isn't cramped at the card edge.
+        new Ui::Element(0,8)
     }, 10, 0, { .fill = 0x33000000, .stroke_hsv = 1, .line_width = 3, .round_radius = 6, .v_justify = Style::Top, .no_animation = 1 });
     return elt;
 }
