@@ -155,7 +155,11 @@ namespace EntityFlags {
         kHasCulling,
         kIsCulled,
         kCPUControlled,
-        kIsDetached
+        kIsDetached,
+        // Skips physical push in collision (still deals/takes damage) so the
+        // body overlays creatures instead of shoving them -- used by Stick's
+        // summoned Sandstorms.
+        kNoPush
     };
 };
 

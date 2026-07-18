@@ -92,8 +92,35 @@ void equip_to_loadout(Client *client, Entity &player, uint32_t inv_index, uint8_
 void pickup_drop(Simulation *sim, Client *client, Entity &player, Entity &drop) {
     PetalID::T const id = drop.get_drop_id();
     uint8_t const rarity = drop.get_drop_rarity();
+    uint8_t count = drop.get_drop_count();
+    if (count < 1) count = 1;
     if (player.has_component(kScore))
-        player.set_petals_collected(player.get_petals_collected() + 1);
+        player.set_petals_collected(player.get_petals_collected() + count);
+    // A stacked drop (Unique's 10x Ultra) can't sit in a single loadout slot, so
+    // it goes straight to the account inventory as one stack.
+    if (count > 1) {
+        if (client != nullptr) {
+            std::vector<PetalStack> inv = load_inventory(client);
+            add_stack(inv, id, rarity, count);
+            save_inventory(client, inv);
+            sync_inventory_update(client);
+        } else {
+            // No account to store the stack (a CPU flower): equip what fits into
+            // empty loadout slots so the pickup isn't wholly wasted.
+            for (uint32_t i = 0; i < 2 * player.get_loadout_count() && count > 0; ++i) {
+                if (player.get_loadout_ids(i) != PetalID::kNone) continue;
+                player.set_loadout_ids(i, id);
+                player.set_loadout_rarities(i, rarity);
+                --count;
+            }
+        }
+        PetalTracker::remove_petal(sim, id);
+        drop.set_x(player.get_x());
+        drop.set_y(player.get_y());
+        BitMath::unset(drop.flags, EntityFlags::kIsDespawning);
+        sim->request_delete(drop.id);
+        return;
+    }
     for (uint32_t i = 0; i < 2 * player.get_loadout_count(); ++i) {
         if (player.get_loadout_ids(i) != PetalID::kNone) continue;
         player.set_loadout_ids(i, id);

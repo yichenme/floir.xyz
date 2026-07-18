@@ -78,7 +78,9 @@ void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
     Vector separation(ent1.get_x() - ent2.get_x(), ent1.get_y() - ent2.get_y());
     float dist = min_dist - separation.magnitude();
     if (dist < 0) return;
-    if (NO(kDrop) && NO(kWeb)) {
+    // kNoPush bodies (e.g. Stick's Sandstorms) overlay creatures: skip the
+    // physical push below, but the damage step still runs.
+    if (NO(kDrop) && NO(kWeb) && !BitMath::at((ent1.flags | ent2.flags), EntityFlags::kNoPush)) {
         if (separation.x == 0 && separation.y == 0)
             separation.unit_normal(frand() * 2 * M_PI);
         else

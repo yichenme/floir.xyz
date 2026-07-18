@@ -6,6 +6,7 @@
 #include <Shared/Simulation.hh>
 #include <Shared/StaticData.hh>
 #include <Shared/RarityScale.hh>
+#include <Shared/Tilemap.hh>
 
 #include <cmath>
 
@@ -251,6 +252,18 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
                             // the 1.4x scaling and re-apply 1.2x.
                             mob.set_radius(mob.get_radius() / mob_size_mult(summon_rarity)
                                            * powf(1.2f, (float)summon_rarity));
+                            // The petal spawns the summon at its own position; if
+                            // the player is hugging a wall that spot can be inside
+                            // terrain. Push the summon out so it never starts
+                            // embedded in a block.
+                            float px = mob.get_x(), py = mob.get_y();
+                            Tilemap::push_circle(px, py, mob.get_radius());
+                            mob.set_x(px);
+                            mob.set_y(py);
+                            // Stick's Sandstorms overlay creatures (no hitbox push)
+                            // while still dealing their contact damage.
+                            if (petal.get_petal_id() == PetalID::kStick)
+                                BitMath::set(mob.flags, EntityFlags::kNoPush);
                         });
                     
                         if (petal_data.attributes.spawn_count == 0) {

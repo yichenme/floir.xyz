@@ -53,8 +53,9 @@ static void drop_rarity_dist(uint8_t mob_rarity, float out[RarityID::kNumRaritie
         case RarityID::kLegendary: out[RarityID::kLegendary] = 0.08f; out[RarityID::kEpic] = 0.92f; break;
         case RarityID::kMythic:    out[RarityID::kMythic] = 0.04f; out[RarityID::kLegendary] = 0.96f; break;
         case RarityID::kUltra:     out[RarityID::kUltra] = 0.02f; out[RarityID::kMythic] = 0.98f; break;
-        case RarityID::kSuper:
-        case RarityID::kUnique:     out[RarityID::kSuper] = 0.01f; out[RarityID::kUltra] = 0.99f; break;
+        case RarityID::kSuper:      out[RarityID::kSuper] = 0.0001f; out[RarityID::kUltra] = 0.9999f; break;
+        // Unique: 0.1% one Super, else a single 10x-Ultra stack (see Death.cc).
+        case RarityID::kUnique:     out[RarityID::kSuper] = 0.001f;  out[RarityID::kUltra] = 0.999f;  break;
     }
 }
 
@@ -69,9 +70,13 @@ static Element *make_mob_drops(MobID::T id, uint8_t rarity) {
         Element *group = new Ui::HContainer({}, 0, 4, { .h_justify = Style::Left });
         for (int r = RarityID::kNumRarities - 1; r >= 0; --r) {
             if (dist[r] <= 0) continue;
+            // A Unique mob's Ultra drop lands as a stack of 10, shown with a
+            // x10 tag (the world drop carries the same badge -- see RenderDrop).
+            std::string label = format_pct(dist[r] * 100);
+            if (rarity == RarityID::kUnique && r == RarityID::kUltra) label += "  x10";
             group->add_child(new Ui::VContainer({
                 new GalleryPetal(data.drops[i], 36, (uint8_t) r),
-                new StaticText(11, format_pct(dist[r] * 100))
+                new StaticText(11, label)
             }, 0, 4, { .h_justify = Style::Left }));
         }
         group->refactor();

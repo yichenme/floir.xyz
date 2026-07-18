@@ -35,6 +35,7 @@ Entity &alloc_drop(Simulation *sim, PetalID::T drop_id, uint8_t rarity, uint32_t
     drop.set_drop_id(drop_id);
     drop.set_drop_rarity(rarity);
     drop.set_drop_owner(owner);   // camera id of the sole looter (0 = shared)
+    drop.set_drop_count(1);       // >1 for stacked drops (Unique's 10x Ultra)
     entity_set_despawn_tick(drop, 10 * (2 + rarity) * TPS);
     drop.immunity_ticks = TPS / 3;
     return drop;

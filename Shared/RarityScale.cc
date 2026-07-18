@@ -42,8 +42,10 @@ uint8_t roll_drop_rarity(uint8_t mob_rarity) {
         case RarityID::kLegendary: return r < 0.08f ? RarityID::kLegendary : RarityID::kEpic;
         case RarityID::kMythic:    return r < 0.04f ? RarityID::kMythic    : RarityID::kLegendary;
         case RarityID::kUltra:     return r < 0.02f ? RarityID::kUltra     : RarityID::kMythic;
-        case RarityID::kSuper:     return r < 0.01f ? RarityID::kSuper     : RarityID::kUltra;
-        case RarityID::kUnique:    return r < 0.01f ? RarityID::kSuper     : RarityID::kUltra;
+        case RarityID::kSuper:     return r < 0.0001f ? RarityID::kSuper   : RarityID::kUltra;
+        // Unique's drop is handled specially in Death.cc (0.1% Super, else a
+        // single 10x-Ultra stack), so this row is unused for Unique mobs.
+        case RarityID::kUnique:    return r < 0.001f ? RarityID::kSuper     : RarityID::kUltra;
         default:                   return DROP_NOTHING;
     }
 }

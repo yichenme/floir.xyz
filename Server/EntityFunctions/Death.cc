@@ -18,10 +18,14 @@
 #include <iostream>
 #include <utility>
 
-static void _alloc_drops(Simulation *sim, std::vector<std::pair<PetalID::T, uint8_t>> &drops, float x, float y, uint32_t owner) {
+// One dropped item: petal kind, its rolled rarity, and a stack count (>1 only
+// for a Unique mob's 10x-Ultra drop, which lands as a single stacked entity).
+struct DropSpec { PetalID::T id; uint8_t rarity; uint8_t count; };
+
+static void _alloc_drops(Simulation *sim, std::vector<DropSpec> &drops, float x, float y, uint32_t owner) {
     // Keep only one Unique-tier petal of a kind in the world at a time.
     for (size_t i = drops.size(); i > 0; --i) {
-        PetalID::T const id = drops[i - 1].first;
+        PetalID::T const id = drops[i - 1].id;
         if (PETAL_DATA[id].rarity == RarityID::kUnique && PetalTracker::get_count(sim, id) > 0)
             drops.erase(drops.begin() + (i - 1));
     }
@@ -31,7 +35,8 @@ static void _alloc_drops(Simulation *sim, std::vector<std::pair<PetalID::T, uint
     Tilemap::push_circle(sx, sy, 25);
     size_t const count = drops.size();
     for (size_t i = 0; i < count; ++i) {
-        Entity &drop = alloc_drop(sim, drops[i].first, drops[i].second, owner);
+        Entity &drop = alloc_drop(sim, drops[i].id, drops[i].rarity, owner);
+        drop.set_drop_count(drops[i].count < 1 ? 1 : drops[i].count);
         drop.set_x(sx);
         drop.set_y(sy);
         if (count > 1)
@@ -97,20 +102,25 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             std::sort(looters.begin(), looters.end(),
                 [](auto const &a, auto const &b){ return a.second > b.second; });
             if (looters.size() > max_looters) looters.resize(max_looters);
-            // Each droppable item's rarity is rolled from the mob's rarity (see
-            // roll_drop_rarity). Unique mobs roll the Super row 10x -> ~10 items.
-            int const rolls = (mob_rarity == RarityID::kUnique) ? 10 : 1;
             bool credited_kill = false;
             for (auto const &looter : looters) {
-                std::vector<std::pair<PetalID::T, uint8_t>> drops;
+                std::vector<DropSpec> drops;
                 // Every item in the mob's drop list drops (at a rolled rarity),
-                // so a kill yields the full loot set.
-                for (uint32_t i = 0; i < mob_data.drops.size(); ++i)
-                    for (int k = 0; k < rolls; ++k) {
+                // so a kill yields the full loot set. A Unique mob instead gives
+                // each item as a single 10x-Ultra stack (99.9%) or one Super
+                // (0.1%) -- no more rolling the Super row ten times.
+                for (uint32_t i = 0; i < mob_data.drops.size(); ++i) {
+                    if (mob_rarity == RarityID::kUnique) {
+                        if (frand() < 0.001f)
+                            drops.push_back({mob_data.drops[i], (uint8_t)RarityID::kSuper, 1});
+                        else
+                            drops.push_back({mob_data.drops[i], (uint8_t)RarityID::kUltra, 10});
+                    } else {
                         uint8_t const rar = roll_drop_rarity(mob_rarity);
                         if (rar != DROP_NOTHING)
-                            drops.push_back({mob_data.drops[i], rar});
+                            drops.push_back({mob_data.drops[i], rar, 1});
                     }
+                }
                 _alloc_drops(sim, drops, ent.get_x(), ent.get_y(), looter.first);
                 // Credit this mob (at its rarity) to each eligible looter's
                 // account for the Mob Gallery kill tally. The gallery is only
@@ -124,13 +134,28 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             }
             if (credited_kill) AccountDB::save();
         }
-        if (ent.get_mob_id() == MobID::kAntHole && 
-            BitMath::at(ent.flags, EntityFlags::kSpawnedFromZone) && 
-            frand() < DIGGER_SPAWN_CHANCE) { 
-            EntityID team = NULL_ENTITY;
+        if (ent.get_mob_id() == MobID::kAntHole &&
+            BitMath::at(ent.flags, EntityFlags::kSpawnedFromZone) &&
+            frand() < DIGGER_SPAWN_CHANCE) {
+            // The digger is the killer's ALLY -- it must inherit the killing
+            // flower's team so it hunts nearby wild mobs instead of chasing the
+            // player. Resolve the flower via the damager's base_entity (robust
+            // even when the finishing petal has despawned). No owner -> no
+            // digger, rather than a team-less one that would target players.
+            EntityID owner = NULL_ENTITY;
             if (sim->ent_exists(ent.last_damaged_by))
-                team = sim->get_ent(ent.last_damaged_by).get_team();
-            alloc_mob(sim, MobID::kDigger, ent.get_x(), ent.get_y(), team, inherited_spawn_rarity(ent));
+                owner = sim->get_ent(ent.last_damaged_by).base_entity;
+            // Only spawn the ally digger for a player kill: if a wild mob felled
+            // the hole, its base_entity has a NULL team and the digger would end
+            // up hunting flowers -- the very bug we're fixing.
+            if (sim->ent_alive(owner) && sim->get_ent(owner).has_component(kFlower)) {
+                Entity &of = sim->get_ent(owner);
+                Entity &digger = alloc_mob(sim, MobID::kDigger, ent.get_x(), ent.get_y(),
+                    of.get_team(), inherited_spawn_rarity(ent));
+                // Parent to the owner so it stays near the player (retreat radius)
+                // and only engages mobs within range, like a proper summon.
+                digger.set_parent(owner);
+            }
         }
 
     } else if (ent.has_component(kPetal)) {
