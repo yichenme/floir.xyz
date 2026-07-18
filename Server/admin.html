@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>floir.xyz admin</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: Ubuntu, system-ui, sans-serif; background: #2b2b2b; color: #eee; }
+        .wrap { max-width: 620px; margin: 40px auto; padding: 0 16px; }
+        h1 { font-size: 22px; }
+        .card { background: #3a3a3a; border-radius: 8px; padding: 18px; margin-bottom: 18px; }
+        label { display: block; font-size: 13px; color: #bbb; margin: 8px 0 4px; }
+        input, select { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #555; background: #2b2b2b; color: #eee; font-size: 14px; }
+        button { margin-top: 12px; padding: 9px 16px; border: 0; border-radius: 5px; background: #5a9fdb; color: #fff; font-weight: 700; cursor: pointer; font-size: 14px; }
+        button:hover { background: #4a8fcb; }
+        .row { display: flex; gap: 10px; }
+        .row > * { flex: 1; }
+        .hidden { display: none; }
+        .msg { margin-top: 10px; font-size: 13px; min-height: 18px; }
+        .ok { color: #6ee06e; } .err { color: #e06e6e; }
+        #users { list-style: none; padding: 0; margin: 10px 0 0; max-height: 220px; overflow-y: auto; }
+        #users li { padding: 7px 10px; border-radius: 5px; cursor: pointer; }
+        #users li:hover { background: #4a4a4a; }
+        #users li.sel { background: #5a9fdb; color: #fff; }
+        .target { font-size: 13px; color: #bbb; margin-top: 6px; }
+        .target b { color: #6ee0e0; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>floir.xyz — admin</h1>
+
+    <div class="card" id="loginCard">
+        <label>Admin username</label>
+        <input id="au" autocomplete="off" value="admin">
+        <label>Admin password</label>
+        <input id="ap" type="password" autocomplete="off">
+        <button onclick="login()">Log in</button>
+        <div class="msg err" id="loginMsg"></div>
+    </div>
+
+    <div class="card hidden" id="searchCard">
+        <label>Search registered players</label>
+        <div class="row">
+            <input id="q" placeholder="username (partial ok)" oninput="search()">
+        </div>
+        <ul id="users"></ul>
+    </div>
+
+    <div class="card hidden" id="giveCard">
+        <div class="target">Give to: <b id="targetName">(pick a player above)</b></div>
+        <label>Petal</label>
+        <select id="petal"></select>
+        <div class="row">
+            <div>
+                <label>Rarity</label>
+                <select id="rarity"></select>
+            </div>
+            <div>
+                <label>Count</label>
+                <input id="count" type="number" value="1" min="1">
+            </div>
+        </div>
+        <button onclick="give()">Give petal</button>
+        <div class="msg" id="giveMsg"></div>
+    </div>
+</div>
+<script>
+    var PETALS = ["None","Basic","Light","Heavy(old)","Stinger","Leaf","Twin(retired)","Rose","Iris","Missile","Dandelion","Bubble","Faster","Rock","Cactus","Web","Wing","Peas","Sand","Pincer","Dahlia","Triplet(retired)","Ant Egg","Blue Iris(retired)","Pollen","Grapes","Beetle Egg","Azalea(retired)","Stick","Tringer","Triweb(retired)","Antennae","Tricactus(retired)","Heavy","Third Eye","Observer","Purple Cactus(retired)","Salt","Unique Basic","Square","Moon","Lotus","Cutter","Yin Yang","Yggdrasil","Rice","Bone","Yucca","Corn","Golden Leaf"];
+    var RARITIES = ["Common","Uncommon","Rare","Epic","Legendary","Mythic","Ultra","Super","Unique"];
+    var creds = null, target = null;
+
+    function fillSelect(el, arr){ el.innerHTML = arr.map(function(n,i){ return '<option value="'+i+'">'+n+' ('+i+')</option>'; }).join(''); }
+    fillSelect(document.getElementById('petal'), PETALS);
+    fillSelect(document.getElementById('rarity'), RARITIES);
+
+    async function api(payload){
+        const body = Object.assign({ user: creds.user, password: creds.pass }, payload);
+        const r = await fetch('/admin/api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return r.json();
+    }
+
+    async function login(){
+        creds = { user: document.getElementById('au').value.trim(), pass: document.getElementById('ap').value };
+        const res = await api({ action: 'search', query: '' });
+        const m = document.getElementById('loginMsg');
+        if (res.ok){
+            m.textContent = '';
+            document.getElementById('loginCard').classList.add('hidden');
+            document.getElementById('searchCard').classList.remove('hidden');
+            document.getElementById('giveCard').classList.remove('hidden');
+            renderUsers(res.users);
+        } else {
+            m.textContent = res.error || 'login failed';
+        }
+    }
+
+    var searchTimer = null;
+    function search(){
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(async function(){
+            const res = await api({ action: 'search', query: document.getElementById('q').value.trim() });
+            if (res.ok) renderUsers(res.users);
+        }, 200);
+    }
+
+    function renderUsers(users){
+        const ul = document.getElementById('users');
+        ul.innerHTML = '';
+        users.forEach(function(u){
+            const li = document.createElement('li');
+            li.textContent = u;
+            li.onclick = function(){
+                target = u;
+                document.getElementById('targetName').textContent = u;
+                Array.prototype.forEach.call(ul.children, function(c){ c.classList.remove('sel'); });
+                li.classList.add('sel');
+            };
+            ul.appendChild(li);
+        });
+        if (!users.length) ul.innerHTML = '<li style="cursor:default;color:#888">no matches</li>';
+    }
+
+    async function give(){
+        const m = document.getElementById('giveMsg');
+        if (!target){ m.className = 'msg err'; m.textContent = 'pick a player first'; return; }
+        const res = await api({
+            action: 'give', target: target,
+            type: parseInt(document.getElementById('petal').value, 10),
+            rarity: parseInt(document.getElementById('rarity').value, 10),
+            count: parseInt(document.getElementById('count').value, 10) || 1
+        });
+        m.className = 'msg ' + (res.ok ? 'ok' : 'err');
+        m.textContent = res.ok ? (res.message || 'done') : (res.error || 'failed');
+    }
+</script>
+</body>
+</html>
