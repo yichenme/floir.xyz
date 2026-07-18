@@ -58,7 +58,7 @@ namespace Game {
     uint8_t simulation_ready = 0;
     uint8_t on_game_screen = 0;
     uint8_t leaving = 0;
-    uint8_t show_debug = 0;
+    uint8_t show_debug = 1;
 }
 
 using namespace Game;

@@ -76,19 +76,20 @@ void Particle::tick_game(Renderer &ctx, double dt) {
         part.y += part.y_velocity * dt / 1000;
         part.opacity = fclamp(part.opacity - dt / 1000, 0, 1);
         ctx.set_global_alpha(part.opacity);
-        ctx.set_fill(0x80ffffff);
+        ctx.set_fill(part.color);
         ctx.begin_path();
         ctx.arc(part.x,part.y,part.radius);
         ctx.fill();
     }
 }
 
-void Particle::add_unique_particle(float x, float y) {
+void Particle::add_game_particle(float x, float y, uint32_t color) {
     GameParticleEntity part;
     part.x = x;
     part.y = y;
     part.radius = 4;
     part.opacity = 1;
+    part.color = color;
     Vector rand = Vector::rand(50);
     part.x_velocity = rand.x;
     part.y_velocity = rand.y;

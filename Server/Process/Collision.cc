@@ -15,6 +15,9 @@ static bool _should_interact(Entity const &ent1, Entity const &ent2) {
     //if (ent1.has_component(kFlower) || ent2.has_component(kFlower)) return false;
     //if (ent1.has_component(kPetal) || ent2.has_component(kPetal)) return false;
     if (ent1.pending_delete || ent2.pending_delete) return false;
+    // Flowers physically push each other (a hitbox), but never deal PvP damage
+    // (skipped in on_collide's damage step below).
+    if (ent1.has_component(kFlower) && ent2.has_component(kFlower)) return true;
     if (!(ent1.get_team() == ent2.get_team())) {
         // No PvP: two player-owned entities (both non-NULL teams -- flowers,
         // their petals, their summons) never interact. Wild mobs use NULL_ENTITY,
@@ -95,7 +98,7 @@ void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
         _deal_push(ent2, separation*-1, 1 - ratio, dist);
     }
 
-    if (BOTH(kHealth) && !(ent1.get_team() == ent2.get_team())) {
+    if (BOTH(kHealth) && !(ent1.get_team() == ent2.get_team()) && !BOTH(kFlower)) {
         if (ent1.health > 0 && ent2.health > 0) {
             inflict_damage(sim, ent1.id, ent2.id, ent1.damage, DamageType::kContact);
             inflict_damage(sim, ent2.id, ent1.id, ent2.damage, DamageType::kContact);

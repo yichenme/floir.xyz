@@ -180,6 +180,13 @@ void Game::render_game() {
         render_health(renderer, ent);
     });
     simulation.for_each<kPetal>([](Simulation *sim, Entity const &ent){
+        // "Show other petals" off: hide petals belonging to other players'
+        // flowers (but keep mob projectiles like hornet missiles visible).
+        if (!Input::show_other_petals) {
+            EntityID const p = ent.get_parent();
+            if (!(p == Game::player_id) && sim->ent_alive(p) && sim->get_ent(p).has_component(kFlower))
+                return;
+        }
         RenderContext context(&renderer);
         renderer.translate(ent.get_x(), ent.get_y());
         renderer.rotate(ent.get_angle());

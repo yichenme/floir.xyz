@@ -169,6 +169,9 @@ void Storage::retrieve() {
             Input::high_quality = !BitMath::at(opts, 2);
             Input::show_grid = !BitMath::at(opts, 3);
             Game::show_debug = BitMath::at(opts, 4);
+            // show_other_petals / show_particles default ON (inverted bit).
+            Input::show_other_petals = !BitMath::at(opts, 5);
+            Input::show_particles = !BitMath::at(opts, 6);
         }
     }
     {
@@ -215,6 +218,8 @@ void Storage::set() {
             | ((!Input::high_quality) << 2)
             | ((!Input::show_grid) << 3)
             | (Game::show_debug << 4)
+            | ((!Input::show_other_petals) << 5)
+            | ((!Input::show_particles) << 6)
         );
         StorageProtocol::store("settings", writer.at - writer.base);
     }

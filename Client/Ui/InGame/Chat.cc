@@ -46,6 +46,9 @@ Element *Ui::make_chat_box() {
     chat_input_box = new Ui::TextInput(Game::chat_input, 240, 32, MAX_CHAT_LENGTH, {
         .line_width = 3,
         .round_radius = 3,
+        // Own should_render so the underlying DOM <input> is hidden at the
+        // title screen (before spawning), not just when the box isn't drawn.
+        .should_render = [](){ return chat_visible(); },
         .h_justify = Style::Left
     }, false, "Chat  (Enter)");
 

@@ -10,6 +10,19 @@
                 padding: 0px;
                 overflow: hidden;
             }
+            html, body {
+                /* Kill mobile/iPad pinch-zoom, scroll-bounce and long-press select. */
+                touch-action: none;
+                overscroll-behavior: none;
+                -webkit-user-select: none;
+                user-select: none;
+                -webkit-touch-callout: none;
+                -webkit-tap-highlight-color: transparent;
+            }
+            input, textarea {
+                -webkit-user-select: text;
+                user-select: text;
+            }
             #canvas {
                 position: absolute;
                 top: 0;
@@ -19,6 +32,7 @@
                 width: 100%;
                 height: 100%;
                 cursor: default;
+                touch-action: none;
             }
             #loading-bar {
                 position: absolute;
@@ -48,6 +62,19 @@
     <div id="font-loader" style="font-family: Ubuntu;">hello!</div>
     <canvas id="canvas" width="0" height="0"></canvas>
     <script>
+        // Block iOS/iPad pinch-zoom, double-tap-zoom and scroll gestures that
+        // otherwise fire while playing.
+        ["gesturestart", "gesturechange", "gestureend"].forEach((ev) =>
+            document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
+        document.addEventListener("touchmove", (e) => {
+            if (e.touches.length > 1 || e.scale !== 1) e.preventDefault();
+        }, { passive: false });
+        let _lastTouch = 0;
+        document.addEventListener("touchend", (e) => {
+            const now = Date.now();
+            if (now - _lastTouch <= 300) e.preventDefault();   // double-tap zoom
+            _lastTouch = now;
+        }, { passive: false });
         document.addEventListener("DOMContentLoaded", () => {
             const script = document.createElement('script');
             script.src = 'floir-client.js';

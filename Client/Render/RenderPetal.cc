@@ -7,6 +7,7 @@
 #include <Client/Particle.hh>
 
 #include <Client/Ui/Ui.hh>
+#include <Client/Input.hh>
 
 #include <Shared/Entity.hh>
 #include <Shared/StaticData.hh>
@@ -17,6 +18,12 @@ void render_petal(Renderer &ctx, Entity const &ent) {
     ctx.scale(ent.get_radius() / PETAL_DATA[ent.get_petal_id()].radius);
     if (ent.get_split_projectile()) draw_static_petal(ent.get_petal_id(), ctx);
     else draw_static_petal_single(ent.get_petal_id(), ctx);
-    if (PETAL_DATA[ent.get_petal_id()].rarity == RarityID::kUnique && frand() < fclamp(0.25 * Ui::dt/16.67, 0, 1))
-        Particle::add_unique_particle(ent.get_x(), ent.get_y());
+    // Rarity particles (toggle-able): Super = white, Unique = black. Square has
+    // none. Uses the petal's actual rarity, not its base.
+    uint8_t const rar = ent.get_petal_rarity();
+    if (Input::show_particles && ent.get_petal_id() != PetalID::kSquare
+        && frand() < fclamp(0.25 * Ui::dt / 16.67, 0, 1)) {
+        if (rar == RarityID::kUnique) Particle::add_game_particle(ent.get_x(), ent.get_y(), 0x80000000);
+        else if (rar == RarityID::kSuper) Particle::add_game_particle(ent.get_x(), ent.get_y(), 0x80ffffff);
+    }
 }

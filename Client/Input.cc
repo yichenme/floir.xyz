@@ -13,10 +13,12 @@ namespace Input {
     uint8_t mouse_buttons_pressed = 0;
     uint8_t mouse_buttons_released = 0;
     uint8_t freeze_input = 0;
-    uint8_t movement_helper = 0;
+    uint8_t movement_helper = 1;
     uint8_t keyboard_movement = 0;
     uint8_t high_quality = 1;
-    uint8_t show_grid = 1;
+    uint8_t show_grid = 0;
+    uint8_t show_other_petals = 1;
+    uint8_t show_particles = 1;
     uint8_t is_mobile = 0;
     std::unordered_set<char> keys_held;
     std::unordered_set<char> keys_held_this_tick;
