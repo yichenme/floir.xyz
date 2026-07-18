@@ -70,6 +70,14 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
                 });
             break;
         }
+        case Clientbound::kChatMessage: {
+            std::string sender, message;
+            reader.read<std::string>(sender);
+            reader.read<std::string>(message);
+            Game::chat_messages.push_back(sender + ": " + message);
+            while (Game::chat_messages.size() > 8) Game::chat_messages.erase(Game::chat_messages.begin());
+            break;
+        }
         case Clientbound::kKillsUpdate: {
             uint32_t n = reader.read<uint32_t>();
             for (auto &row : Game::mob_kills) row.fill(0);
@@ -148,6 +156,14 @@ void Game::equip_petal(uint32_t inv_index, uint8_t pos) {
     writer.write<uint8_t>(Serverbound::kEquipPetal);
     writer.write<uint32_t>(inv_index);
     writer.write<uint8_t>(pos);
+    socket.send(writer.packet, writer.at - writer.packet);
+}
+
+void Game::send_chat(std::string const &msg) {
+    if (msg.empty()) return;
+    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
+    writer.write<uint8_t>(Serverbound::kChat);
+    writer.write<std::string>(msg);
     socket.send(writer.packet, writer.at - writer.packet);
 }
 

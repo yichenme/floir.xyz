@@ -124,6 +124,11 @@ Client *GameInstance::client_for_camera_id(EntityID::id_type id) {
     return nullptr;
 }
 
+void GameInstance::broadcast(uint8_t const *packet, size_t len) {
+    for (Client *client : clients)
+        client->send_packet(packet, len);
+}
+
 void GameInstance::remove_client(Client *client) {
     DEBUG_ONLY(assert(client->game == this);)
     clients.erase(client);

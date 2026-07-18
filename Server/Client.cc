@@ -200,6 +200,21 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             player.set_loadout_rarities(pos2, tmp_rarity);
             break;
         }
+        case Serverbound::kChat: {
+            if (!client->logged_in) break;
+            if (client->check_invalid(validator.validate_string(MAX_CHAT_LENGTH))) return;
+            std::string message;
+            reader.read<std::string>(message);
+            if (client->check_invalid(UTF8Parser::is_valid_utf8(message))) return;
+            if (message.empty()) break;
+            std::string const sender = client->username.empty() ? "Anonymous" : client->username;
+            Writer writer(Server::OUTGOING_PACKET);
+            writer.write<uint8_t>(Clientbound::kChatMessage);
+            writer.write<std::string>(sender);
+            writer.write<std::string>(message);
+            client->game->broadcast(writer.packet, writer.at - writer.packet);
+            break;
+        }
     }
 }
 

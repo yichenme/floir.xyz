@@ -9,11 +9,13 @@
 // kAuthResponse: uint8 success, string session_key_or_error
 // kInventoryUpdate: uint32 n, then n × (uint8 type, uint8 rarity, uint64 count)
 // kKillsUpdate: uint32 n, then n × (uint8 mob, uint8 rarity, uint64 count)
+// kChatMessage: string sender, string message
 enum Clientbound {
     kClientUpdate,
     kAuthResponse,
     kInventoryUpdate,
-    kKillsUpdate
+    kKillsUpdate,
+    kChatMessage
 };
 
 // kRegister / kLogin: string username, string password
@@ -22,6 +24,7 @@ enum Clientbound {
 // kEquipPetal: uint32 inventory_index, uint8 loadout_static_pos
 // kInventorySwap: uint32 inventory_index, uint8 loadout_static_pos (swap one equipped ↔ one from stack)
 // kPetalSwap: loadout↔loadout (existing)
+// kChat: string message
 enum Serverbound {
     kVerify,
     kClientInput,
@@ -33,7 +36,8 @@ enum Serverbound {
     kRegister,
     kLogin,
     kSessionRestore,
-    kLogout
+    kLogout,
+    kChat
 };
 
 enum CloseReason {

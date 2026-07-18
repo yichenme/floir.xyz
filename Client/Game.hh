@@ -23,6 +23,10 @@ namespace Game {
     extern EntityID player_id;
     extern std::string nickname;
     extern std::string disconnect_message;
+    // Chat: the text being typed, and the recent message log (newest last).
+    extern std::string chat_input;
+    extern std::vector<std::string> chat_messages;
+    void send_chat(std::string const &);
     extern std::array<uint8_t, PetalID::kNumPetals> seen_petals;
     extern std::array<uint8_t, MobID::kNumMobs> seen_mobs;
     // Populated from kInventoryUpdate; consumed by the Task 8 inventory UI.

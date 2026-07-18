@@ -122,12 +122,14 @@ static Element *make_mob_stat_container(MobID::T id, uint8_t rarity) {
 }
 
 static Element *make_mob_card(MobID::T id, uint8_t rarity) {
-    uint64_t const kills = Game::mob_kills[id][rarity];
     Element *elt = new Ui::VContainer({
         new Ui::Element(300,0),
         new Ui::HFlexContainer(
             new Ui::VContainer({
-                new Ui::StaticText(18, std::string(MOB_DATA[id].name) + "  x" + format_score(kills), { .fill = 0xffffffff, .h_justify = Style::Left }),
+                // Live kill count so the info box updates as the tally grows.
+                new Ui::DynamicText(18, [id, rarity](){
+                    return std::string(MOB_DATA[id].name) + "  x" + format_score(Game::mob_kills[id][rarity]);
+                }, { .fill = 0xffffffff, .h_justify = Style::Left }),
                 new Ui::StaticText(14, RARITY_NAMES[rarity], { .fill = RARITY_COLORS[rarity], .h_justify = Style::Left }),
                 new Ui::Element(0,2),
                 new Ui::StaticParagraph(220, 14, MOB_DATA[id].description, { .h_justify = Style::Left })
@@ -227,9 +229,9 @@ static Element *make_scroll() {
     // layout so only killed mobs appear.
     for (MobID::T k = 0; k < MobID::kNumMobs; ++k) {
         MobID::T const id = id_list[k];
-        Element *row = new Ui::HContainer({}, 0, 4, { .v_justify = Style::Top });
+        Element *row = new Ui::HContainer({}, 0, 3, { .v_justify = Style::Top });
         for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)
-            row->add_child(new GalleryMobCell(id, r, 36));
+            row->add_child(new GalleryMobCell(id, r, 32));
         row->refactor();
         row->style.should_render = [id](){ return mob_killed_any(id); };
         elt->add_child(row);

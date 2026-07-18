@@ -73,7 +73,10 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .reload = 10.0,
         .count = 1,
         .rarity = RarityID::kUncommon,
-        .attributes = {}
+        .attributes = {
+            // Point each stinger's sharp tip toward the cluster centre (inward).
+            .icon_angle = M_PI
+        }
     },
     {
         .name = "Leaf",

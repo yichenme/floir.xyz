@@ -30,3 +30,8 @@ void TextInput::on_render(Renderer &ctx) {
 void TextInput::on_render_skip(Renderer &ctx) {
     DOM::element_hide(name.c_str());
 }
+
+void TextInput::clear() {
+    ref.clear();
+    DOM::update_text(name.c_str(), ref, max);
+}

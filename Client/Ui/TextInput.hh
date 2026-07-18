@@ -15,5 +15,7 @@ namespace Ui {
 
         virtual void on_render(Renderer &) override;
         virtual void on_render_skip(Renderer &) override;
+
+        void clear();   // empty the backing text + DOM element
     };
 }

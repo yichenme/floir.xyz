@@ -29,6 +29,8 @@ namespace Game {
     EntityID player_id;
     std::string nickname;
     std::string disconnect_message;
+    std::string chat_input;
+    std::vector<std::string> chat_messages;
     std::array<uint8_t, PetalID::kNumPetals> seen_petals;
     std::array<uint8_t, MobID::kNumMobs> seen_mobs;
     std::vector<PetalStack> inventory_stacks;
@@ -120,6 +122,9 @@ void Game::init() {
     );
     game_ui_window.add_child(
         Ui::make_mobile_defend_button()
+    );
+    game_ui_window.add_child(
+        Ui::make_chat_box()
     );
     game_ui_window.add_child(
         Ui::make_inventory_button()
@@ -349,7 +354,8 @@ void Game::tick(double time) {
 
     if (Input::keys_held_this_tick.contains(';'))
         show_debug = !show_debug;
-    if (Input::keys_held_this_tick.contains('\r') && !Game::alive())
+    // Enter sends chat when the chat box is focused; otherwise spawns.
+    if (!Ui::chat_try_send() && Input::keys_held_this_tick.contains('\r') && !Game::alive())
         Game::spawn_in();
 
     //clearing operations

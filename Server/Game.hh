@@ -24,4 +24,6 @@ public:
     // Same, but matches by raw entity id (mob_damage / drop-owner keys store the
     // camera's uint16 id without its generation hash).
     Client *client_for_camera_id(EntityID::id_type);
+    // Send one packet to every connected client (e.g. a chat broadcast).
+    void broadcast(uint8_t const *packet, size_t len);
 };

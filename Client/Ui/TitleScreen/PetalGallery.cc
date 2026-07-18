@@ -45,9 +45,9 @@ static Element *make_scroll() {
     // rarity) -- no rarity grouping.
     for (PetalID::T i = PetalID::kBasic; i < PetalID::kNumPetals; ++i) {
         if (is_retired_petal(i)) continue;
-        Element *row = new Ui::HContainer({}, 0, 4, { .v_justify = Style::Top });
+        Element *row = new Ui::HContainer({}, 0, 3, { .v_justify = Style::Top });
         for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)
-            row->add_child(new GalleryPetal(i, 38, r));
+            row->add_child(new GalleryPetal(i, 34, r));
         row->refactor();
         elt->add_child(row);
     }

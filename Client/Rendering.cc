@@ -173,6 +173,8 @@ void Game::render_game() {
         render_drop(renderer, ent);
     });
     simulation.for_each<kHealth>([](Simulation *sim, Entity const &ent){
+        // Mob HP bars are drawn later, on top of the mob model (see below).
+        if (ent.has_component(kMob)) return;
         RenderContext context(&renderer);
         renderer.translate(ent.get_x(), ent.get_y());
         render_health(renderer, ent);
@@ -201,6 +203,12 @@ void Game::render_game() {
             renderer.rotate(ent.get_angle());
         _apply_damage_filter(renderer, ent);
         render_mob(renderer, ent);
+    });
+    // Mob HP bars last (after the models) so they layer above the mob, not under.
+    simulation.for_each<kMob>([](Simulation *sim, Entity const &ent){
+        RenderContext context(&renderer);
+        renderer.translate(ent.get_x(), ent.get_y());
+        render_health(renderer, ent);
     });
     simulation.for_each<kFlower>([](Simulation *sim, Entity const &ent){
         RenderContext context(&renderer);
