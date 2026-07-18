@@ -103,8 +103,18 @@ void InventoryStackSlot::on_event(uint8_t event) {
     if (event == kMouseDown && !selected) {
         selected = 1;
         Ui::dragging_inventory_index = real;
-        Ui::drag_start_mouse_x = Input::mouse_x;
-        Ui::drag_start_mouse_y = Input::mouse_y;
+        // On mobile the drag is driven by a touch, not the mouse: latch the
+        // owning touch id (the tick loop bridges its position into mouse_x/y)
+        // and seed the drag-start point from that touch directly, since the
+        // mouse fields aren't populated yet on this first frame.
+        float sx = Input::mouse_x, sy = Input::mouse_y;
+        if (Input::is_mobile) {
+            Ui::drag_touch_id = touch_id;
+            auto it = Input::touches.find(touch_id);
+            if (it != Input::touches.end()) { sx = it->second.x; sy = it->second.y; }
+        }
+        Ui::drag_start_mouse_x = sx;
+        Ui::drag_start_mouse_y = sy;
         // Remember this slot's screen position so an un-placed release can fly
         // the petal back to it.
         Ui::inventory_drag_origin_x = screen_x;

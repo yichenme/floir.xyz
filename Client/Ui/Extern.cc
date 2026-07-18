@@ -23,6 +23,7 @@ namespace Ui {
     uint8_t minimap_expanded = 0;
     float minimap_expand = 0;
     int32_t dragging_inventory_index = -1;
+    uint32_t drag_touch_id = (uint32_t)-1;
     float drag_start_mouse_x = 0;
     float drag_start_mouse_y = 0;
     float inventory_icon_x = 0;

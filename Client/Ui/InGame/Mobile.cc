@@ -93,3 +93,22 @@ Element *Ui::make_mobile_joystick() {
     elt->style.h_justify = Style::Left;
     return elt;
 }
+
+// Mobile equivalent of holding G on desktop: a toggle that shows/hides the
+// petal-hitbox overlay (Game::show_hitboxes). Sits above the A/B buttons.
+Element *Ui::make_mobile_hitbox_button() {
+    Element *elt = new Ui::Button(120, 120, new Ui::StaticText(34, "G"),
+        [](Element *elt, uint8_t e) {
+            if (e == Ui::kClick)
+                Game::show_hitboxes = !Game::show_hitboxes;
+        }, [](){ return Game::show_hitboxes != 0; },
+        { .fill = 0x40000000, .line_width = 0, .round_radius = 30,
+            .should_render = [](){ return Input::is_mobile && Game::alive(); },
+            .h_justify = Style::Right, .v_justify = Style::Bottom,
+            .no_animation = 1
+        }
+    );
+    elt->x = -370;
+    elt->y = -440;
+    return elt;
+}

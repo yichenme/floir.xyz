@@ -11,6 +11,12 @@ class Client;
 class GameInstance {
     std::set<Client *> clients;
     TeamManager team_manager;
+    // Ticks since the last periodic progress flush (see persist_alive_progress).
+    uint32_t save_counter = 0;
+    // Persist every alive, logged-in player's peak progress + loadout to their
+    // account, so a server restart/redeploy can't wipe an in-progress run
+    // (progress is otherwise only written on flower death).
+    void persist_alive_progress();
 public:
     Simulation simulation;
     GameInstance();

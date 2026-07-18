@@ -1,9 +1,13 @@
 #include <Server/Game.hh>
 
+#include <Server/Account/Database.hh>
 #include <Server/Client.hh>
+#include <Server/EntityFunctions/InventoryOps.hh>
 #include <Server/PetalTracker.hh>
 #include <Server/Server.hh>
 #include <Server/Spawn.hh>
+
+#include <algorithm>
 
 #include <Shared/Binary.hh>
 #include <Shared/Entity.hh>
@@ -74,6 +78,43 @@ void GameInstance::tick() {
     for (Client *client : clients)
         _update_client(&simulation, client);
     simulation.post_tick();
+    // Flush alive players' progress to disk on a fixed cadence so a restart
+    // (deploy) mid-run doesn't discard everything gained since their last death.
+    if (++save_counter >= 15 * TPS) {
+        save_counter = 0;
+        persist_alive_progress();
+    }
+}
+
+void GameInstance::persist_alive_progress() {
+    bool dirty = false;
+    for (Client *client : clients) {
+        if (client == nullptr || !client->logged_in || client->username.empty())
+            continue;
+        if (!simulation.ent_alive(client->camera))
+            continue;
+        Entity &camera = simulation.get_ent(client->camera);
+        if (!camera.has_component(kCamera) || !simulation.ent_alive(camera.get_player()))
+            continue;
+        Entity &flower = simulation.get_ent(camera.get_player());
+        // Peak score only ever grows (no death loss), so the live flower's
+        // current score is the peak worth banking.
+        uint32_t score = std::max(flower.get_score(), camera.get_respawn_score());
+        uint32_t level = score_to_level(score);
+        if (level < 1) level = 1;
+        if (level > MAX_LEVEL) {
+            level = MAX_LEVEL;
+            score = std::min(score, level_to_score(MAX_LEVEL));
+        }
+        // Bank on the camera too so an immediate death can't regress it, then
+        // write through to the account (mirrors the flower-death path).
+        camera.set_respawn_score(score);
+        camera.set_respawn_level((uint8_t)level);
+        AccountDB::write_progress(client->username, (uint8_t)level, score);
+        InventoryOps::persist_account_petals(client, flower);
+        dirty = true;
+    }
+    if (dirty) AccountDB::save();
 }
 
 void GameInstance::add_client(Client *client) {

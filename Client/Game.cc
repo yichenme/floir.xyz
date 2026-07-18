@@ -124,6 +124,9 @@ void Game::init() {
         Ui::make_mobile_defend_button()
     );
     game_ui_window.add_child(
+        Ui::make_mobile_hitbox_button()
+    );
+    game_ui_window.add_child(
         Ui::make_chat_box()
     );
     game_ui_window.add_child(
@@ -257,6 +260,21 @@ void Game::tick(double time) {
             if (touch.saturated) continue;
             Game::poll_ui_event({ .id = touch.id, .x = touch.x, .y = touch.y, .press = 1 });
         }
+        // Bridge the inventory-drag touch into the mouse fields the shared drag
+        // logic reads (Window preview, InventoryStackSlot release, drop-target).
+        // While the finger is down, track its position; when it lifts, fire a
+        // single left-release at the last position so the petal is equipped.
+        BitMath::unset(Input::mouse_buttons_released, Input::LeftMouse);
+        if (Ui::dragging_inventory_index != -1 && Ui::drag_touch_id != (uint32_t)-1) {
+            auto it = Input::touches.find(Ui::drag_touch_id);
+            if (it != Input::touches.end()) {
+                Input::mouse_x = it->second.x;
+                Input::mouse_y = it->second.y;
+            } else {
+                BitMath::set(Input::mouse_buttons_released, Input::LeftMouse);
+                Ui::drag_touch_id = (uint32_t)-1;
+            }
+        }
     }
     else {
         Game::poll_ui_event({ .id = 0, .x = Input::mouse_x, .y = Input::mouse_y, .press = 0 });
@@ -317,8 +335,10 @@ void Game::tick(double time) {
         
     if (Input::keys_held_this_tick.contains('M'))
         Ui::minimap_expanded = !Ui::minimap_expanded;
-    // Hold G to show hitboxes; release to hide.
-    Game::show_hitboxes = Input::keys_held.contains('G');
+    // Hold G to show hitboxes; release to hide. On mobile the on-screen G button
+    // toggles Game::show_hitboxes directly, so don't clobber it here.
+    if (!Input::is_mobile)
+        Game::show_hitboxes = Input::keys_held.contains('G');
 
     if (Game::timestamp - Ui::UiLoadout::last_key_select > 5000)
         Ui::UiLoadout::selected_with_keys = MAX_SLOT_COUNT;

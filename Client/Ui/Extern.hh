@@ -38,6 +38,9 @@ namespace Ui {
     // the debug stats can slide left/right to stay clear of it.
     extern float minimap_expand;
     extern int32_t dragging_inventory_index;
+    // On mobile, the touch id that owns the active inventory drag; the tick loop
+    // bridges its position into the mouse fields the drag logic reads.
+    extern uint32_t drag_touch_id;
     extern float drag_start_mouse_x;
     extern float drag_start_mouse_y;
     extern float inventory_icon_x;

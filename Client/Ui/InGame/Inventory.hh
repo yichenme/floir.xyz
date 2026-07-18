@@ -30,4 +30,7 @@ namespace Ui {
     // pressed, send the message and clear the box. Returns true if it consumed
     // the Enter (so the caller shouldn't also treat it as a spawn key).
     bool chat_try_send();
+    // Send whatever is currently in the chat box (used by the mobile Send
+    // button, since mobile keyboards don't reliably fire an Enter key).
+    void chat_send_current();
 }

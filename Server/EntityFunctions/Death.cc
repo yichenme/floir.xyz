@@ -12,6 +12,7 @@
 #include <Shared/Map.hh>
 #include <Shared/RarityScale.hh>
 #include <Shared/Simulation.hh>
+#include <Shared/Tilemap.hh>
 
 #include <algorithm>
 #include <iostream>
@@ -24,11 +25,15 @@ static void _alloc_drops(Simulation *sim, std::vector<std::pair<PetalID::T, uint
         if (PETAL_DATA[id].rarity == RarityID::kUnique && PetalTracker::get_count(sim, id) > 0)
             drops.erase(drops.begin() + (i - 1));
     }
+    // Nudge the spawn point out of any wall/water the mob died inside, so loot
+    // never materialises embedded in terrain (motion keeps it out afterwards).
+    float sx = x, sy = y;
+    Tilemap::push_circle(sx, sy, 25);
     size_t const count = drops.size();
     for (size_t i = 0; i < count; ++i) {
         Entity &drop = alloc_drop(sim, drops[i].first, drops[i].second, owner);
-        drop.set_x(x);
-        drop.set_y(y);
+        drop.set_x(sx);
+        drop.set_y(sy);
         if (count > 1)
             drop.velocity.unit_normal(i * 2 * M_PI / count).set_magnitude(25);
     }

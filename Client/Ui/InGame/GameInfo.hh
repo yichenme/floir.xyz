@@ -50,4 +50,5 @@ namespace Ui {
     Element *make_mobile_attack_button();
     Element *make_mobile_defend_button();
     Element *make_mobile_joystick();
+    Element *make_mobile_hitbox_button();
 }

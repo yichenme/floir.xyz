@@ -32,11 +32,13 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 0, .top = 0, .right = 12500.f * 1 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kRock, 510000 },
-            { MobID::kLadybug, 100000 },
-            { MobID::kBee, 100000 },
-            { MobID::kBabyAnt, 25000 },
-            { MobID::kCentipede, 10000 },
+            { MobID::kRock, 120000 },
+            { MobID::kLadybug, 120000 },
+            { MobID::kBee, 120000 },
+            { MobID::kBabyAnt, 100000 },
+            { MobID::kSpider, 90000 },
+            { MobID::kCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 0, .color = 0xff58c05c, .name = "Garden · Common"
@@ -45,11 +47,13 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500.f * 1 / 7, .top = 0, .right = 12500.f * 2 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kRock, 510000 },
-            { MobID::kLadybug, 100000 },
-            { MobID::kBee, 100000 },
-            { MobID::kBabyAnt, 25000 },
-            { MobID::kCentipede, 10000 },
+            { MobID::kRock, 120000 },
+            { MobID::kLadybug, 120000 },
+            { MobID::kBee, 120000 },
+            { MobID::kBabyAnt, 100000 },
+            { MobID::kSpider, 90000 },
+            { MobID::kCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 1, .color = 0xff50ae53, .name = "Garden · Uncommon"
@@ -58,11 +62,13 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500.f * 2 / 7, .top = 0, .right = 12500.f * 3 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kRock, 510000 },
-            { MobID::kLadybug, 100000 },
-            { MobID::kBee, 100000 },
-            { MobID::kBabyAnt, 25000 },
-            { MobID::kCentipede, 10000 },
+            { MobID::kRock, 120000 },
+            { MobID::kLadybug, 120000 },
+            { MobID::kBee, 120000 },
+            { MobID::kBabyAnt, 100000 },
+            { MobID::kSpider, 90000 },
+            { MobID::kCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 2, .color = 0xff489d4b, .name = "Garden · Rare"
@@ -71,11 +77,13 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500.f * 3 / 7, .top = 0, .right = 12500.f * 4 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kRock, 510000 },
-            { MobID::kLadybug, 100000 },
-            { MobID::kBee, 100000 },
-            { MobID::kBabyAnt, 25000 },
-            { MobID::kCentipede, 10000 },
+            { MobID::kRock, 120000 },
+            { MobID::kLadybug, 120000 },
+            { MobID::kBee, 120000 },
+            { MobID::kBabyAnt, 100000 },
+            { MobID::kSpider, 90000 },
+            { MobID::kCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 3, .color = 0xff408c43, .name = "Garden · Epic"
@@ -84,11 +92,13 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500.f * 4 / 7, .top = 0, .right = 12500.f * 5 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kRock, 510000 },
-            { MobID::kLadybug, 100000 },
-            { MobID::kBee, 100000 },
-            { MobID::kBabyAnt, 25000 },
-            { MobID::kCentipede, 10000 },
+            { MobID::kRock, 120000 },
+            { MobID::kLadybug, 120000 },
+            { MobID::kBee, 120000 },
+            { MobID::kBabyAnt, 100000 },
+            { MobID::kSpider, 90000 },
+            { MobID::kCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 4, .color = 0xff387a3a, .name = "Garden · Legendary"
@@ -97,11 +107,13 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500.f * 5 / 7, .top = 0, .right = 12500.f * 6 / 7, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kRock, 510000 },
-            { MobID::kLadybug, 100000 },
-            { MobID::kBee, 100000 },
-            { MobID::kBabyAnt, 25000 },
-            { MobID::kCentipede, 10000 },
+            { MobID::kRock, 120000 },
+            { MobID::kLadybug, 120000 },
+            { MobID::kBee, 120000 },
+            { MobID::kBabyAnt, 100000 },
+            { MobID::kSpider, 90000 },
+            { MobID::kCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 5, .color = 0xff306932, .name = "Garden · Mythic"
@@ -110,11 +122,13 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500.f * 6 / 7, .top = 0, .right = 12500, .bottom = 14000,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kRock, 510000 },
-            { MobID::kLadybug, 100000 },
-            { MobID::kBee, 100000 },
-            { MobID::kBabyAnt, 25000 },
-            { MobID::kCentipede, 10000 },
+            { MobID::kRock, 120000 },
+            { MobID::kLadybug, 120000 },
+            { MobID::kBee, 120000 },
+            { MobID::kBabyAnt, 100000 },
+            { MobID::kSpider, 90000 },
+            { MobID::kCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 6, .color = 0xff28582a, .name = "Garden · Ultra"
@@ -123,11 +137,12 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500, .top = 0, .right = 25000, .bottom = 25500.f * 1 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
-            { MobID::kSpider, 100000 },
-            { MobID::kHornet, 100000 },
+            { MobID::kHornet, 120000 },
+            { MobID::kBeetle, 120000 },
+            { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
-            { MobID::kBeetle, 50000 },
-            { MobID::kEvilCentipede, 10000 },
+            { MobID::kEvilCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 0, .color = 0xff3a8f4a, .name = "Jungle · Common"
@@ -136,11 +151,12 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500, .top = 25500.f * 1 / 7, .right = 25000, .bottom = 25500.f * 2 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
-            { MobID::kSpider, 100000 },
-            { MobID::kHornet, 100000 },
+            { MobID::kHornet, 120000 },
+            { MobID::kBeetle, 120000 },
+            { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
-            { MobID::kBeetle, 50000 },
-            { MobID::kEvilCentipede, 10000 },
+            { MobID::kEvilCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 1, .color = 0xff348243, .name = "Jungle · Uncommon"
@@ -149,11 +165,12 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500, .top = 25500.f * 2 / 7, .right = 25000, .bottom = 25500.f * 3 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
-            { MobID::kSpider, 100000 },
-            { MobID::kHornet, 100000 },
+            { MobID::kHornet, 120000 },
+            { MobID::kBeetle, 120000 },
+            { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
-            { MobID::kBeetle, 50000 },
-            { MobID::kEvilCentipede, 10000 },
+            { MobID::kEvilCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 2, .color = 0xff2f753c, .name = "Jungle · Rare"
@@ -162,11 +179,12 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500, .top = 25500.f * 3 / 7, .right = 25000, .bottom = 25500.f * 4 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
-            { MobID::kSpider, 100000 },
-            { MobID::kHornet, 100000 },
+            { MobID::kHornet, 120000 },
+            { MobID::kBeetle, 120000 },
+            { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
-            { MobID::kBeetle, 50000 },
-            { MobID::kEvilCentipede, 10000 },
+            { MobID::kEvilCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 3, .color = 0xff2a6836, .name = "Jungle · Epic"
@@ -175,11 +193,12 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500, .top = 25500.f * 4 / 7, .right = 25000, .bottom = 25500.f * 5 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
-            { MobID::kSpider, 100000 },
-            { MobID::kHornet, 100000 },
+            { MobID::kHornet, 120000 },
+            { MobID::kBeetle, 120000 },
+            { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
-            { MobID::kBeetle, 50000 },
-            { MobID::kEvilCentipede, 10000 },
+            { MobID::kEvilCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 4, .color = 0xff255b2f, .name = "Jungle · Legendary"
@@ -188,11 +207,12 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500, .top = 25500.f * 5 / 7, .right = 25000, .bottom = 25500.f * 6 / 7,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
-            { MobID::kSpider, 100000 },
-            { MobID::kHornet, 100000 },
+            { MobID::kHornet, 120000 },
+            { MobID::kBeetle, 120000 },
+            { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
-            { MobID::kBeetle, 50000 },
-            { MobID::kEvilCentipede, 10000 },
+            { MobID::kEvilCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 5, .color = 0xff1f4e28, .name = "Jungle · Mythic"
@@ -201,11 +221,12 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 12500, .top = 25500.f * 6 / 7, .right = 25000, .bottom = 25500,
         .density = 1, .drop_multiplier = 0.1,
         .spawns = {
-            { MobID::kSpider, 100000 },
-            { MobID::kHornet, 100000 },
+            { MobID::kHornet, 120000 },
+            { MobID::kBeetle, 120000 },
+            { MobID::kDarkLadybug, 120000 },
             { MobID::kRock, 80000 },
-            { MobID::kBeetle, 50000 },
-            { MobID::kEvilCentipede, 10000 },
+            { MobID::kEvilCentipede, 60000 },
+            { MobID::kAntHole, 40000 },
             { MobID::kSquare, 1 }
         },
         .difficulty = 6, .color = 0xff1a4122, .name = "Jungle · Ultra"
@@ -214,11 +235,11 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 0, .top = 14000, .right = 14000, .bottom = 14000 + 11500.f * 1 / 7,
         .density = 1, .drop_multiplier = 0.15,
         .spawns = {
-            { MobID::kCactus, 400000 },
+            { MobID::kCactus, 120000 },
             { MobID::kBeetle, 100000 },
-            { MobID::kSandstorm, 50000 },
-            { MobID::kScorpion, 50000 },
-            { MobID::kDesertCentipede, 10000 },
+            { MobID::kSandstorm, 90000 },
+            { MobID::kScorpion, 90000 },
+            { MobID::kDesertCentipede, 40000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -228,11 +249,11 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 0, .top = 14000 + 11500.f * 1 / 7, .right = 14000, .bottom = 14000 + 11500.f * 2 / 7,
         .density = 1, .drop_multiplier = 0.15,
         .spawns = {
-            { MobID::kCactus, 400000 },
+            { MobID::kCactus, 120000 },
             { MobID::kBeetle, 100000 },
-            { MobID::kSandstorm, 50000 },
-            { MobID::kScorpion, 50000 },
-            { MobID::kDesertCentipede, 10000 },
+            { MobID::kSandstorm, 90000 },
+            { MobID::kScorpion, 90000 },
+            { MobID::kDesertCentipede, 40000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -242,11 +263,11 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 0, .top = 14000 + 11500.f * 2 / 7, .right = 14000, .bottom = 14000 + 11500.f * 3 / 7,
         .density = 1, .drop_multiplier = 0.15,
         .spawns = {
-            { MobID::kCactus, 400000 },
+            { MobID::kCactus, 120000 },
             { MobID::kBeetle, 100000 },
-            { MobID::kSandstorm, 50000 },
-            { MobID::kScorpion, 50000 },
-            { MobID::kDesertCentipede, 10000 },
+            { MobID::kSandstorm, 90000 },
+            { MobID::kScorpion, 90000 },
+            { MobID::kDesertCentipede, 40000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -256,11 +277,11 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 0, .top = 14000 + 11500.f * 3 / 7, .right = 14000, .bottom = 14000 + 11500.f * 4 / 7,
         .density = 1, .drop_multiplier = 0.15,
         .spawns = {
-            { MobID::kCactus, 400000 },
+            { MobID::kCactus, 120000 },
             { MobID::kBeetle, 100000 },
-            { MobID::kSandstorm, 50000 },
-            { MobID::kScorpion, 50000 },
-            { MobID::kDesertCentipede, 10000 },
+            { MobID::kSandstorm, 90000 },
+            { MobID::kScorpion, 90000 },
+            { MobID::kDesertCentipede, 40000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -270,11 +291,11 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 0, .top = 14000 + 11500.f * 4 / 7, .right = 14000, .bottom = 14000 + 11500.f * 5 / 7,
         .density = 1, .drop_multiplier = 0.15,
         .spawns = {
-            { MobID::kCactus, 400000 },
+            { MobID::kCactus, 120000 },
             { MobID::kBeetle, 100000 },
-            { MobID::kSandstorm, 50000 },
-            { MobID::kScorpion, 50000 },
-            { MobID::kDesertCentipede, 10000 },
+            { MobID::kSandstorm, 90000 },
+            { MobID::kScorpion, 90000 },
+            { MobID::kDesertCentipede, 40000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -284,11 +305,11 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 0, .top = 14000 + 11500.f * 5 / 7, .right = 14000, .bottom = 14000 + 11500.f * 6 / 7,
         .density = 1, .drop_multiplier = 0.15,
         .spawns = {
-            { MobID::kCactus, 400000 },
+            { MobID::kCactus, 120000 },
             { MobID::kBeetle, 100000 },
-            { MobID::kSandstorm, 50000 },
-            { MobID::kScorpion, 50000 },
-            { MobID::kDesertCentipede, 10000 },
+            { MobID::kSandstorm, 90000 },
+            { MobID::kScorpion, 90000 },
+            { MobID::kDesertCentipede, 40000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },
@@ -298,11 +319,11 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
         .left = 0, .top = 14000 + 11500.f * 6 / 7, .right = 14000, .bottom = 25500,
         .density = 1, .drop_multiplier = 0.15,
         .spawns = {
-            { MobID::kCactus, 400000 },
+            { MobID::kCactus, 120000 },
             { MobID::kBeetle, 100000 },
-            { MobID::kSandstorm, 50000 },
-            { MobID::kScorpion, 50000 },
-            { MobID::kDesertCentipede, 10000 },
+            { MobID::kSandstorm, 90000 },
+            { MobID::kScorpion, 90000 },
+            { MobID::kDesertCentipede, 40000 },
             { MobID::kShinyLadybug, 1000 },
             { MobID::kSquare, 1 }
         },

@@ -1,5 +1,6 @@
 #include <Client/Ui/InGame/Inventory.hh>
 
+#include <Client/Ui/Button.hh>
 #include <Client/Ui/Container.hh>
 #include <Client/Ui/TextInput.hh>
 #include <Client/Ui/Extern.hh>
@@ -52,9 +53,28 @@ Element *Ui::make_chat_box() {
         .h_justify = Style::Left
     }, false, "Chat  (Enter)");
 
+    // Mobile keyboards don't reliably fire an Enter keydown the game can see, so
+    // give touch users an explicit Send button next to the input. It collapses
+    // out of the layout on desktop (Enter still works there).
+    Element *send_btn = new Ui::Button(70, 32, new Ui::StaticText(15, "Send"),
+        [](Element *e, uint8_t ev){ if (ev == Ui::kClick) Ui::chat_send_current(); },
+        nullptr,
+        {
+            .fill = 0xff5a9fdb,
+            .line_width = 3,
+            .round_radius = 3,
+            .should_render = [](){ return Input::is_mobile && chat_visible(); },
+            .h_justify = Style::Left
+        });
+
+    Element *input_row = new Ui::HContainer({
+        chat_input_box,
+        send_btn
+    }, 0, 6, { .h_justify = Style::Left, .v_justify = Style::Top });
+
     Element *box = new Ui::VContainer({
         log,
-        chat_input_box
+        input_row
     }, 6, 6, {
         .should_render = [](){ return chat_visible(); },
         .h_justify = Style::Left,
@@ -76,4 +96,11 @@ bool Ui::chat_try_send() {
     Game::send_chat(Game::chat_input);
     chat_input_box->clear();
     return true;
+}
+
+void Ui::chat_send_current() {
+    if (chat_input_box == nullptr || !Game::alive()) return;
+    if (Game::chat_input.empty()) return;
+    Game::send_chat(Game::chat_input);
+    chat_input_box->clear();
 }
