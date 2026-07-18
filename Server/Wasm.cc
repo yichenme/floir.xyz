@@ -82,8 +82,20 @@ WebSocketServer::WebSocketServer() {
                     file = "";
                     break;
             }
-            if (fs.existsSync(file)) {            
-                res.writeHead(200, {"Content-Type": encodeType});
+            if (fs.existsSync(file)) {
+                // Revalidate on every load (no-cache) with an ETag so browsers
+                // get 304 when unchanged (no re-download) but always pick up a
+                // fresh client after a deploy. Without this, heuristic caching
+                // could serve a new floir-client.js against an old cached .wasm
+                // -> mismatched memory layout -> corrupted in-game values.
+                const stat = fs.statSync(file);
+                const etag = '"' + stat.size.toString(16) + '-' + Math.round(stat.mtimeMs).toString(16) + '"';
+                if (req.headers["if-none-match"] === etag) {
+                    res.writeHead(304, {"ETag": etag, "Cache-Control": "no-cache"});
+                    res.end();
+                    return;
+                }
+                res.writeHead(200, {"Content-Type": encodeType, "Cache-Control": "no-cache", "ETag": etag});
                 res.end(fs.readFileSync(file));
                 return;
             }

@@ -48,18 +48,9 @@
     <div id="font-loader" style="font-family: Ubuntu;">hello!</div>
     <canvas id="canvas" width="0" height="0"></canvas>
     <script>
-        // Cache-busting: __CLIENT_VER__ is replaced at deploy time with the
-        // client wasm's content hash, so every deploy forces browsers to fetch
-        // a matching js + wasm pair. Loading a new floir-client.js against an
-        // old cached floir-client.wasm reads garbage memory (wrong offsets),
-        // which shows up as corrupted values in-game (e.g. wrong petal rarities).
-        var CLIENT_VER = '__CLIENT_VER__';
-        var Module = {
-            locateFile: function(path, prefix){ return (prefix || '') + path + '?v=' + CLIENT_VER; }
-        };
         document.addEventListener("DOMContentLoaded", () => {
             const script = document.createElement('script');
-            script.src = 'floir-client.js?v=' + CLIENT_VER;
+            script.src = 'floir-client.js';
             script.async = true;
             document.body.appendChild(script);
         });
