@@ -61,8 +61,23 @@ static void _pickup_drop(Simulation *sim, Entity &player, Entity &drop) {
 // discounted itself when the entity was charging INTO what it hit, plus the
 // elastic movement-cancel bounce for players ramming mobs) has been removed
 // entirely -- collisions now resolve purely by this physical push.
+//
+// `scale` is the raw overlap depth (uncapped) -- for two large-radius mobs
+// (segmented bodies, high-rarity giants) that end up deeply overlapping (e.g.
+// spawned on top of each other), this can be hundreds of units. Since a mob's
+// mass is now a small FIXED value per species (not derived from its
+// rarity-scaled radius like before), a light-but-huge mob given a huge overlap
+// depth in one shove could get flung thousands of units in a single tick --
+// confirmed in production via a MOTION_SPIKE diagnostic (steps up to 247,
+// dist up to ~21800 units, all on non-flower/non-petal wild mobs). Motion.cc's
+// terrain sub-stepping then has to iterate proportionally to that distance,
+// which is what was actually causing the tick-budget overruns ("frame drop").
+// Cap the per-tick push so an overlap can only be resolved a bounded amount
+// per tick (deep overlaps just resolve over a few ticks instead of one).
+static float const MAX_PUSH_PER_TICK = 40.0f;
 static void _deal_push(Entity &ent, Vector knockback, float mass_ratio, float scale) {
     if (fabsf(mass_ratio) < 0.01) return;
+    scale = fclamp(scale, -MAX_PUSH_PER_TICK, MAX_PUSH_PER_TICK);
     knockback *= scale * mass_ratio;
     ent.collision_velocity += knockback;
 }
