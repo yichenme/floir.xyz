@@ -352,18 +352,21 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
         case MobID::kCactus: {
             SET_BASE_COLOR(0xff32a852)
             uint32_t vertices = radius / 10 + 5;
+            // Body radius vs. overall (body + spike) radius, taken from the
+            // reference cactus.svg (green lobed body ~35.15 within an overall
+            // ~39.45 including spike tips -- ratio 0.891). Spike tips still sit
+            // AT the physics radius so the hitbox boundary matches what's drawn;
+            // the body itself is pulled in so the spikes actually protrude
+            // beyond it instead of hugging flush against the rim.
+            float const BODY_R = radius * 0.891f;
             {
-                // Spike tips sit AT the physics radius (not beyond it) so the
-                // hitbox boundary matches what's visually drawn -- they used to
-                // overshoot to radius+10, making the collision circle visibly
-                // smaller than the spiky sprite.
                 RenderContext context(&ctx);
                 ctx.set_fill(0xff222222);
                 ctx.begin_path();
                 for (uint32_t i = 0; i < vertices; ++i) {
                     ctx.move_to(radius,0);
-                    ctx.line_to(radius*0.85f,3);
-                    ctx.line_to(radius*0.85f,-3);
+                    ctx.line_to(BODY_R*0.9f,4);
+                    ctx.line_to(BODY_R*0.9f,-4);
                     ctx.line_to(radius,0);
                     ctx.rotate(M_PI * 2 / vertices);
                 }
@@ -375,12 +378,12 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.round_line_cap();
             ctx.round_line_join();
             ctx.begin_path();
-            ctx.move_to(radius,0);
+            ctx.move_to(BODY_R,0);
             for (uint32_t i = 0; i < vertices; ++i) {
                 float base_angle = M_PI * 2 * i / vertices;
                 ctx.qcurve_to(
-                    radius*0.8*cosf(base_angle+M_PI/vertices),radius*0.8*sinf(base_angle+M_PI/vertices),
-                    radius*cosf(base_angle+2*M_PI/vertices),radius*sinf(base_angle+2*M_PI/vertices));
+                    BODY_R*0.8*cosf(base_angle+M_PI/vertices),BODY_R*0.8*sinf(base_angle+M_PI/vertices),
+                    BODY_R*cosf(base_angle+2*M_PI/vertices),BODY_R*sinf(base_angle+2*M_PI/vertices));
             }
             ctx.fill();
             ctx.stroke();
@@ -396,7 +399,11 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.round_line_cap();
             ctx.round_line_join();
             ctx.begin_path();
-            float deflection = radius * 0.1;
+            // 0.1 read as barely more than a plain circle at gallery-icon
+            // scale (indistinguishable from the Rock petal's own grey disc);
+            // 0.25 keeps a visibly jagged, angular boulder silhouette down to
+            // small sizes.
+            float deflection = radius * 0.25;
             ctx.move_to(radius + gen.binext() * deflection,gen.binext() * deflection);
             uint32_t sides = 4 + radius / 10;
             for (uint32_t i = 1; i < sides; ++i) {
