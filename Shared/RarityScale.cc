@@ -26,8 +26,17 @@ float mob_xp_mult(uint8_t r) { return mob_rarity_mult(r); }
 float mob_armor_mult(uint8_t r) {
     return rarity_pow3(r > RarityID::kUltra ? RarityID::kUltra : r);
 }
+// Per-tier mob HP step (cumulative product), NOT a flat 3x -- each transition
+// has its own multiplier: Common->Uncommon 3.75, Uncommon->Rare 3.6,
+// Rare->Epic 4, Epic->Legendary 6, Legendary->Mythic 9.75, Mythic->Ultra
+// 810/13 (~62.31), Ultra->Super 200/9 (~22.22), Super->Unique 15.
+static float const HP_STEP[8] = {
+    3.75f, 3.6f, 4.f, 6.f, 9.75f, 810.f / 13.f, 200.f / 9.f, 15.f
+};
 float mob_hp_mult(uint8_t r) {
-    return rarity_pow3(r);
+    float m = 1.f;
+    for (uint8_t i = 0; i < r && i < 8; ++i) m *= HP_STEP[i];
+    return m;
 }
 float mob_size_mult(uint8_t r) {
     // 1.4x per rarity tier, compounding (1.0x at Common, ~14.8x at Unique). No
