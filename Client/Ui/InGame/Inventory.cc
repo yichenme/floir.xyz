@@ -220,8 +220,7 @@ Element *Ui::make_inventory_panel() {
             return Ui::panel_open == Panel::kInventory && Game::alive();
         },
         .h_justify = Style::Left,
-        .v_justify = Style::Bottom,
-        .no_animation = 1
+        .v_justify = Style::Bottom
     });
     Ui::Panel::inventory = elt;
     return elt;

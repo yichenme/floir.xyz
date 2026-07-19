@@ -25,6 +25,13 @@ namespace InventoryOps {
     void equip_to_loadout(Client *client, Entity &player, uint32_t inv_index, uint8_t static_pos);
     void pickup_drop(Simulation *sim, Client *client, Entity &player, Entity &drop);
 
+    // Direct account-inventory mutation, bypassing the loadout entirely --
+    // used by the Mjolnir leaderboard reward so granting it never has to bump
+    // (and destroy) whatever petal is already equipped.
+    void grant_to_inventory(Client *client, PetalID::T type, uint8_t rarity, uint64_t n = 1);
+    void remove_from_inventory_by_type(Client *client, PetalID::T type);
+    bool has_in_inventory(Client *client, PetalID::T type);
+
     void sync_inventory_update(Client *client);
     void sync_kills_update(Client *client);
     void persist_account_petals(Client *client, Entity &player);

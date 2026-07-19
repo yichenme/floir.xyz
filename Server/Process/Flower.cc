@@ -140,7 +140,14 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
 
     if (sim->ent_alive(player.get_parent())) {
         Entity &camera = sim->get_ent(player.get_parent());
-        camera.set_fov(BASE_FOV * buffs.vision_factor);
+        // Clamped here (not just at the network query in Game.cc's
+        // _update_client) so the fov synced to the client -- which drives the
+        // client's own render zoom -- always matches the radius the server
+        // actually queries/sends entities for. Without this, a high-rarity
+        // Antennae/Observer would visually zoom out further than what got
+        // queried, so mobs inside the visible-but-unqueried gap silently never
+        // rendered.
+        camera.set_fov(fclamp(BASE_FOV * buffs.vision_factor, BASE_FOV * 0.35f, BASE_FOV));
     }
 
     DEBUG_ONLY(assert(player.get_loadout_count() <= MAX_SLOT_COUNT);)

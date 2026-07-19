@@ -10,6 +10,7 @@
 #include <Shared/Entity.hh>
 #include <Shared/Simulation.hh>
 
+#include <algorithm>
 #include <array>
 #include <string>
 
@@ -66,6 +67,33 @@ void store_from_loadout(Client *client, Entity &player, uint8_t static_pos) {
     add_stack(inv, id, rarity, 1);
     save_inventory(client, inv);
     sync_inventory_update(client);
+}
+
+void grant_to_inventory(Client *client, PetalID::T type, uint8_t rarity, uint64_t n) {
+    if (client == nullptr) return;
+    std::vector<PetalStack> inv = load_inventory(client);
+    add_stack(inv, type, rarity, n);
+    save_inventory(client, inv);
+    sync_inventory_update(client);
+}
+
+void remove_from_inventory_by_type(Client *client, PetalID::T type) {
+    if (client == nullptr) return;
+    std::vector<PetalStack> inv = load_inventory(client);
+    size_t const before = inv.size();
+    inv.erase(std::remove_if(inv.begin(), inv.end(),
+        [type](PetalStack const &s){ return s.type == type; }), inv.end());
+    if (inv.size() == before) return;
+    save_inventory(client, inv);
+    sync_inventory_update(client);
+}
+
+bool has_in_inventory(Client *client, PetalID::T type) {
+    if (client == nullptr) return false;
+    std::vector<PetalStack> inv = load_inventory(client);
+    for (PetalStack const &s : inv)
+        if (s.type == type) return true;
+    return false;
 }
 
 void equip_to_loadout(Client *client, Entity &player, uint32_t inv_index, uint8_t static_pos) {

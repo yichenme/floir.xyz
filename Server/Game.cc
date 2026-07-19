@@ -50,16 +50,13 @@ static void _update_client(Simulation *sim, Client *client) {
     Writer writer(Server::OUTGOING_PACKET);
     writer.write<uint8_t>(Clientbound::kClientUpdate);
     writer.write<EntityID>(client->camera);
-    // Vision-widening petals (Antennae, Observer) push fov well below BASE_FOV
-    // -- uncapped, a high-rarity Antennae balloons this query to nearly the
-    // whole map (thousands of entities serialized every tick), then dumps a
-    // burst of delete messages the instant it's unequipped and the view
-    // snaps back. Clamp the fov used for this query so the view-radius (and
-    // its swing on equip/unequip) stays bounded, independent of the wider
-    // (and less perf-sensitive) floor Culling.cc uses for waking dormant mobs.
-    float const query_fov = fclamp(camera.get_fov(), BASE_FOV * 0.35f, BASE_FOV);
+    // camera.get_fov() is already clamped where it's set (Flower.cc) so the
+    // client's render zoom and this query's radius always agree -- see the
+    // comment there for why (a high-rarity Antennae/Observer used to zoom the
+    // client out further than what got queried, so mobs in the gap silently
+    // never rendered).
     sim->spatial_hash.query(camera.get_camera_x(), camera.get_camera_y(),
-    960 / query_fov + 50, 540 / query_fov + 50,
+    960 / camera.get_fov() + 50, 540 / camera.get_fov() + 50,
     [&](Simulation *, Entity &ent){
         add_view(ent.id);
     });
@@ -161,27 +158,31 @@ void GameInstance::update_mjolnir_ownership() {
         int has = -1;
         for (uint32_t i = 0; i < 2 * fl.get_loadout_count(); ++i)
             if (fl.get_loadout_ids(i) == PetalID::kMjolnir) { has = (int)i; break; }
+        bool const has_anywhere = has >= 0 || InventoryOps::has_in_inventory(c, PetalID::kMjolnir);
         bool const should = (c == top);
-        if (should && has < 0) {
-            // Grant: prefer an empty slot (any row) so we don't bump an equipped
-            // petal; fall back to the last secondary slot.
-            uint32_t slot = 2 * fl.get_loadout_count() - 1;
-            for (uint32_t i = 0; i < 2 * fl.get_loadout_count(); ++i)
-                if (fl.get_loadout_ids(i) == PetalID::kNone) { slot = i; break; }
-            PetalTracker::remove_petal(&simulation, fl.get_loadout_ids(slot));
-            fl.set_loadout_ids(slot, PetalID::kMjolnir);
-            fl.set_loadout_rarities(slot, RarityID::kUnique);
-            PetalTracker::add_petal(&simulation, PetalID::kMjolnir);
+        if (should && !has_anywhere) {
+            // Grant into the inventory, never directly into a loadout slot --
+            // forcing it into an occupied slot used to silently destroy
+            // whatever petal was equipped there (every full-loadout top player
+            // hit this, since an empty slot essentially never existed). The
+            // player can equip it themselves like any other petal, which
+            // properly swaps the bumped petal back into the inventory instead
+            // of deleting it.
+            InventoryOps::grant_to_inventory(c, PetalID::kMjolnir, RarityID::kUnique);
             std::string const nm = fl.get_name().empty() ? c->username : fl.get_name();
             system_message(SystemMsgKind::kSysUnique, nm + " is now the Unique Mjolnir owner!");
-        } else if (!should && has >= 0) {
-            // Revoke: blank every Mjolnir slot (it just vanishes from the loadout).
+        } else if (!should && has_anywhere) {
+            // Revoke: blank every equipped Mjolnir slot (it just vanishes from
+            // the loadout) and purge any unequipped copy sitting in the
+            // inventory -- it's a transient leaderboard reward, not something
+            // that should persist once ownership changes.
             for (uint32_t i = 0; i < 2 * fl.get_loadout_count(); ++i)
                 if (fl.get_loadout_ids(i) == PetalID::kMjolnir) {
                     fl.set_loadout_ids(i, PetalID::kNone);
                     fl.set_loadout_rarities(i, 0);
                     PetalTracker::remove_petal(&simulation, PetalID::kMjolnir);
                 }
+            InventoryOps::remove_from_inventory_by_type(c, PetalID::kMjolnir);
         }
     }
 }
