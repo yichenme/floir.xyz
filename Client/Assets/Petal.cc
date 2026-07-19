@@ -460,6 +460,39 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             // The hammer of thunder (translated from Mjölnir.svg).
             MjolnirArt::draw(ctx, r);
             break;
+        case PetalID::kMagnet:
+            // A horseshoe magnet (translated from magnet.svg): a red arm and a
+            // blue arm curving down to meet at a point, each drawn as a thick
+            // outer stroke plus a thinner, lighter inner stroke for a rounded
+            // highlight. Coordinates are relative to the svg's 110x110
+            // viewBox center, scaled down to the petal's actual radius.
+            ctx.scale(r / 55.0);
+            ctx.round_line_cap();
+            ctx.set_line_width(24);
+            ctx.set_stroke(0xff363685);
+            ctx.begin_path();
+            ctx.move_to(20.34, -3.57);
+            ctx.bcurve_to(13.91, 19.12, 3.49, 25.84, -10.94, 16.58);
+            ctx.stroke();
+            ctx.set_line_width(14.4);
+            ctx.set_stroke(0xff4343a4);
+            ctx.begin_path();
+            ctx.move_to(20.57, -3.94);
+            ctx.bcurve_to(13.99, 19.00, 3.49, 25.84, -10.94, 16.58);
+            ctx.stroke();
+            ctx.set_line_width(24);
+            ctx.set_stroke(0xff853636);
+            ctx.begin_path();
+            ctx.move_to(-5.63, -20.25);
+            ctx.bcurve_to(-23.59, -4.96, -25.36, 7.32, -10.94, 16.58);
+            ctx.stroke();
+            ctx.set_line_width(14.4);
+            ctx.set_stroke(0xffa44343);
+            ctx.begin_path();
+            ctx.move_to(-5.40, -20.61);
+            ctx.bcurve_to(-23.52, -5.08, -25.36, 7.32, -10.94, 16.58);
+            ctx.stroke();
+            break;
         case PetalID::kLotus:
             ctx.scale(r / 10);
             ctx.set_fill(0xffce76db);

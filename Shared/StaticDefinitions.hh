@@ -81,6 +81,7 @@ namespace PetalID {
         kCorn,
         kGoldenLeaf,
         kMjolnir,
+        kMagnet,
         kNumPetals
     };
 };
@@ -226,8 +227,10 @@ struct PetalAttributes {
     float damage_reflection = 0;
     float extra_damage_factor = 1;
     float extra_reload_factor = 1;
+    float magnet_range = 0;
     struct PoisonDamage poison_damage;
     uint8_t defend_only = 0;
+    uint8_t fixed_orbit = 0;
     float icon_angle = 0;
     uint8_t split_projectile = 0;
     uint8_t rotation_style = kPassiveRot;

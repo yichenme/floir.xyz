@@ -13,6 +13,7 @@
 struct PlayerBuffs {
     float extra_rot = 0;
     float extra_range = 0;
+    float magnet_range = 0;
     float heal = 0;
     float vision_factor = 1;
     float extra_health = 0;
@@ -50,6 +51,7 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
             buffs.vision_factor = std::min(buffs.vision_factor, 1.f / (1.f + rate * (slot.rarity + 1)));
         }
         buffs.extra_range = std::fmax(attrs.extra_range * (slot.rarity + 1), buffs.extra_range);   // Third Eye: +25 per rarity (base 25)
+        buffs.magnet_range = std::fmax(buffs.magnet_range, attrs.magnet_range * (slot.rarity + 1));   // Magnet: +150 per rarity (base 150)
         buffs.extra_damage = std::fmax(buffs.extra_damage, attrs.extra_body_damage * rarity_pow3(slot.rarity));
         buffs.damage_factor *= attrs.extra_damage_factor;
         // Reload-factor reductions deepen one step per rarity (Golden Leaf: -5%
@@ -107,6 +109,34 @@ static RotationCenter const _get_petal_rotation_center(Simulation *sim, Entity c
     };
 }
 
+// Magnet: nudges nearby drops the player is actually eligible to collect
+// toward them each tick. Drops otherwise never move on their own (they're
+// excluded from the collision push in on_collide), so this is a direct
+// position nudge rather than an acceleration/velocity effect -- it never
+// needs to be "reset" when a drop leaves range or the petal is unequipped,
+// since it only ever touches a drop's position on the tick it's actually
+// pulling it.
+static float const MAGNET_PULL_SPEED = 600.0f;   // units/sec
+static void _apply_magnet_pull(Simulation *sim, Entity &player, float range) {
+    if (range <= 0) return;
+    if (!sim->ent_alive(player.get_parent())) return;
+    uint32_t const owner_id = player.get_parent().id;
+    float const step = MAGNET_PULL_SPEED / TPS;
+    float const px = player.get_x(), py = player.get_y();
+    sim->spatial_hash.query(px, py, range, range, [&](Simulation *, Entity &ent) {
+        if (!ent.has_component(kDrop) || ent.pending_delete) return;
+        uint32_t const drop_owner = ent.get_drop_owner();
+        if (drop_owner != 0 && drop_owner != owner_id) return;
+        Vector d(px - ent.get_x(), py - ent.get_y());
+        float const dist = d.magnitude();
+        if (dist > range || dist < 1.0f) return;
+        d.normalize();
+        float const move = std::fmin(step, dist);
+        ent.set_x(ent.get_x() + d.x * move);
+        ent.set_y(ent.get_y() + d.y * move);
+    });
+}
+
 void tick_player_behavior(Simulation *sim, Entity &player) {
     if (player.pending_delete) return;
     // A dead player is a frozen corpse: no input, no movement, no petals, no
@@ -125,6 +155,8 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
         player.damage = BASE_BODY_DAMAGE + buffs.extra_damage;
     }
     player.health = health_ratio * player.max_health;
+    if (buffs.magnet_range > 0)
+        _apply_magnet_pull(sim, player, buffs.magnet_range);
     if (buffs.heal > 0)
         inflict_heal(sim, player, buffs.heal);
     if (buffs.is_poisonous)
@@ -209,17 +241,22 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
                         wanting.unit_normal(2 * M_PI * rot_pos / rotation_count + player.heading_angle);
 
                     float range = rotation_center.r + 40;
-                    if (BitMath::at(player.input, InputFlags::kAttacking)) { 
-                        if (petal_data.attributes.defend_only == 0) 
-                            range = rotation_center.r + 100 + buffs.extra_range; 
-                        if (petal.get_petal_id() == PetalID::kWing) {
-                            float wave = sinf((float) petal.lifetime / (0.4 * TPS));
-                            wave = wave * wave;
-                            range += wave * 120;
+                    // Magnet stays at the neutral orbit distance regardless of
+                    // attack/defend -- it's meant to sit in place widening pickup
+                    // range, not swing in and out like combat petals.
+                    if (!petal_data.attributes.fixed_orbit) {
+                        if (BitMath::at(player.input, InputFlags::kAttacking)) {
+                            if (petal_data.attributes.defend_only == 0)
+                                range = rotation_center.r + 100 + buffs.extra_range;
+                            if (petal.get_petal_id() == PetalID::kWing) {
+                                float wave = sinf((float) petal.lifetime / (0.4 * TPS));
+                                wave = wave * wave;
+                                range += wave * 120;
+                            }
                         }
+                        else if (BitMath::at(player.input, InputFlags::kDefending))
+                            range = rotation_center.r + 15;
                     }
-                    else if (BitMath::at(player.input, InputFlags::kDefending)) 
-                        range = rotation_center.r + 15;
                     wanting *= range;
                     if (petal_data.attributes.clump_radius > 0 && slot.size() > 1) {
                         // Cluster the group into a small ring exactly like the

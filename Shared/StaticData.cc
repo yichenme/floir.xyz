@@ -750,6 +750,20 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
             .mass = 40
         }
     },
+    {
+        .name = "Magnet",
+        .description = "Pulls nearby drops toward you and widens your pickup range. Stays fixed in place -- doesn't pull in on defend or push out on attack",
+        .health = 30.0,
+        .damage = 1.0,
+        .radius = 10.0,
+        .reload = 5.0,
+        .count = 1,
+        .rarity = RarityID::kCommon,
+        .attributes = {
+            .magnet_range = 150,   // +150 per rarity tier
+            .fixed_orbit = 1
+        }
+    },
 }};
 
 std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
@@ -1005,7 +1019,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {45.0},
         .xp = 25,
         .drops = {
-            PetalID::kAntEgg
+            PetalID::kAntEgg, PetalID::kMagnet
         },
         .attributes = {
             .stationary = 1,
