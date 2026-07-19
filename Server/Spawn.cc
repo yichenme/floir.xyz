@@ -114,11 +114,15 @@ static Entity &__alloc_mob(
 
 // Announce Super/Unique WILD mob spawns (team == NULL_ENTITY excludes player
 // summons, whose rarity is clamped below Super anyway). One message per mob.
-static void _announce_spawn(uint8_t mob_id, uint8_t rarity, EntityID const team) {
-    if (rarity < RarityID::kSuper || !(team == NULL_ENTITY)) return;
+static void _announce_spawn(Entity &mob) {
+    uint8_t const rarity = mob.get_mob_rarity();
+    if (rarity < RarityID::kSuper) return;
+    if (!(mob.get_team() == NULL_ENTITY)) return;
+    if (!(mob.get_parent() == NULL_ENTITY)) return;
+    if (BitMath::at(mob.flags, EntityFlags::kHasCulling)) return;
     bool const uniq = rarity >= RarityID::kUnique;
     std::string const msg = std::string("A ") + (uniq ? "Unique " : "Super ")
-        + MOB_DATA[mob_id].name + " has spawned!";
+        + MOB_DATA[mob.get_mob_id()].name + " has spawned!";
     Server::game.system_message(uniq ? SystemMsgKind::kSysUnique : SystemMsgKind::kSysSuper, msg);
 }
 
@@ -140,7 +144,7 @@ Entity &alloc_mob(
                 ant.set_parent(ent.id);
             }
         }
-        _announce_spawn(mob_id, rarity, team);
+        _announce_spawn(ent);
         return ent;
     }
     else {
@@ -163,7 +167,7 @@ Entity &alloc_mob(
             seg.set_y(sy);
             curr = &seg;
         }
-        _announce_spawn(mob_id, rarity, team);
+        _announce_spawn(head);
         return head;
     }
 }

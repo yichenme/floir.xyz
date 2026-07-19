@@ -67,7 +67,7 @@ static void _deal_push(Entity &ent, Vector knockback, float mass_ratio, float sc
 // entity's own velocity is heading that way (it's the one charging in), the
 // impact shouldn't bounce it back at all; a stationary (or retreating)
 // entity still gets knocked, but only a token amount.
-static float const STANDING_PUSH_SCALE = 0.05f;
+static float const STANDING_PUSH_SCALE = 0.025f;
 static float _push_factor(Entity const &ent, Vector const &toward) {
     float const closing = ent.velocity.x * toward.x + ent.velocity.y * toward.y;
     float const ramming_speed = PLAYER_ACCELERATION * 30;

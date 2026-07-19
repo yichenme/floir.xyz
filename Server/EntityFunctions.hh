@@ -11,7 +11,7 @@ void inflict_heal(Simulation *, Entity &, float);
 
 void entity_on_death(Simulation *, Entity const &);
 
-EntityID find_nearest_enemy(Simulation *, Entity const &, float);
+EntityID find_nearest_enemy(Simulation *, Entity const &, float, bool mobs_only = false);
 
 void entity_set_despawn_tick(Entity &, game_tick_t);
 void entity_clear_references(Simulation *, Entity &);
