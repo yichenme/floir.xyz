@@ -5,40 +5,68 @@
 > it is ever exposed. Prefer SSH keys over password auth when possible.
 
 ## Server (PRODUCTION — this is what `floir.xyz` resolves to)
+- **IP:** `38.76.196.218`
+- **User:** `root`
+- **Password:** `xsJi08TR`
+- **Spec:** 32 vCPU / 32GB RAM / 60Mbps — headroom exists, but the WASM tick
+  loop is single-threaded so vCPU count doesn't parallelize it; TPS=20 (50ms
+  budget) is still the real ceiling (see perf incidents below).
+- **App dir:** `/var/www/floir.xyz`
+- **Process:** PM2 `floir.xyz` → `node /var/www/floir.xyz/floir-server.js` (cwd `/var/www/floir.xyz`)
+- **Web:** nginx 443/80 → `localhost:3000`, TLS via certbot (`/etc/letsencrypt/live/floir.xyz/`,
+  issued 2026-07-19, expires 2026-10-17, `certbot renew` handles renewal via
+  its systemd timer). Client derives its WebSocket URL from `location.host`.
+- **OS:** Debian, provisioned fresh 2026-07-19 (not the EOL bullseye image the
+  old `.43` box runs — no repo-pinning workaround needed here).
+- **Node 20** + **pm2 7.x**, `pm2 startup systemd` + `pm2 save` so the app
+  survives a reboot. `package.json` only lists `ws` — `node_modules` was
+  installed fresh here, not copied from `.43`.
+- **`database.json` is the live account store.** DNS for `floir.xyz`/`www.floir.xyz`
+  was cut over to this box on 2026-07-19, but see the **split-brain warning**
+  below before treating this file as the sole source of truth.
+
+## ⚠️ Open issue: split-brain database (since 2026-07-19 DNS cutover)
+DNS was flipped to `.218` before SSL was issued here, so `https://floir.xyz`
+was refused for a window (fixed same-day by running certbot — see History).
+During that window, and likely still ongoing via cached DNS / open
+connections, **both `.218` and the old `.43` box have been receiving real
+player traffic and independently writing to their own `database.json`**
+(confirmed both files had `mtime` == "now" when checked). They have
+**diverged** — do not assume either is authoritative, and do not blindly
+copy one over the other (the old stop+start migration recipe below would
+silently destroy whichever side you overwrite). Reconciling them (e.g. by
+account name, keeping whichever side has the higher level/most recent
+activity per account) is unresolved and needs a careful pass, ideally during
+a low-traffic window with both processes stopped. Until reconciled, treat
+`.43` as still partially live — keep it updated on every deploy (see below).
+
+## Server (OLD PRODUCTION — DNS no longer points here, but still gets stray live traffic — see split-brain warning above)
 - **IP:** `38.76.196.43`
 - **User:** `root`
 - **Password:** `nwg8fBjc`
 - **App dir:** `/var/www/floir.xyz`
-- **Process:** PM2 `floir.xyz` → `node /var/www/floir.xyz/floir-server.js` (cwd `/var/www/floir.xyz`)
-- **Web:** nginx 443/80 → `localhost:3000`, TLS via certbot (`/etc/letsencrypt/live/floir.xyz/`,
-  expires 2026-10-16, `certbot renew` handles renewal via its systemd timer).
-  Client derives its WebSocket URL from `location.host`.
-- **OS:** Debian 11 (bullseye) — **already past upstream EOL**: the
-  `security.debian.org` and `bullseye-backports` repos 404. `/etc/apt/sources.list`
-  was repointed to `archive.debian.org/debian bullseye main` only (no security
-  channel available without a paid Debian ELTS subscription — worth a Debian 12
-  reinstall at some point). `Acquire::Check-Valid-Until "false"` is set in
-  `/etc/apt/apt.conf.d/99no-check-valid-until` so archived (frozen) Release
-  files don't get rejected as stale.
-- **Node 20** installed via NodeSource (`deb.nodesource.com/setup_20.x`) — the
-  distro repo only has an ancient Node 12. **pm2 7.x** via `npm install -g pm2`,
-  with `pm2 startup systemd` + `pm2 save` so the app survives a reboot.
-- **`database.json` is the live account store** — migrated here from the old
-  server on 2026-07-19 (see History below). It is the sole source of truth for
-  accounts now; nothing syncs from the old server anymore.
+- Same PM2/nginx/certbot layout as `.218` (still has its own valid cert for
+  `floir.xyz`, expires 2026-10-16). Debian 11 (bullseye), **past upstream
+  EOL** — `/etc/apt/sources.list` repointed to `archive.debian.org/debian
+  bullseye main` only, `Acquire::Check-Valid-Until "false"` set in
+  `/etc/apt/apt.conf.d/99no-check-valid-until`.
+- Do **not** decommission or stop this box until the split-brain database is
+  reconciled — it may still hold player progress not present on `.218`.
 
-## Server (RETIRED — was production, DNS no longer points here)
+## Server (RETIRED — fully decommissioned from the app's perspective)
 - **IP:** `38.76.198.54`
 - **User:** `root`
 - **Password:** `8gqIktKMAzpe`
 - DNS for `floir.xyz`/`www.floir.xyz` was cut over to `38.76.196.43` on
-  2026-07-19. This box is no longer live-facing but has **not been
-  decommissioned** — its `database.json` is a stale snapshot as of the
-  cutover (do not treat it as authoritative; do not resync from it). Safe to
-  tear down once you've confirmed nothing still depends on it, but no rush.
+  2026-07-19 (then to `38.76.196.218` later the same day). This box is no
+  longer live-facing — its `database.json` is a stale snapshot as of the
+  first cutover (do not treat it as authoritative; do not resync from it).
+  Safe to tear down once confirmed nothing still depends on it, but no rush.
 
 `ssh`/`scp` use `sshpass -e` with `SSHPASS` set to the matching password. The
-remotes have **no `rsync`** — use `scp` only (`-C` to compress).
+remotes have **no `rsync`** — use `scp` only (`-C` to compress). **Deploy code
+changes to BOTH `.218` and `.43`** until the split-brain is resolved and `.43`
+is formally retired.
 
 ## Migration history (2026-07-19): old server → new server
 `database.json` was copied old → local → new via `scp` (no direct
@@ -78,6 +106,19 @@ sshpass -e ssh -o StrictHostKeyChecking=no $HOST '
     -d "{\"user\":\"admin\",\"password\":\"loveKK88\",\"action\":\"search\",\"query\":\"<known-recent-username>\"}"
 '
 ```
+
+## Incident (2026-07-19): DNS cut to `.218` before SSL was issued
+DNS for `floir.xyz` was pointed at `38.76.196.218` while that box's nginx was
+still HTTP-only (SSL setup from the earlier migration work was left pending
+on DNS actually resolving there). Result: `https://floir.xyz` refused to
+connect (`ERR_CONNECTION_REFUSED`) for anyone hitting `.218` over TLS, since
+nothing was listening on 443. Fixed by running
+`certbot --nginx -d floir.xyz -d www.floir.xyz --redirect` on `.218` (see
+Server block above for the new cert's expiry). **If a future DNS cutover is
+ever done again: issue the cert BEFORE or IMMEDIATELY AT the DNS switch, not
+after** — there's no grace window once resolution changes. This is also where
+the split-brain database issue (see warning above) originated — both boxes
+kept taking real traffic across the gap.
 
 ## Perf incident (2026-07-19): unbounded `solid_circle` scan
 Tick time regressed to 100-130ms (well over the 50ms/20TPS budget). Profiled
@@ -129,10 +170,12 @@ cp Client/build/floir-client.js Client/build/floir-client.wasm Server/
   upload it whenever the map itself changes; it won't auto-update otherwise.
 
 ## Upload + restart
-Run from the local `Server/` directory:
+Run from the local `Server/` directory. **Repeat for both `.218` (primary) and
+`.43` (still partially live — see split-brain warning) until `.43` is
+retired**:
 ```sh
-export SSHPASS='nwg8fBjc'
-HOST=root@38.76.196.43
+export SSHPASS='xsJi08TR'          # .43 uses 'nwg8fBjc' instead
+HOST=root@38.76.196.218            # or root@38.76.196.43
 # scp is slow (~2MB can exceed a 3-min timeout); split big files / run in background if needed.
 sshpass -e scp -C -o StrictHostKeyChecking=no \
   floir-server.js Account build floir-client.js floir-client.wasm index.html admin.html grass_bg.svg map-data.json map-overview.png \
@@ -140,8 +183,14 @@ sshpass -e scp -C -o StrictHostKeyChecking=no \
 sshpass -e ssh -o StrictHostKeyChecking=no $HOST \
   'cd /var/www/floir.xyz && pm2 restart floir.xyz --update-env'
 ```
+Note: `scp -C ... build ...` uploads the **directory** `build/` — pass `-r`
+(`scp -C -r`) if your local `Server/build/` still has leftover CMake files
+(`CMakeCache.txt`, `CMakeFiles/`, `Makefile`) alongside `floir-server.{js,wasm}`,
+or the transfer fails/partial-copies. Clean those out of the *remote*
+`build/` afterward if they get uploaded — the server only needs the `.js`/`.wasm` pair.
 
 ## Verify (always by md5, NOT timestamps — scp/rsync can skip on size+mtime)
+Verify each server you deployed to (swap `$HOST`/`SSHPASS` per box, as above):
 ```sh
 sshpass -e ssh -o StrictHostKeyChecking=no $HOST '
   cd /var/www/floir.xyz
