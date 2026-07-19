@@ -25,11 +25,10 @@
 using namespace Ui;
 
 namespace {
-    // Current selection: a specific (type, rarity) inventory stack. Crafting
-    // always consumes exactly 5 -- one pentagon's worth -- per attempt, so
-    // there's no amount to accumulate beyond that.
+    // Current selection: a specific (type, rarity) inventory stack.
     PetalID::T g_sel_type = PetalID::kNone;
     uint8_t g_sel_rarity = 0;
+    bool g_craft_all = false;
 
     void clear_selection() { g_sel_type = PetalID::kNone; }
 
@@ -51,6 +50,15 @@ namespace {
     double g_roll_request_at = 0;   // so we only react to a result AFTER our own request
 
     float const ROLL_MS = 900, REVEAL_MS = 900;
+
+    void begin_craft(PetalID::T type, uint8_t rarity, uint32_t amount) {
+        g_sel_type = type;
+        g_sel_rarity = rarity;
+        Game::send_craft(type, rarity, amount);
+        g_anim = kAnimRolling;
+        g_anim_started = Game::timestamp;
+        g_roll_request_at = Game::timestamp;
+    }
 
     // Pentagon layout for the 5 craft slots: index 0 is top, then clockwise
     // (upper-right, lower-right, lower-left, upper-left).
@@ -112,16 +120,16 @@ namespace {
             uint64_t const count = owned_count(type, rarity);
             if (!craftable(rarity, count)) return;
             if (g_anim != kAnimIdle) return;   // can't reselect mid-animation
-            g_sel_type = type;
-            g_sel_rarity = rarity;
+            g_craft_all = Input::keys_held.contains('\x10');
+            uint64_t const amount = g_craft_all ? count : 5;
+            begin_craft(type, rarity, (uint32_t) amount);
         }
     };
 
-    // A flat grid of every owned (type, rarity) stack, arranged 9 cells per row
-    // -- the same row-chunked layout as the inventory panel (just a wider row).
+    // A flat grid of every owned (type, rarity) stack.
     // Ordered highest-rarity-first, then by petal name, matching the inventory's
     // display order so the two panels read consistently.
-    int const CRAFT_COLUMNS = 9;
+    int const CRAFT_COLUMNS = 8;
     Element *make_recipe_grid() {
         Element *grid = new VContainer({}, 10, 8, {});
         struct Cell { PetalID::T type; uint8_t rarity; };
@@ -177,8 +185,6 @@ namespace {
         CraftControls() : Element(200, 185, {}) {}
         void on_render(Renderer &ctx) override {
             bool const has_selection = g_sel_type != PetalID::kNone;
-            uint64_t const count = has_selection ? owned_count(g_sel_type, g_sel_rarity) : 0;
-            float const chance = has_selection ? craft_success_chance(g_sel_rarity) * 100.0f : 0;
 
             // Transition rolling -> reveal once ROLL_MS has passed AND a
             // result for OUR request has actually arrived.
@@ -265,20 +271,18 @@ namespace {
                     }
                 }
             }
+        }
+    };
 
-            RenderContext c(&ctx);
-            ctx.translate(0, 62);
-            if (g_anim == kAnimReveal) {
-                std::string const t = success
-                    ? "Crafted!"
-                    : "Failed -- " + std::to_string(survived) + " petal" + (survived == 1 ? "" : "s") + " left";
-                ctx.draw_text(t.c_str(), { .fill = success ? 0xff75dd34u : 0xffcc3333u, .size = 16 });
-            } else if (has_selection) {
-                std::string const t = format_pct(chance) + " success chance (" + std::to_string(count) + " owned)";
-                ctx.draw_text(t.c_str(), { .fill = 0xffffffff, .size = 14 });
-            } else {
-                ctx.draw_text("Select a petal below (5 needed)", { .fill = 0xffcccccc, .size = 13 });
-            }
+    class CraftChance final : public Element {
+    public:
+        CraftChance() : Element(120, 16, {}) {}
+        void on_render(Renderer &ctx) override {
+            float const chance = g_sel_type == PetalID::kNone
+                ? 0
+                : craft_success_chance(g_sel_rarity) * 100.0f;
+            std::string const text = format_pct(chance) + " success";
+            ctx.draw_text(text.c_str(), { .fill = 0xffffffff, .size = 14 });
         }
     };
 }
@@ -297,14 +301,21 @@ Element *Ui::make_craft_panel() {
         [](Element *e, uint8_t ev) {
             if (ev != Ui::kClick) return;
             if (g_anim != kAnimIdle) return;
-            if (g_sel_type == PetalID::kNone || owned_count(g_sel_type, g_sel_rarity) < 5) return;
-            Game::send_craft(g_sel_type, g_sel_rarity, 5);
-            g_anim = kAnimRolling;
-            g_anim_started = Game::timestamp;
-            g_roll_request_at = Game::timestamp;
+            uint64_t const count = owned_count(g_sel_type, g_sel_rarity);
+            if (g_sel_type == PetalID::kNone || count < 5) return;
+            uint64_t const amount = g_craft_all ? count : 5;
+            begin_craft(g_sel_type, g_sel_rarity, (uint32_t) amount);
         }, nullptr,
         { .fill = 0xff5a9fdb, .line_width = 4, .round_radius = 4 }
     );
+    Element *craft_actions = new VContainer({
+        craft_btn,
+        new CraftChance()
+    }, 0, 7, {});
+    Element *craft_row = new HContainer({
+        controls,
+        craft_actions
+    }, 0, 12, {});
 
     class CraftPanel final : public VContainer {
     public:
@@ -313,23 +324,23 @@ Element *Ui::make_craft_panel() {
 
     Element *elt = new CraftPanel(std::vector<Element *>{
         new Ui::StaticText(22, "Craft"),
+        craft_row,
         new Ui::StaticParagraph(300, 13, "Combine 5 of the same petal to craft an upgrade", {}),
-        controls,
-        craft_btn,
+        new Ui::StaticParagraph(300, 13, "Failure will destroy 1-4 petals", {}),
         grid
     }, 15, 10, {
         .fill = 0xff5a9fdb,
         .line_width = 7,
         .round_radius = 3,
-        .should_render = [](){ return Ui::panel_open == Panel::kCraft && Game::alive(); },
-        .h_justify = Style::Left,
-        .v_justify = Style::Bottom,
         // Slide up from below on open / down on close, same as the inventory
         // panel. They're mutually exclusive (panel_open enum), so sharing the
         // bottom-left corner never shows both at once.
         .animate = [](Element *elt, Renderer &ctx){
             ctx.translate(0, (1 - (float) elt->animation) * 2 * elt->height);
-        }
+        },
+        .should_render = [](){ return Ui::panel_open == Panel::kCraft && Game::alive(); },
+        .h_justify = Style::Left,
+        .v_justify = Style::Bottom
     });
     // Bottom-left, sliding up above the Craft button (button: x=10, y=-60,
     // height 40) -- same corner and behaviour as the Inventory panel.
