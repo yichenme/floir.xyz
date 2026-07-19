@@ -471,8 +471,12 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             // thinner, lighter inner stroke for a rounded highlight. Traced
             // directly from the reference petals-and-mobs/petals/29.svg
             // (florr.io's actual Magnet icon), coordinates relative to that
-            // svg's 110x110 viewBox center, scaled to the petal's radius.
-            ctx.scale(r / 55.0);
+            // svg's 110x110 viewBox center. The icon's own drawn content only
+            // spans ~32.45 units from center (not the full 55 half-canvas --
+            // there's padding baked into the reference), so scale against
+            // that real content radius, matching how a plain circle petal
+            // fills its slot, rather than the nominal canvas half-width.
+            ctx.scale(r / 32.45);
             ctx.round_line_cap();
             ctx.set_line_width(24);
             ctx.set_stroke(0xff363685);

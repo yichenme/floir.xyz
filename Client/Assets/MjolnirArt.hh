@@ -226,16 +226,18 @@ namespace MjolnirArt {
     };
 
     // Draws the hammer centred at the origin. The hammer content spans roughly
-    // x[24..86] (centre 55) and y[19..93] (centre ~56) within the 110 viewBox.
+    // x[24..86] (centre 55) and y[19..93] (centre 56) within the 110 viewBox.
     // Centre on that content and scale large (r/39) so the hammer fills the tile
     // like the reference icon rather than sitting small with uneven padding.
     inline void draw(Renderer &ctx, float r) {
         RenderContext _mj(&ctx);
         ctx.scale(r / 39.0f);
-        // Centre on the hammer content (55,56) but shifted DOWN in the tile (y
-        // -47 instead of -56) so the head sits higher and the handle runs into the
-        // bottom, where the "Mjölnir" name label overlaps it -- matching icon.svg.
-        ctx.translate(-55.0f, -47.0f);
+        // Centre on the hammer content's actual bounding-box centre (55,56) --
+        // it used to be shifted up to (55,47) to match a reference where a
+        // "Mjölnir" text label overlapped the bottom of the icon, but the
+        // in-game petal slot never has that label, so the shift just pushed
+        // the hammer off-centre within its own tile.
+        ctx.translate(-55.0f, -56.0f);
         for (auto const &p : PATHS) {
             ctx.set_fill(p.color);
             ctx.begin_path();
