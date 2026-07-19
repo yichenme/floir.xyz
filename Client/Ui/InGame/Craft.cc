@@ -47,11 +47,16 @@ namespace {
 
     // Drop selection when the stack is gone or no longer craftable; keep it
     // after reveal so the Craft button can retry (5 or all per g_craft_all).
-    void sync_selection_after_craft() {
-        if (g_sel_type == PetalID::kNone) return;
-        uint64_t const count = owned_count(g_sel_type, g_sel_rarity);
-        if (!craftable(g_sel_rarity, count)) clear_selection();
+void sync_selection_after_craft() {
+    if (g_sel_type == PetalID::kNone) return;
+    uint64_t const count = owned_count(g_sel_type, g_sel_rarity);
+    if (!craftable(g_sel_rarity, count)) {
+
+        clear_selection();
+        return;
     }
+
+}
 
     // Roll/reveal animation state, driven by Craft button clicks and the
     // kCraftResult that arrives shortly after.
@@ -105,7 +110,7 @@ namespace {
     public:
         PetalID::T type;
         uint8_t rarity;
-        RecipeCell(PetalID::T t, uint8_t r) : Element(40, 40, { .round_radius = 4 }), type(t), rarity(r) {}
+        RecipeCell(PetalID::T t, uint8_t r) : Element(36, 36, { .round_radius = 4 }), type(t), rarity(r) {}
         void on_render(Renderer &ctx) override {
             uint64_t const count = owned_count(type, rarity);
             bool const can = craftable(rarity, count);
@@ -126,23 +131,34 @@ namespace {
                 ctx.draw_text(t.c_str(), { .fill = 0xffffffff, .size = 11 });
             }
         }
-        void on_event(uint8_t event) override {
-            if (event != kClick) return;
-            uint64_t const count = owned_count(type, rarity);
-            if (!craftable(rarity, count)) return;
-            if (g_anim != kAnimIdle) return;   // can't reselect mid-animation
-            g_craft_all = Input::keys_held.contains('\x10');
-            uint64_t const amount = g_craft_all ? count : 5;
-            begin_craft(type, rarity, (uint32_t) amount);
-        }
+void on_event(uint8_t event) override {
+    if (event != kClick) return;
+    uint64_t const count = owned_count(type, rarity);
+    if (!craftable(rarity, count)) return;
+    if (g_anim != kAnimIdle) return;
+
+    bool const alt_held = Input::keys_held.contains('\x12');
+    
+    if (alt_held) {
+
+        bool const shift_held = Input::keys_held.contains('\x10');
+        uint64_t const amount = shift_held ? count : 5;
+        begin_craft(type, rarity, (uint32_t) amount);
+    } else {
+
+        g_sel_type = type;
+        g_sel_rarity = rarity;
+        g_craft_all = Input::keys_held.contains('\x10');
+    }
+}
     };
 
     // A flat grid of every owned (type, rarity) stack.
     // Ordered highest-rarity-first, then by petal name, matching the inventory's
     // display order so the two panels read consistently.
-    int const CRAFT_COLUMNS = 8;
+    int const CRAFT_COLUMNS = 6;
     Element *make_recipe_grid() {
-        Element *grid = new VContainer({}, 10, 8, {});
+        Element *grid = new VContainer({}, 8, 6, {});
         struct Cell { PetalID::T type; uint8_t rarity; };
         std::vector<Cell> cells;
         for (PetalStack const &s : Game::inventory_stacks)
@@ -159,7 +175,7 @@ namespace {
             row->refactor();
             // Fixed row width so short final rows stay left-aligned instead of
             // centering (40px cells, 6px gaps), same idea as the inventory grid.
-            row->width = CRAFT_COLUMNS * 40 + (CRAFT_COLUMNS - 1) * 6;
+            row->width = CRAFT_COLUMNS * 36 + (CRAFT_COLUMNS - 1) * 6;
             grid->add_child(row);
         }
         return grid;
@@ -237,14 +253,13 @@ namespace {
                     bool draw_box = true, draw_icon = has_selection, dim = false;
                     float box_scale = 1.0f;
 
-                    if (g_anim == kAnimRolling) {
-                        float const t = ease_in_out(fclamp((float) ((Game::timestamp - g_anim_started) / ROLL_MS), 0, 1));
-                        px = lerp(px, 0.0f, t);
-                        py = lerp(py, 0.0f, t);
-                        ctx.translate(px, py);
-                        ctx.rotate(Game::timestamp / 150.0 + i * (2 * M_PI / 5));
-                        box_scale = lerp(1.0f, 0.6f, t);
-                    } else if (g_anim == kAnimReveal) {
+if (g_anim == kAnimRolling) {
+    float const t = ease_in_out(fclamp((float) ((Game::timestamp - g_anim_started) / ROLL_MS), 0, 1));
+    px = lerp(px, 0.0f, t);
+    py = lerp(py, 0.0f, t);
+    ctx.translate(px, py);
+    box_scale = lerp(1.0f, 0.6f, t);
+} else if (g_anim == kAnimReveal) {
                         if (success) {
                             // All 5 merged into the one result -- only draw
                             // the center slot, with a little pop-in scale.
