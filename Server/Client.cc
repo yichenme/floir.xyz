@@ -42,8 +42,14 @@ void Client::disconnect(int reason, std::string const &message) {
 uint8_t Client::alive() {
     if (game == nullptr) return false;
     Simulation *simulation = &game->simulation;
-    return simulation->ent_exists(camera) 
-    && simulation->ent_exists(simulation->get_ent(camera).get_player());
+    if (!simulation->ent_exists(camera)) return false;
+    EntityID const pid = simulation->get_ent(camera).get_player();
+    if (!simulation->ent_exists(pid)) return false;
+    // A dead corpse still exists but the player is not alive -- input, chat,
+    // crafting, and respawn gating all treat this as "not in a live run".
+    Entity &player = simulation->get_ent(pid);
+    if (player.has_component(kFlower) && player.get_dead()) return false;
+    return true;
 }
 
 void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) {
@@ -136,9 +142,10 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             // returns to the title screen and a later respawn starts fresh at a
             // spawn point (instead of resuming in place). The flower's deletion
             // runs the normal death path, which banks the account's peak
-            // progress and purges its loot claims.
-            if (client->alive()) {
-                Simulation *simulation = &client->game->simulation;
+            // progress and purges its loot claims. A dead corpse (not "alive")
+            // must still be removed, so gate on the entity existing, not alive().
+            Simulation *simulation = &client->game->simulation;
+            if (simulation->ent_exists(client->camera)) {
                 Entity &camera = simulation->get_ent(client->camera);
                 if (simulation->ent_exists(camera.get_player()))
                     simulation->request_delete(camera.get_player());
@@ -158,6 +165,11 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             if (client->check_invalid(UTF8Parser::is_valid_utf8(name))) return;
             Simulation *simulation = &client->game->simulation;
             Entity &camera = simulation->get_ent(client->camera);
+            // Respawning off a death screen: a dead corpse may still be attached
+            // to this camera. Remove it before spawning fresh so we don't leak an
+            // orphaned corpse (its death bookkeeping already ran on enter-dead).
+            if (simulation->ent_exists(camera.get_player()))
+                simulation->request_delete(camera.get_player());
             InventoryOps::apply_account_loadout_to_camera(client, camera);
             // Restore the account's saved peak level so progress survives a
             // fresh connection too, not just deaths within one connection (see

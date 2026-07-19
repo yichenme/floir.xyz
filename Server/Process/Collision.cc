@@ -149,7 +149,11 @@ void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
         if (!immovable2) _deal_push(ent2, separation*-1, 1 - ratio, dist);
     }
 
-    if (BOTH(kHealth) && !(ent1.get_team() == ent2.get_team()) && !BOTH(kFlower)) {
+    // A dead player corpse neither deals nor takes contact damage (so it can't be
+    // farmed and doesn't chip mobs that walk over it).
+    bool const dead1 = ent1.has_component(kFlower) && !ent1.has_component(kMob) && ent1.get_dead();
+    bool const dead2 = ent2.has_component(kFlower) && !ent2.has_component(kMob) && ent2.get_dead();
+    if (BOTH(kHealth) && !(ent1.get_team() == ent2.get_team()) && !BOTH(kFlower) && !dead1 && !dead2) {
         if (ent1.health > 0 && ent2.health > 0) {
             // Mjolnir deals LIGHTNING damage (ignores armor, teal damage number).
             uint8_t const dt1 = (ent1.has_component(kPetal) && ent1.get_petal_id() == PetalID::kMjolnir)

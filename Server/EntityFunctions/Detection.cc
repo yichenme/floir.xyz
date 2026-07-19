@@ -16,6 +16,9 @@ EntityID find_nearest_enemy(Simulation *simulation, Entity const &entity, float 
             if (!ent.has_component(kMob)) return;
         } else {
             if (!ent.has_component(kMob) && !ent.has_component(kFlower)) return;
+            // A dead player is an inert corpse: never a valid target, so mobs and
+            // summons don't swarm/farm it.
+            if (ent.has_component(kFlower) && !ent.has_component(kMob) && ent.get_dead()) return;
         }
         if (sim->ent_alive(entity.get_parent())) {
             Entity &parent = sim->get_ent(entity.get_parent());

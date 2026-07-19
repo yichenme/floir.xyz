@@ -109,6 +109,14 @@ static RotationCenter const _get_petal_rotation_center(Simulation *sim, Entity c
 
 void tick_player_behavior(Simulation *sim, Entity &player) {
     if (player.pending_delete) return;
+    // A dead player is a frozen corpse: no input, no movement, no petals, no
+    // buffs -- just the dead face. Petals were already despawned on enter-dead.
+    if (player.get_dead()) {
+        player.input = 0;
+        player.acceleration.set(0, 0);
+        player.set_face_flags((1 << FaceFlags::kDeadEyes) | (1 << FaceFlags::kDefending));
+        return;
+    }
     DEBUG_ONLY(assert(player.max_health > 0);)
     PlayerBuffs const buffs = _get_petal_passive_buffs(sim, player);
     float health_ratio = player.health / player.max_health;

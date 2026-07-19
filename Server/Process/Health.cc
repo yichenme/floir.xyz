@@ -17,7 +17,15 @@ void tick_health_behavior(Simulation *sim, Entity &ent) {
         ent.poison_dealer = NULL_ENTITY;
     }
     if (ent.dandy_ticks > 0) --ent.dandy_ticks;
-    if (ent.health <= 0) sim->request_delete(ent.id);
+    if (ent.health <= 0) {
+        // A real player becomes an immobile corpse instead of vanishing; a corpse
+        // (dead flower) is already handled and must NOT be deleted here -- only
+        // kLeave/cleanup removes it. Everything else dies normally.
+        if (ent.has_component(kFlower) && !ent.has_component(kMob) && !ent.get_dead())
+            enter_player_dead_state(sim, ent);
+        else if (!(ent.has_component(kFlower) && ent.get_dead()))
+            sim->request_delete(ent.id);
+    }
     if (ent.max_health == 0) return;
     ent.set_health_ratio(ent.health / ent.max_health);
 }
