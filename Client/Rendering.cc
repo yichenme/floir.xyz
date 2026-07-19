@@ -83,38 +83,6 @@ void Game::render_game() {
         int32_t r0 = std::max(0, (int32_t) std::floor(topY    / Tilemap::CELL_SIZE));
         int32_t r1 = std::min<int32_t>(Tilemap::GRID_H, (int32_t) std::ceil (bottomY / Tilemap::CELL_SIZE));
         renderer.draw_map(c0, c1, r0, r1);
-
-        if (Input::show_grid) {
-            // Fine grid (normal outline).
-            renderer.set_stroke(alpha);
-            renderer.set_line_width(0.5);
-            float gx = ceilf(leftX / 50) * 50;
-            float gy = ceilf(topY  / 50) * 50;
-            renderer.begin_path();
-            for (; gx < rightX; gx += 50) { renderer.move_to(gx, topY); renderer.line_to(gx, bottomY); }
-            for (; gy < bottomY; gy += 50) { renderer.move_to(leftX, gy); renderer.line_to(rightX, gy); }
-            renderer.stroke();
-            // Coordinate grid: cell boundaries at 2x the normal outline, labelled cc,rr.
-            renderer.set_line_width(1.0);
-            renderer.begin_path();
-            for (int32_t c = c0; c <= c1; ++c) {
-                renderer.move_to(c * Tilemap::CELL_SIZE, topY);
-                renderer.line_to(c * Tilemap::CELL_SIZE, bottomY);
-            }
-            for (int32_t r = r0; r <= r1; ++r) {
-                renderer.move_to(leftX, r * Tilemap::CELL_SIZE);
-                renderer.line_to(rightX, r * Tilemap::CELL_SIZE);
-            }
-            renderer.stroke();
-            for (int32_t r = r0; r < r1; ++r)
-            for (int32_t c = c0; c < c1; ++c) {
-                char coord[12];
-                std::snprintf(coord, sizeof(coord), "%02d,%02d", c, r);
-                RenderContext lctx(&renderer);
-                renderer.translate((c + 0.5f) * Tilemap::CELL_SIZE, (r + 0.5f) * Tilemap::CELL_SIZE);
-                renderer.draw_text(coord, { .fill = 0xffffffff, .stroke = 0xff000000, .size = 60, .stroke_scale = 0.12f });
-            }
-        }
     }
 
     if (alive() && Input::movement_helper && !Input::keyboard_movement && !Input::is_mobile) {

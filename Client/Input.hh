@@ -40,7 +40,6 @@ namespace Input {
     extern uint8_t movement_helper;
     extern uint8_t keyboard_movement;
     extern uint8_t high_quality;   // full res + 60fps when on; half res + 30fps off
-    extern uint8_t show_grid;      // draw world grid + coordinates when on
     extern uint8_t show_other_petals;   // render other players' petals when on
     extern uint8_t show_particles;      // rarity particle effects when on
     extern uint8_t invert_attack;       // attack by default; key/click cancels it

@@ -128,10 +128,9 @@ public:
     X(3, Input::keyboard_movement) \
     X(4, Input::movement_helper) \
     X(5, Input::high_quality) \
-    X(6, Input::show_grid) \
-    X(7, Game::show_debug) \
-    X(8, Input::invert_attack) \
-    X(9, Input::invert_defend)
+    X(6, Game::show_debug) \
+    X(7, Input::invert_attack) \
+    X(8, Input::invert_defend)
 
 #define X(ct, name) static auto checker_##ct = MutationObserver(name);
 STORED
@@ -166,10 +165,10 @@ void Storage::retrieve() {
             uint8_t opts = reader.read<uint8_t>();
             Input::movement_helper = BitMath::at(opts, 0);
             Input::keyboard_movement = BitMath::at(opts, 1);
-            // high_quality / show_grid default ON, so the stored bit is inverted
+            // high_quality defaults ON, so the stored bit is inverted
             // (0 = default = on). Old saves without these bits keep the defaults.
+            // Bit 3 was show_grid (removed); leave unused so other bits stay aligned.
             Input::high_quality = !BitMath::at(opts, 2);
-            Input::show_grid = !BitMath::at(opts, 3);
             Game::show_debug = BitMath::at(opts, 4);
             // show_other_petals / show_particles default ON (inverted bit).
             Input::show_other_petals = !BitMath::at(opts, 5);
@@ -224,7 +223,6 @@ void Storage::set() {
             Input::movement_helper
             | (Input::keyboard_movement << 1)
             | ((!Input::high_quality) << 2)
-            | ((!Input::show_grid) << 3)
             | (Game::show_debug << 4)
             | ((!Input::show_other_petals) << 5)
             | ((!Input::show_particles) << 6)
