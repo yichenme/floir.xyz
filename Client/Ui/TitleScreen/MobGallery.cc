@@ -193,17 +193,24 @@ namespace {
     };
 }
 
+// Mobs that aren't catalogued in the gallery: Pollen is a Bumble Bee projectile,
+// not a mob a player hunts.
+static bool is_hidden_mob(MobID::T id) {
+    return id == MobID::kPollen;
+}
+
 static Element *make_scroll() {
     Element *elt = new Ui::VContainer({}, 10, 6, {});
     MobID::T id_list[MobID::kNumMobs];
+    uint32_t n = 0;
     for (MobID::T i = 0; i < MobID::kNumMobs; ++i)
-        id_list[i] = i;
-    std::sort(id_list, id_list + MobID::kNumMobs, [](MobID::T a, MobID::T b) {
+        if (!is_hidden_mob(i)) id_list[n++] = i;
+    std::sort(id_list, id_list + n, [](MobID::T a, MobID::T b) {
         if (MOB_DATA[a].rarity != MOB_DATA[b].rarity) return MOB_DATA[a].rarity < MOB_DATA[b].rarity;
         return strcmp(MOB_DATA[a].name, MOB_DATA[b].name) < 0;
     });
     // One row per mob, a cell per rarity -- every mob at every rarity.
-    for (MobID::T k = 0; k < MobID::kNumMobs; ++k) {
+    for (MobID::T k = 0; k < n; ++k) {
         MobID::T const id = id_list[k];
         Element *row = new Ui::HContainer({}, 0, 3, { .v_justify = Style::Top });
         for (uint8_t r = 0; r < RarityID::kNumRarities; ++r)

@@ -791,6 +791,10 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
         case MobID::kDandelion: {
             // Centre circle = the body; the ten spoke-lines with round fluff tips
             // are the seed missiles (mirrors dandelion.svg). Slowly rotates.
+            // Proportions taken from dandelion.svg: a large central body (~0.85 of
+            // the collision radius) with ten spoke-stalks and round fluff tips
+            // forming the seed head out to ~2x the radius (body is ~0.44 of the
+            // whole, matching the asset -- the old body was far too small).
             SET_BASE_COLOR(0xffcfcfcf)
             uint32_t const N = 10;
             float const spin = attr.animation * 0.15f;
@@ -799,18 +803,18 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
                 float const a = 2 * M_PI * i / N + spin;
                 float const cx = cosf(a), cy = sinf(a);
                 ctx.set_stroke(0xff333333);
-                ctx.set_line_width(radius * 0.16f);
+                ctx.set_line_width(radius * 0.14f);
                 ctx.round_line_cap();
                 ctx.begin_path();
-                ctx.move_to(cx * radius * 0.5f, cy * radius * 0.5f);
-                ctx.line_to(cx * radius * 1.35f, cy * radius * 1.35f);
+                ctx.move_to(cx * radius * 0.8f, cy * radius * 0.8f);
+                ctx.line_to(cx * radius * 1.6f, cy * radius * 1.6f);
                 ctx.stroke();
                 // Fluff tip (the destroyable round end).
                 ctx.set_fill(0xffeaeaea);
                 ctx.set_stroke(0xff333333);
                 ctx.set_line_width(radius * 0.05f);
                 ctx.begin_path();
-                ctx.arc(cx * radius * 1.5f, cy * radius * 1.5f, radius * 0.28f);
+                ctx.arc(cx * radius * 1.72f, cy * radius * 1.72f, radius * 0.32f);
                 ctx.fill();
                 ctx.stroke();
             }
@@ -819,7 +823,7 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.set_stroke(Renderer::HSV(base_color, 0.8));
             ctx.set_line_width(radius * 0.1f);
             ctx.begin_path();
-            ctx.arc(0, 0, radius * 0.55f);
+            ctx.arc(0, 0, radius * 0.85f);
             ctx.fill();
             ctx.stroke();
             break;
