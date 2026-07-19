@@ -50,8 +50,16 @@ static void _update_client(Simulation *sim, Client *client) {
     Writer writer(Server::OUTGOING_PACKET);
     writer.write<uint8_t>(Clientbound::kClientUpdate);
     writer.write<EntityID>(client->camera);
+    // Vision-widening petals (Antennae, Observer) push fov well below BASE_FOV
+    // -- uncapped, a high-rarity Antennae balloons this query to nearly the
+    // whole map (thousands of entities serialized every tick), then dumps a
+    // burst of delete messages the instant it's unequipped and the view
+    // snaps back. Clamp the fov used for this query so the view-radius (and
+    // its swing on equip/unequip) stays bounded, independent of the wider
+    // (and less perf-sensitive) floor Culling.cc uses for waking dormant mobs.
+    float const query_fov = fclamp(camera.get_fov(), BASE_FOV * 0.35f, BASE_FOV);
     sim->spatial_hash.query(camera.get_camera_x(), camera.get_camera_y(),
-    960 / camera.get_fov() + 50, 540 / camera.get_fov() + 50,
+    960 / query_fov + 50, 540 / query_fov + 50,
     [&](Simulation *, Entity &ent){
         add_view(ent.id);
     });

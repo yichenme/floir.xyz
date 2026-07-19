@@ -12,6 +12,7 @@
 #include <Client/Input.hh>
 
 #include <Shared/Config.hh>
+#include <Shared/Entity.hh>
 
 #include <format>
 
@@ -165,6 +166,12 @@ Element *Ui::make_panel_buttons() {
    return elt;
 }
 
+static std::string _debug_pos_text() {
+    if (!Game::simulation.ent_exists(Game::camera_id)) return std::string{"pos: -"};
+    Entity const &camera = Game::simulation.get_ent(Game::camera_id);
+    return std::format("pos: {:.0f}, {:.0f}", (float)camera.get_camera_x(), (float)camera.get_camera_y());
+}
+
 Element *Ui::make_debug_stats() {
     Element *elt = new Ui::VContainer({
         new Ui::DynamicText(12, [](){
@@ -199,7 +206,8 @@ Element *Ui::make_debug_stats() {
             }
             avg_dt /= Debug::frame_times.size();
             return std::format("frame: {:.1f}/{:.1f}/{:.1f} ms (min/avg/max) - {:.1f} fps", min_dt, avg_dt, max_dt, 1000 / Ui::dt);
-        }, { .fill = 0xffffffff, .h_justify = Style::Right })
+        }, { .fill = 0xffffffff, .h_justify = Style::Right }),
+        new Ui::DynamicText(12, _debug_pos_text, { .fill = 0xffffffff, .h_justify = Style::Right })
     }, 5, 5, {
         // In game: sit just left of the bottom-right minimap and slide further
         // left as it expands (112px base, up to 2x). On the menu there is no
