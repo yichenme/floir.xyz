@@ -11,6 +11,11 @@ constexpr float BASE_TPS = 20;
 
 void tick_entity_motion(Simulation *sim, Entity &ent) {
     if (ent.pending_delete) return;
+    // Dormant (culled) mobs skip motion entirely -- combined with the AI skip in
+    // tick_ai_behavior, an unobserved mob costs almost nothing (it just holds its
+    // position/HP until a camera comes near and un-culls it). Only kHasCulling
+    // mobs ever carry kIsCulled, so players/petals/drops are never affected.
+    if (BitMath::at(ent.flags, EntityFlags::kIsCulled)) return;
     if (ent.slow_ticks > 0) {
         ent.speed_ratio *= 0.5;
         --ent.slow_ticks;

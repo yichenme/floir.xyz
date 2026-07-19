@@ -61,10 +61,12 @@ static Entity &__alloc_mob(
     mob.mass = (1 + mob.get_radius() / BASE_FLOWER_RADIUS) * (data.attributes.stationary ? 10000 : 1);
     if (mob_id == MobID::kAntHole)
         BitMath::set(mob.flags, EntityFlags::kNoFriendlyCollision);
-    // Bumble Bee / Dandelion / Pollen cull when no camera sees them (their AI is
-    // then skipped entirely). Without this, every off-screen Bumble Bee keeps
-    // dropping Pollen every 0.5s and floods the entity pool far from any player.
-    if (mob_id == MobID::kBumbleBee || mob_id == MobID::kDandelion || mob_id == MobID::kPollen)
+    // Server-side dormancy (florr-style): a wild mob no camera can see is culled,
+    // and its AI + motion are skipped -- it just sits with its coords/hp until a
+    // player comes near and wakes it. This keeps the huge unobserved population
+    // (empty / cleared zones) nearly free. Segmented mobs (centipedes) are
+    // excluded: culling on the head would freeze a body whose tail is on-screen.
+    if (data.attributes.segments <= 1)
         BitMath::set(mob.flags, EntityFlags::kHasCulling);
 
     mob.add_component(kRelations);
