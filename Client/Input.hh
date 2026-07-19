@@ -43,6 +43,8 @@ namespace Input {
     extern uint8_t show_grid;      // draw world grid + coordinates when on
     extern uint8_t show_other_petals;   // render other players' petals when on
     extern uint8_t show_particles;      // rarity particle effects when on
+    extern uint8_t invert_attack;       // attack by default; key/click cancels it
+    extern uint8_t invert_defend;       // defend by default; key/click cancels it
     extern uint8_t is_mobile;
     //use these for game inputs that can be held down
     extern std::unordered_set<char> keys_held;

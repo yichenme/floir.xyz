@@ -84,9 +84,11 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
             uint8_t kind = reader.read<uint8_t>();
             std::string message;
             reader.read<std::string>(message);
-            // Plain coloured text, no sender label: super-green or unique-grey.
-            uint32_t const color = kind == SystemMsgKind::kSysUnique
-                ? RARITY_COLORS[RarityID::kUnique] : RARITY_COLORS[RarityID::kSuper];
+            // Plain coloured text, no sender label: squad-pink (matches the
+            // minimap squad dot), unique-grey, or super-green.
+            uint32_t color = RARITY_COLORS[RarityID::kSuper];
+            if (kind == SystemMsgKind::kSysSquad) color = 0xffff5fbf;
+            else if (kind == SystemMsgKind::kSysUnique) color = RARITY_COLORS[RarityID::kUnique];
             Game::chat_messages.push_back({ message, color });
             while (Game::chat_messages.size() > 8) Game::chat_messages.erase(Game::chat_messages.begin());
             break;

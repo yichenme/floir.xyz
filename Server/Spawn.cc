@@ -218,10 +218,14 @@ Entity &alloc_petal(Simulation *sim, PetalID::T petal_id, Entity const &parent, 
     petal.set_petal_rarity(rarity);
     petal.set_split_projectile(petal_data.attributes.split_projectile);
     petal.add_component(kHealth);
-    // Stinger and Bubble are always 1 HP regardless of rarity.
-    float const hp_mult = (petal_id == PetalID::kStinger || petal_id == PetalID::kBubble) ? 1.0f : petal_hp_mult(rarity);
+    // Stinger and Bubble are always 1 HP regardless of rarity. Mjolnir's data
+    // values (328050) are its exact Unique stats -- it's a fixed leaderboard
+    // reward that only ever exists at Unique, so it bypasses rarity scaling for
+    // both HP and damage instead of being multiplied up from a Common base.
+    bool const flat_stats = petal_id == PetalID::kMjolnir;
+    float const hp_mult = (petal_id == PetalID::kStinger || petal_id == PetalID::kBubble || flat_stats) ? 1.0f : petal_hp_mult(rarity);
     petal.health = petal.max_health = petal_data.health * hp_mult;
-    petal.damage = petal_data.damage * petal_damage_mult(rarity);
+    petal.damage = petal_data.damage * (flat_stats ? 1.0f : petal_damage_mult(rarity));
     petal.set_health_ratio(1);
     // Poison and armor both scale x3 per rarity (Iris/Grapes/Pincer poison,
     // Bone armor, ...), matching the damage/HP multiplier.

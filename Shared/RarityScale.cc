@@ -7,9 +7,17 @@
 // so a Unique mob has 81x a Super mob's HP (the big top-tier leap), instead of 5x.
 static float const HP_STEP[8] = {5,5,5,5,10,45,30,81};
 
+// Plain 3x per tier. This is the PETAL/summon scaling (a Unique petal is 3x a
+// Super petal), and the base for the clamped mob armor. Mobs get a much bigger
+// top-tier leap via mob_rarity_mult below -- petals do NOT.
 float rarity_pow3(uint8_t rarity) {
-    // 3x per tier, EXCEPT the jump to Unique is 81x (3^4) above Super instead of
-    // 3x -- so Unique gear/mobs are 81x a Super's HP/damage, not merely 3x.
+    return std::pow(3.f, (float)rarity);
+}
+
+// Mob damage/XP scaling: 3x per tier, EXCEPT the jump to Unique is 81x (3^4)
+// above Super instead of 3x -- so Unique WILD MOBS are 81x a Super's, matching
+// the HP curve. Petals never use this.
+float mob_rarity_mult(uint8_t rarity) {
     if (rarity >= RarityID::kUnique)
         return std::pow(3.f, (float)rarity + 3.f);   // Super=3^7, Unique=3^(8+3)=3^11 -> 81x
     return std::pow(3.f, (float)rarity);
@@ -20,8 +28,8 @@ float craft_success_chance(uint8_t rarity) {
 }
 float petal_hp_mult(uint8_t r) { return rarity_pow3(r); }
 float petal_damage_mult(uint8_t r) { return rarity_pow3(r); }
-float mob_body_damage_mult(uint8_t r) { return rarity_pow3(r); }
-float mob_xp_mult(uint8_t r) { return rarity_pow3(r); }
+float mob_body_damage_mult(uint8_t r) { return mob_rarity_mult(r); }
+float mob_xp_mult(uint8_t r) { return mob_rarity_mult(r); }
 float mob_armor_mult(uint8_t r) {
     return rarity_pow3(r > RarityID::kUltra ? RarityID::kUltra : r);
 }

@@ -211,13 +211,42 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             // just the killer.
             if (mob_rarity >= RarityID::kSuper) {
                 std::string killer_name = "someone";
-                {
-                    // Credit only the single highest-damage dealer (not a list of
-                    // every squad member).
-                    EntityID kid = _top_damage_killer(sim, ent);
-                    if (sim->ent_alive(kid) && sim->get_ent(kid).has_component(kName)
-                        && !sim->get_ent(kid).get_name().empty())
-                        killer_name = sim->get_ent(kid).get_name();
+                // Find the top total-damage dealer's camera (mirrors
+                // _top_damage_killer) so we can read its squad.
+                uint32_t best_cam = 0; float best = -1.f;
+                for (auto const &kv : ent.mob_damage)
+                    if (kv.second > best) { best = kv.second; best_cam = kv.first; }
+                uint32_t killer_squad = 0;
+                if (best_cam != 0) {
+                    Client *c = Server::game.client_for_camera_id(best_cam);
+                    if (c != nullptr && sim->ent_exists(c->camera)) {
+                        Entity &cam = sim->get_ent(c->camera);
+                        killer_squad = cam.get_squad_id();
+                        if (sim->ent_alive(cam.get_player())
+                            && sim->get_ent(cam.get_player()).has_component(kName)
+                            && !sim->get_ent(cam.get_player()).get_name().empty())
+                            killer_name = sim->get_ent(cam.get_player()).get_name();
+                    }
+                }
+                // A squad kill is a team effort: name every alive squad member,
+                // not just the top dealer ("A, B and C").
+                if (killer_squad != 0) {
+                    std::vector<std::string> names;
+                    for (EntityID const &m : Squad::members(killer_squad)) {
+                        if (!sim->ent_exists(m)) continue;
+                        Entity &mcam = sim->get_ent(m);
+                        if (!sim->ent_alive(mcam.get_player())) continue;
+                        std::string const nm = sim->get_ent(mcam.get_player()).get_name();
+                        names.push_back(nm.empty() ? std::string("someone") : nm);
+                    }
+                    if (!names.empty()) {
+                        std::string joined;
+                        for (size_t k = 0; k < names.size(); ++k) {
+                            if (k > 0) joined += (k + 1 == names.size()) ? " and " : ", ";
+                            joined += names[k];
+                        }
+                        killer_name = joined;
+                    }
                 }
                 bool const uniq = mob_rarity >= RarityID::kUnique;
                 std::string const msg = std::string("A ") + (uniq ? "unique " : "super ")

@@ -242,7 +242,7 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
                     auto notify = [&](std::string const &t){
                         Writer w(Server::OUTGOING_PACKET);
                         w.write<uint8_t>(Clientbound::kSystemMessage);
-                        w.write<uint8_t>(SystemMsgKind::kSysSuper);
+                        w.write<uint8_t>(SystemMsgKind::kSysSquad);
                         w.write<std::string>(t);
                         client->send_packet(w.packet, w.at - w.packet);
                     };
@@ -263,7 +263,7 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
                     bool const ok = Squad::accept(&client->game->simulation, client->camera);
                     Writer w(Server::OUTGOING_PACKET);
                     w.write<uint8_t>(Clientbound::kSystemMessage);
-                    w.write<uint8_t>(SystemMsgKind::kSysSuper);
+                    w.write<uint8_t>(SystemMsgKind::kSysSquad);
                     w.write<std::string>(ok ? "You joined the squad!" : "You have no pending squad invite.");
                     client->send_packet(w.packet, w.at - w.packet);
                 }

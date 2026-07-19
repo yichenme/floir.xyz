@@ -206,9 +206,15 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
                     else if (BitMath::at(player.input, InputFlags::kDefending)) 
                         range = rotation_center.r + 15;
                     wanting *= range;
-                    if (petal_data.attributes.clump_radius > 0) {
+                    if (petal_data.attributes.clump_radius > 0 && slot.size() > 1) {
+                        // Cluster the group into a small ring exactly like the
+                        // loadout icon (draw_static_petal): divide the circle by
+                        // the ACTUAL instance count (slot.size(), e.g. 3/5 for a
+                        // Mythic/Ultra stinger), not the static PETAL_DATA.count,
+                        // so in-game penta/trio stingers sit together like the icon
+                        // instead of collapsing onto one point.
                         Vector secondary;
-                        secondary.unit_normal(2 * M_PI * j / petal_data.count + player.heading_angle * 0.2)
+                        secondary.unit_normal(2 * M_PI * j / slot.size() + player.heading_angle * 0.2)
                         .set_magnitude(petal_data.attributes.clump_radius);
                         wanting += secondary;
                     }

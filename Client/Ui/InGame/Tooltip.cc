@@ -50,8 +50,11 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     struct PetalAttributes const &attrs = petal_data.attributes;
     // Health and damage scale with the petal's rarity (mirrors Server/Spawn.cc,
     // which applies these exact multipliers when the petal is spawned).
-    float const hp_mult = petal_hp_mult(rarity);
-    float const dmg_mult = petal_damage_mult(rarity);
+    // Mjolnir's data values are its exact stats (flat, no rarity scaling) --
+    // mirror Server/Spawn.cc's alloc_petal so the tooltip matches in-game.
+    bool const flat_stats = id == PetalID::kMjolnir;
+    float const hp_mult = flat_stats ? 1.0f : petal_hp_mult(rarity);
+    float const dmg_mult = flat_stats ? 1.0f : petal_damage_mult(rarity);
     // Specials that scale x3 per rarity in-game (armor, poison, flower-HP, body
     // damage, poison-absorb, heal) use this so the info box tracks the rarity.
     float const mult = rarity_pow3(rarity);

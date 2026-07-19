@@ -19,6 +19,10 @@ namespace Input {
     uint8_t show_grid = 0;
     uint8_t show_other_petals = 1;
     uint8_t show_particles = 1;
+    // When on, the flower attacks/defends by DEFAULT and the key (space/shift or
+    // mouse button) CANCELS it -- the opposite of the normal hold-to-act.
+    uint8_t invert_attack = 0;
+    uint8_t invert_defend = 0;
     uint8_t is_mobile = 0;
     std::unordered_set<char> keys_held;
     std::unordered_set<char> keys_held_this_tick;

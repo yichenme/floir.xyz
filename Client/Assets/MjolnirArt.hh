@@ -225,14 +225,14 @@ namespace MjolnirArt {
         {0xff21c4b9,992,83},
     };
 
-    // Draws the hammer centred at the origin. The SVG content spans roughly
-    // x[20..90], y[10..93] within the 110 viewBox, so we centre on that content
-    // (55, 51.5) and scale a bit larger (r/46) to fill the petal tile like the
-    // reference art, rather than centring on the viewBox with uneven padding.
+    // Draws the hammer centred at the origin. The hammer content spans roughly
+    // x[24..86] (centre 55) and y[19..93] (centre ~56) within the 110 viewBox.
+    // Centre on that content and scale large (r/39) so the hammer fills the tile
+    // like the reference icon rather than sitting small with uneven padding.
     inline void draw(Renderer &ctx, float r) {
         RenderContext _mj(&ctx);
-        ctx.scale(r / 46.0f);
-        ctx.translate(-55.0f, -51.5f);
+        ctx.scale(r / 39.0f);
+        ctx.translate(-55.0f, -56.0f);
         for (auto const &p : PATHS) {
             ctx.set_fill(p.color);
             ctx.begin_path();

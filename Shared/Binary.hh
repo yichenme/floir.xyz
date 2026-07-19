@@ -35,7 +35,8 @@ enum Clientbound {
 // Colour band for a system chat line.
 enum SystemMsgKind {
     kSysSuper,    // super-green (super petal crafted / super mob killed)
-    kSysUnique    // unique-grey (unique mob killed)
+    kSysUnique,   // unique-grey (unique mob killed)
+    kSysSquad     // squad-pink (squad command feedback; matches minimap squad dot)
 };
 
 // kRegister / kLogin: string username, string password

@@ -408,6 +408,10 @@ void Game::tick(double time) {
         }
         uint8_t attack = Input::keys_held.contains(' ') || BitMath::at(Input::mouse_buttons_state, Input::LeftMouse);
         uint8_t defend = Input::keys_held.contains('\x10') || BitMath::at(Input::mouse_buttons_state, Input::RightMouse);
+        // Invert toggles: the flower attacks/defends by default and holding the
+        // key/button CANCELS it (the opposite of the normal hold-to-act).
+        if (Input::invert_attack) attack = !attack;
+        if (Input::invert_defend) defend = !defend;
         Input::game_inputs.flags = (attack << InputFlags::kAttacking) | (defend << InputFlags::kDefending);
     }
 

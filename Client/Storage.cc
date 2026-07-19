@@ -129,7 +129,9 @@ public:
     X(4, Input::movement_helper) \
     X(5, Input::high_quality) \
     X(6, Input::show_grid) \
-    X(7, Game::show_debug)
+    X(7, Game::show_debug) \
+    X(8, Input::invert_attack) \
+    X(9, Input::invert_defend)
 
 #define X(ct, name) static auto checker_##ct = MutationObserver(name);
 STORED
@@ -172,6 +174,12 @@ void Storage::retrieve() {
             // show_other_petals / show_particles default ON (inverted bit).
             Input::show_other_petals = !BitMath::at(opts, 5);
             Input::show_particles = !BitMath::at(opts, 6);
+            // Second byte (added later; absent on old saves -> both default off).
+            if (len >= 2) {
+                uint8_t opts2 = reader.read<uint8_t>();
+                Input::invert_attack = BitMath::at(opts2, 0);
+                Input::invert_defend = BitMath::at(opts2, 1);
+            }
         }
     }
     {
@@ -220,6 +228,11 @@ void Storage::set() {
             | (Game::show_debug << 4)
             | ((!Input::show_other_petals) << 5)
             | ((!Input::show_particles) << 6)
+        );
+        // Second settings byte for toggles added after the first 7 bits filled up.
+        writer.write<uint8_t>(
+            (Input::invert_attack << 0)
+            | (Input::invert_defend << 1)
         );
         StorageProtocol::store("settings", writer.at - writer.base);
     }

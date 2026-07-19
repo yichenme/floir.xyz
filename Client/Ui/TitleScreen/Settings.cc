@@ -41,6 +41,14 @@ Element *Ui::make_settings_panel() {
             new Ui::ToggleButton(30, &Input::show_particles),
             new Ui::StaticText(16, "Show particles")
         }, 0, 10, {.h_justify = Style::Left }),
+        new Ui::HContainer({
+            new Ui::ToggleButton(30, &Input::invert_attack),
+            new Ui::StaticText(16, "Invert attack (hold to stop)")
+        }, 0, 10, {.h_justify = Style::Left }),
+        new Ui::HContainer({
+            new Ui::ToggleButton(30, &Input::invert_defend),
+            new Ui::StaticText(16, "Invert defend (hold to stop)")
+        }, 0, 10, {.h_justify = Style::Left }),
         new Ui::StaticText(12, "made by yichennn")
     }, 20, 10, {
         .fill = 0xff5a9fdb,
