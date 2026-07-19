@@ -58,7 +58,9 @@ static Entity &__alloc_mob(
     mob.set_x(x);
     mob.set_y(y);
     mob.friction = DEFAULT_FRICTION;
-    mob.mass = (1 + mob.get_radius() / BASE_FLOWER_RADIUS) * (data.attributes.stationary ? 10000 : 1);
+    // Explicit per-mob mass (Shared/StaticData.cc), not derived from radius/
+    // rarity -- stays exactly what's specified regardless of size.
+    mob.mass = data.attributes.mass;
     if (mob_id == MobID::kAntHole)
         BitMath::set(mob.flags, EntityFlags::kNoFriendlyCollision);
     // Server-side dormancy (florr-style): a wild mob no camera can see is culled,
@@ -108,11 +110,6 @@ static Entity &__alloc_mob(
         mob.add_component(kFlower);
         mob.set_angle(0);
         mob.set_color(ColorID::kGray);
-        // A Digger is a planted ground trap, not a trampoline: give it a large
-        // mass so it barely moves when other creatures collide with it (the
-        // elastic bounce was also removed in Collision.cc by routing kFlower
-        // mobs through mass-based knockback instead of _cancel_movement).
-        mob.mass = 1000;
     }
     if (on_spawn) 
         on_spawn(mob);

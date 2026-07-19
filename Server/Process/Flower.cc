@@ -258,10 +258,6 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
                             float const size_mult = spawn_id == MobID::kMoon ? 1.1f : 1.2f;
                             mob.set_radius(mob.get_radius() / mob_size_mult(summon_rarity)
                                            * powf(size_mult, (float)summon_rarity));
-                            // Moon is a heavy moon rock: give it a huge mass so
-                            // creatures/knockback barely move it, and it just
-                            // roams (see the kMoon case in tick_ai_behavior).
-                            if (spawn_id == MobID::kMoon) mob.mass = 400;
                             // The petal spawns the summon at its own position; if
                             // the player is hugging a wall that spot can be inside
                             // terrain. Push the summon out so it never starts

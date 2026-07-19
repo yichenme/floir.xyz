@@ -454,13 +454,13 @@ void Game::tick(double time) {
         show_debug = !show_debug;
     // Enter handling, in priority order: send chat if the box has text ->
     // otherwise, in-game & not already typing, focus the chat box (Enter-to-open)
-    // -> otherwise, on the title screen, spawn.
+    // -> otherwise, on the title screen, spawn. A dead corpse must NOT
+    // auto-continue on Enter -- the DeathScreen's explicit Close button is the
+    // only way to leave, so a player doesn't accidentally dismiss it.
     if (!Ui::chat_try_send() && Input::keys_held_this_tick.contains('\r')) {
         if (Game::alive() && !Ui::is_typing_dom())
             Ui::chat_focus();
-        else if (Game::player_is_dead_corpse())
-            Game::leave_game();
-        else if (!Game::alive())
+        else if (!Game::alive() && !Game::player_is_dead_corpse())
             Game::spawn_in();
     }
 

@@ -255,6 +255,10 @@ struct MobAttributes {
     struct PoisonDamage poison_damage;
     float armor = 1;
     float missile_damage = 0;
+    // Collision mass (mirrors PetalAttributes.mass): drives push/knockback via
+    // the mass-ratio calc in Collision.cc. Explicit per-mob, not derived from
+    // radius/rarity, so it stays exactly what's specified regardless of size.
+    float mass = 1.5f;
 };
 
 struct MobData {

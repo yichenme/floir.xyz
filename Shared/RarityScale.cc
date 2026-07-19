@@ -3,24 +3,26 @@
 #include <algorithm>
 #include <cmath>
 
-// Per-tier mob HP multiplier steps. The last step (Ultra/Super -> Unique) is 81
-// so a Unique mob has 81x a Super mob's HP (the big top-tier leap), instead of 5x.
-static float const HP_STEP[8] = {5,5,5,5,10,45,30,81};
-
 // Plain 3x per tier. This is the PETAL/summon scaling (a Unique petal is 3x a
-// Super petal), and the base for the clamped mob armor. Mobs get a much bigger
-// top-tier leap via mob_rarity_mult below -- petals do NOT.
+// Super petal), and the base for the clamped mob armor. Mobs use a completely
+// different curve (mob_rarity_scale below) -- petals do NOT.
 float rarity_pow3(uint8_t rarity) {
     return std::pow(3.f, (float)rarity);
 }
 
-// Mob damage/XP scaling: 3x per tier, EXCEPT the jump to Unique is 81x (3^4)
-// above Super instead of 3x -- so Unique WILD MOBS are 81x a Super's, matching
-// the HP curve. Petals never use this.
+// Unified mob HP/damage/XP scaling: smooth growth from Common up through
+// Super (rarity 7) that lands EXACTLY on 100x a Common mob's stat there, then
+// one final jump to EXACTLY 1000x at Unique (rarity 8) -- the two anchor
+// points are the spec; everything between Common and Super is geometric
+// interpolation (100^(r/7)) so the growth is smooth rather than a cliff.
+static float mob_rarity_scale(uint8_t rarity) {
+    if (rarity >= RarityID::kUnique) return 1000.f;
+    return std::pow(100.f, (float)rarity / (float)RarityID::kSuper);
+}
+
+// Mob damage/XP scaling (see mob_rarity_scale). Petals never use this.
 float mob_rarity_mult(uint8_t rarity) {
-    if (rarity >= RarityID::kUnique)
-        return std::pow(3.f, (float)rarity + 3.f);   // Super=3^7, Unique=3^(8+3)=3^11 -> 81x
-    return std::pow(3.f, (float)rarity);
+    return mob_rarity_scale(rarity);
 }
 float craft_success_chance(uint8_t rarity) {
     if (rarity >= RarityID::kSuper) return 0.f;
@@ -34,9 +36,7 @@ float mob_armor_mult(uint8_t r) {
     return rarity_pow3(r > RarityID::kUltra ? RarityID::kUltra : r);
 }
 float mob_hp_mult(uint8_t r) {
-    float m = 1.f;
-    for (uint8_t i = 0; i < r && i < 8; ++i) m *= HP_STEP[i];
-    return m;
+    return mob_rarity_scale(r);
 }
 float mob_size_mult(uint8_t r) {
     // 1.4x per rarity tier, compounding (1.0x at Common, ~14.8x at Unique). No

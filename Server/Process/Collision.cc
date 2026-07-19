@@ -55,41 +55,16 @@ static void _pickup_drop(Simulation *sim, Entity &player, Entity &drop) {
 #define BOTH(component) (ent1.has_component(component) && ent2.has_component(component))
 #define EITHER(component) (ent1.has_component(component) || ent2.has_component(component))
 
+// The sole collision response: mass-ratio separation, applied to both
+// entities in every colliding pair (same-team bump or enemy hit alike). The
+// old "ram knockback" system (an extra impact-knockback bonus that also
+// discounted itself when the entity was charging INTO what it hit, plus the
+// elastic movement-cancel bounce for players ramming mobs) has been removed
+// entirely -- collisions now resolve purely by this physical push.
 static void _deal_push(Entity &ent, Vector knockback, float mass_ratio, float scale) {
     if (fabsf(mass_ratio) < 0.01) return;
     knockback *= scale * mass_ratio;
     ent.collision_velocity += knockback;
-}
-
-// Fraction of the base pushback an entity actually feels, based on whether
-// IT is ramming into the thing it hit or just standing there. `toward` is
-// the unit direction from this entity to whatever it collided with -- if the
-// entity's own velocity is heading that way (it's the one charging in), the
-// impact shouldn't bounce it back at all; a stationary (or retreating)
-// entity still gets knocked, but only a token amount.
-static float const STANDING_PUSH_SCALE = 0.025f;
-static float _push_factor(Entity const &ent, Vector const &toward) {
-    float const closing = ent.velocity.x * toward.x + ent.velocity.y * toward.y;
-    float const ramming_speed = PLAYER_ACCELERATION * 30;
-    float const ramming_amount = fclamp(closing / ramming_speed, 0, 1);
-    return STANDING_PUSH_SCALE * (1.0f - ramming_amount);
-}
-
-static void _deal_knockback(Entity &ent, Vector knockback, float mass_ratio, Vector const &toward) {
-    if (fabsf(mass_ratio) < 0.01) return;
-    float scale = PLAYER_ACCELERATION * 2 * _push_factor(ent, toward);
-    knockback *= scale * mass_ratio;
-    ent.collision_velocity += knockback;
-    ent.velocity += knockback * 2;
-}
-
-static void _cancel_movement(Entity &ent, Vector dir, Vector add, Vector const &toward) {
-    Vector push = dir;
-    push.normalize();
-    float dot = fclamp(push.x * add.x + push.y * add.y, PLAYER_ACCELERATION * 0.5, PLAYER_ACCELERATION * 25);
-    float const factor = _push_factor(ent, toward);
-    ent.velocity += push * (PLAYER_ACCELERATION + dot * 2) * factor;
-    ent.collision_velocity += push * (0.5 * PLAYER_ACCELERATION) * factor;
 }
 
 // A real player (kFlower && !kMob) killed by contact damage must become a
@@ -167,26 +142,8 @@ void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
             (ent2.has_component(kPetal) && ent2.get_petal_id() == PetalID::kLight);
         float const kb = light_involved ? 0.25f : 1.0f;
 
-        if (!(ent1.get_team() == ent2.get_team())) {
-            // toward1/toward2: unit direction from each entity to the OTHER
-            // one, so _push_factor can tell a charging rammer (velocity
-            // pointing this way) from a stationary victim.
-            Vector const toward1 = separation * -1;
-            Vector const toward2 = separation;
-            // Bug 13: only REAL players (kFlower && !kMob) get the elastic
-            // movement-cancel bounce; Digger (a kFlower mob) falls through to
-            // the mass-based knockback so it stops behaving like a trampoline.
-            if (ent1.has_component(kFlower) && !ent1.has_component(kMob) && !ent2.has_component(kPetal))
-                _cancel_movement(ent1, separation, ent2.velocity - ent1.velocity, toward1);
-            else if (!immovable1)
-                _deal_knockback(ent1, separation, ratio * kb, toward1);
-            if (ent2.has_component(kFlower) && !ent2.has_component(kMob) && !ent1.has_component(kPetal))
-                _cancel_movement(ent2, separation*-1, ent1.velocity - ent2.velocity, toward2);
-            else if (!immovable2)
-                _deal_knockback(ent2, separation*-1, (1 - ratio) * kb, toward2);
-        }
-        if (!immovable1) _deal_push(ent1, separation, ratio, dist);
-        if (!immovable2) _deal_push(ent2, separation*-1, 1 - ratio, dist);
+        if (!immovable1) _deal_push(ent1, separation, ratio * kb, dist);
+        if (!immovable2) _deal_push(ent2, separation*-1, (1 - ratio) * kb, dist);
     }
 
     // A dead player corpse neither deals nor takes contact damage (so it can't be

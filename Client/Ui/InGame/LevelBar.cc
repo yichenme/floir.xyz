@@ -113,7 +113,7 @@ void LevelBar::on_render(Renderer &ctx) {
             .eye_y = player.eye_y,
             .mouth = player.mouth,
             .face_flags = player.get_face_flags(),
-            .equip_flags = 0,
+            .equip_flags = player.get_equip_flags(),
             .color = player.get_color()
         });
     }

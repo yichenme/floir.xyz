@@ -15,6 +15,8 @@ void render_health(Renderer &ctx, Entity const &ent) {
     bool const is_mob = ent.has_component(kMob);
     // Pollen is a Bumble Bee projectile, not a real mob -- no health bar.
     if (is_mob && ent.get_mob_id() == MobID::kPollen) return;
+    // A dead player is an immobile corpse, not a combatant -- no health bar.
+    if (!is_mob && ent.has_component(kFlower) && ent.get_dead()) return;
     // Players fade their bar in on damage / out at full health; mobs stay
     // always visible (so their strength is readable before engaging), fading
     // only on death like everything else.

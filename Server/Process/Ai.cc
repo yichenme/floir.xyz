@@ -13,6 +13,18 @@ static void _focus_lose_clause(Entity &ent, Vector const &v) {
     if (v.magnitude() > 1.5 * ent.detection_radius) ent.target = NULL_ENTITY;
 }
 
+// ent_alive() alone doesn't know about the "dead corpse" state -- a killed
+// real player stays alive (immobile, per the corpse design) rather than being
+// deleted, so mobs that were already chasing it when it died would otherwise
+// keep hunting/idling at the corpse forever. Every AI target-validity check
+// must route through this instead of a bare sim->ent_alive(id).
+static bool _target_valid(Simulation *sim, EntityID const &id) {
+    if (!sim->ent_alive(id)) return false;
+    Entity const &e = sim->get_ent(id);
+    if (e.has_component(kFlower) && !e.has_component(kMob) && e.get_dead()) return false;
+    return true;
+}
+
 static void default_tick_idle(Simulation *sim, Entity &ent) {
     if (ent.ai_tick >= 1 * TPS) {
         ent.ai_tick = 0;
@@ -76,7 +88,7 @@ static void tick_default_passive(Simulation *sim, Entity &ent) {
 }
 
 static void tick_default_neutral(Simulation *sim, Entity &ent) {
-    if (sim->ent_alive(ent.target)) {
+    if (_target_valid(sim, ent.target)) {
         Entity &target = sim->get_ent(ent.target);
         Vector v(target.get_x() - ent.get_x(), target.get_y() - ent.get_y());
         v.set_magnitude(PLAYER_ACCELERATION * 0.975);
@@ -94,7 +106,7 @@ static void tick_default_neutral(Simulation *sim, Entity &ent) {
 }
 
 static void tick_default_aggro(Simulation *sim, Entity &ent, float speed) {
-    if (sim->ent_alive(ent.target)) {
+    if (_target_valid(sim, ent.target)) {
         Entity &target = sim->get_ent(ent.target);
         Vector v(target.get_x() - ent.get_x(), target.get_y() - ent.get_y());
         _focus_lose_clause(ent, v);
@@ -144,7 +156,7 @@ static void tick_bee_passive(Simulation *sim, Entity &ent) {
 }
 
 static void tick_hornet_aggro(Simulation *sim, Entity &ent) {
-    if (sim->ent_alive(ent.target)) {
+    if (_target_valid(sim, ent.target)) {
         Entity &target = sim->get_ent(ent.target);
         Vector v(target.get_x() - ent.get_x(), target.get_y() - ent.get_y());
         _focus_lose_clause(ent, v);
@@ -262,7 +274,7 @@ static void tick_centipede_passive(Simulation *sim, Entity &ent) {
 }
 
 static void tick_centipede_neutral(Simulation *sim, Entity &ent, float speed) {
-    if (sim->ent_alive(ent.target)) {
+    if (_target_valid(sim, ent.target)) {
         Entity &target = sim->get_ent(ent.target);
         Vector v(target.get_x() - ent.get_x(), target.get_y() - ent.get_y());
         v.set_magnitude(PLAYER_ACCELERATION * speed);
@@ -296,7 +308,7 @@ static void tick_centipede_neutral(Simulation *sim, Entity &ent, float speed) {
 }
 
 static void tick_centipede_aggro(Simulation *sim, Entity &ent) {
-    if (sim->ent_alive(ent.target)) {
+    if (_target_valid(sim, ent.target)) {
         Entity &target = sim->get_ent(ent.target);
         Vector v(target.get_x() - ent.get_x(), target.get_y() - ent.get_y());
         _focus_lose_clause(ent, v);
@@ -335,9 +347,9 @@ static void tick_sandstorm(Simulation *sim, Entity &ent) {
     bool summon_chasing = false;
     if (ent.get_is_summon()) {
         float const SANDSTORM_AGGRO = 250.f;
-        if (!sim->ent_alive(ent.target))
+        if (!_target_valid(sim, ent.target))
             ent.target = find_nearest_enemy(sim, ent, SANDSTORM_AGGRO + ent.get_radius(), true);
-        if (sim->ent_alive(ent.target)) {
+        if (_target_valid(sim, ent.target)) {
             Entity &target = sim->get_ent(ent.target);
             Vector v(target.get_x() - ent.get_x(), target.get_y() - ent.get_y());
             v.set_magnitude(PLAYER_ACCELERATION * 0.95f);
@@ -391,7 +403,7 @@ static void tick_sandstorm(Simulation *sim, Entity &ent) {
 
 static void tick_digger(Simulation *sim, Entity &ent) {
     ent.input = 0;
-    if (sim->ent_alive(ent.target)) {
+    if (_target_valid(sim, ent.target)) {
         Entity &target = sim->get_ent(ent.target);
         Vector v(target.get_x() - ent.get_x(), target.get_y() - ent.get_y());
         _focus_lose_clause(ent, v);
@@ -441,7 +453,7 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
     if (!ent.mob_damage.empty() && ent.lifetime - ent.last_damage_tick > 120 * TPS)
         ent.mob_damage.clear();
     ent.acceleration.set(0,0);
-    if (!sim->ent_alive(ent.target) && sim->ent_alive(ent.last_damaged_by))
+    if (!_target_valid(sim, ent.target) && _target_valid(sim, ent.last_damaged_by))
         ent.target = ent.last_damaged_by;
     if (!(ent.get_parent() == NULL_ENTITY)) {
         if (!sim->ent_alive(ent.get_parent())) {
@@ -455,7 +467,7 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
                 ent.target = NULL_ENTITY;
                 ent.ai_state = AIState::kReturning;
             }
-            if (sim->ent_alive(ent.target)) {
+            if (_target_valid(sim, ent.target)) {
                 Entity const &target = sim->get_ent(ent.target);
                 delta = Vector(parent.get_x() - target.get_x(), parent.get_y() - target.get_y());
                 if (delta.magnitude() > SUMMON_RETREAT_RADIUS)
@@ -571,7 +583,7 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
             break;
     }
     //wall avoidance
-    if (!sim->ent_alive(ent.target)) {
+    if (!_target_valid(sim, ent.target)) {
         if (ent.get_x() - ent.get_radius() <= 0 && angle_within(ent.get_angle(), M_PI, M_PI / 2))
             ent.set_angle(M_PI - ent.get_angle());
         if (ent.get_x() + ent.get_radius() >= ARENA_WIDTH && angle_within(ent.get_angle(), 0, M_PI / 2))

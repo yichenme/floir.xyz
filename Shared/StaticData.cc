@@ -763,8 +763,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .xp = 1,
         .drops = {
             PetalID::kLight, PetalID::kLeaf, PetalID::kRice
-        }, 
-        .attributes = {}
+        },
+        .attributes = { .mass = 1.5f }
     },
     {
         .name = "Worker Ant",
@@ -776,8 +776,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .xp = 3,
         .drops = {
             PetalID::kLeaf, PetalID::kCorn, PetalID::kBone
-        }, 
-        .attributes = {}
+        },
+        .attributes = { .mass = 1.5f }
     },
     {
         .name = "Soldier Ant",
@@ -789,8 +789,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .xp = 5,
         .drops = {
             PetalID::kWing, PetalID::kFaster
-        }, 
-        .attributes = {}
+        },
+        .attributes = { .mass = 1.5f }
     },
     {
         .name = "Bee",
@@ -803,7 +803,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .drops = {
             PetalID::kStinger, PetalID::kPollen
         },
-        .attributes = {}
+        .attributes = { .mass = 1.5f }
     },
     {
         .name = "Ladybug",
@@ -816,7 +816,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .drops = {
             PetalID::kLight, PetalID::kRose, PetalID::kBubble
         },
-        .attributes = {}
+        .attributes = { .mass = 1.5f }
     },
     {
         .name = "Beetle",
@@ -829,7 +829,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .drops = {
             PetalID::kSalt, PetalID::kBeetleEgg
         },
-        .attributes = {}
+        .attributes = { .mass = 2.5f }
     },
     {
         .name = "Ladybug",
@@ -842,7 +842,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .drops = {
             PetalID::kDahlia, PetalID::kYinYang
         },
-        .attributes = {}
+        .attributes = { .mass = 1.5f }
     },
     {
         .name = "Hornet",
@@ -857,7 +857,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         },
         .attributes = {
             .aggro_radius = 600,
-            .missile_damage = 10
+            .missile_damage = 10,
+            .mass = 2.5f
         }
     },
     {
@@ -872,7 +873,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
             PetalID::kCactus
         },
         .attributes = {
-            .stationary = 1
+            .stationary = 1,
+            .mass = 15000.0f
         }
     },
     {
@@ -887,7 +889,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
             PetalID::kMoon, PetalID::kRock, PetalID::kHeavy
         },
         .attributes = {
-            .stationary = 1
+            .stationary = 1,
+            .mass = 15000.0f
         }
     },
     {
@@ -902,7 +905,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
             PetalID::kLeaf, PetalID::kPeas, PetalID::kGoldenLeaf
         },
         .attributes = {
-            .segments = 10
+            .segments = 10,
+            .mass = 2.5f
         }
     },
     {
@@ -916,12 +920,13 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .drops = {
             PetalID::kIris, PetalID::kGrapes
         },
-        .attributes = { 
-            .segments = 10, 
+        .attributes = {
+            .segments = 10,
             .poison_damage = {
                 .damage = 5.0,
                 .time = 2.0
-            }
+            },
+            .mass = 2.5f
         }
     },
     {
@@ -936,7 +941,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
             PetalID::kSand, PetalID::kFaster, PetalID::kSalt, PetalID::kStick
         },
         .attributes = {
-            .segments = 6
+            .segments = 6,
+            .mass = 2.5f
         }
     },
     {
@@ -950,7 +956,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .drops = {
             PetalID::kSand, PetalID::kFaster, PetalID::kStick
         },
-        .attributes = {}
+        .attributes = { .mass = 2.0f }
     },
     {
         .name = "Scorpion",
@@ -967,7 +973,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
             .poison_damage = {
                 .damage = 10.0,
                 .time = 1.0
-            }
+            },
+            .mass = 2.5f
         }
     },
     {
@@ -981,11 +988,12 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .drops = {
             PetalID::kWeb, PetalID::kFaster, PetalID::kThirdEye
         },
-        .attributes = { 
+        .attributes = {
             .poison_damage = {
                 .damage = 3.75f,  // was 5.0; 0.75x
                 .time = 3.0
-            }
+            },
+            .mass = 1.5f
         }
     },
     {
@@ -1000,7 +1008,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
             PetalID::kAntEgg
         },
         .attributes = {
-            .stationary = 1 
+            .stationary = 1,
+            .mass = 20000.0f
         }
     },
     {
@@ -1015,7 +1024,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
             PetalID::kWing, PetalID::kAntEgg
         },
         .attributes = {
-            .aggro_radius = 750
+            .aggro_radius = 750,
+            .mass = 3.0f
         }
     },
     {
@@ -1029,7 +1039,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .drops = {
             PetalID::kDahlia, PetalID::kYggdrasil
         },
-        .attributes = {}
+        .attributes = { .mass = 1.5f }
     },
     {
         .name = "Square",
@@ -1043,7 +1053,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
             PetalID::kSquare
         },
         .attributes = {
-            .stationary = 1
+            .stationary = 1,
+            .mass = 20000.0f
         }
     },
     {
@@ -1057,7 +1068,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .drops = {
             PetalID::kCutter
         },
-        .attributes = {}
+        .attributes = { .mass = 2.5f }
     },
     {
         // Moon: summoned only by the Moon petal (never wild-spawns; NoDrops via
@@ -1071,7 +1082,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {50.0},
         .xp = 0,
         .drops = {},
-        .attributes = {}
+        .attributes = { .mass = 1.0f }
     },
     {
         // Bumble Bee: never aggros. Drifts in fast curvy arcs, turning at walls,
@@ -1087,7 +1098,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
             PetalID::kPollen
         },
         .attributes = {
-            .armor = 1
+            .armor = 1,
+            .mass = 1.75f
         }
     },
     {
@@ -1108,7 +1120,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .attributes = {
             .stationary = 1,
             .armor = 1,
-            .missile_damage = 10
+            .missile_damage = 10,
+            .mass = 10000.0f
         }
     },
     {
@@ -1125,7 +1138,8 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .xp = 0,
         .drops = {},
         .attributes = {
-            .armor = 0
+            .armor = 0,
+            .mass = 1.0f
         }
     },
 }};
