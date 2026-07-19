@@ -92,6 +92,18 @@ static void _cancel_movement(Entity &ent, Vector dir, Vector add, Vector const &
     ent.collision_velocity += push * (0.5 * PLAYER_ACCELERATION) * factor;
 }
 
+// A real player (kFlower && !kMob) killed by contact damage must become a
+// corpse via the dead-state path, not vanish through request_delete -- otherwise
+// pending_delete beats Health.cc to it and the death bookkeeping/corpse never
+// runs. Everything else (mobs, petals, etc.) dies normally.
+static void _kill_from_collision(Simulation *sim, Entity &ent) {
+    if (ent.has_component(kFlower) && !ent.has_component(kMob)) {
+        if (!ent.get_dead()) enter_player_dead_state(sim, ent);
+    } else {
+        sim->request_delete(ent.id);
+    }
+}
+
 void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
     //do a distance dependent check first (it's faster)
     float min_dist = ent1.get_radius() + ent2.get_radius();
@@ -163,8 +175,8 @@ void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
             inflict_damage(sim, ent1.id, ent2.id, ent1.damage, dt1);
             inflict_damage(sim, ent2.id, ent1.id, ent2.damage, dt2);
         }
-        if (ent1.health == 0) sim->request_delete(ent1.id);
-        if (ent2.health == 0) sim->request_delete(ent2.id);
+        if (ent1.health == 0) _kill_from_collision(sim, ent1);
+        if (ent2.health == 0) _kill_from_collision(sim, ent2);
     }
 
     if (ent1.has_component(kDrop) && ent2.has_component(kFlower)) 
