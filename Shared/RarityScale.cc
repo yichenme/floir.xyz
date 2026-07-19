@@ -3,26 +3,17 @@
 #include <algorithm>
 #include <cmath>
 
-// Plain 3x per tier. This is the PETAL/summon scaling (a Unique petal is 3x a
-// Super petal), and the base for the clamped mob armor. Mobs use a completely
-// different curve (mob_rarity_scale below) -- petals do NOT.
+// Plain 3x per tier, compounding. Used identically by petals AND mobs (HP,
+// damage, XP) -- every rarity step up is exactly 3x the step before it, all
+// the way from Common to Unique. No special-cased jump at any tier.
 float rarity_pow3(uint8_t rarity) {
     return std::pow(3.f, (float)rarity);
 }
 
-// Unified mob HP/damage/XP scaling: smooth growth from Common up through
-// Super (rarity 7) that lands EXACTLY on 100x a Common mob's stat there, then
-// one final jump to EXACTLY 1000x at Unique (rarity 8) -- the two anchor
-// points are the spec; everything between Common and Super is geometric
-// interpolation (100^(r/7)) so the growth is smooth rather than a cliff.
-static float mob_rarity_scale(uint8_t rarity) {
-    if (rarity >= RarityID::kUnique) return 1000.f;
-    return std::pow(100.f, (float)rarity / (float)RarityID::kSuper);
-}
-
-// Mob damage/XP scaling (see mob_rarity_scale). Petals never use this.
+// Mob damage/XP scaling: same flat 3x/tier curve as HP (mob_hp_mult) and
+// petals (rarity_pow3).
 float mob_rarity_mult(uint8_t rarity) {
-    return mob_rarity_scale(rarity);
+    return rarity_pow3(rarity);
 }
 float craft_success_chance(uint8_t rarity) {
     if (rarity >= RarityID::kSuper) return 0.f;
@@ -36,7 +27,7 @@ float mob_armor_mult(uint8_t r) {
     return rarity_pow3(r > RarityID::kUltra ? RarityID::kUltra : r);
 }
 float mob_hp_mult(uint8_t r) {
-    return mob_rarity_scale(r);
+    return rarity_pow3(r);
 }
 float mob_size_mult(uint8_t r) {
     // 1.4x per rarity tier, compounding (1.0x at Common, ~14.8x at Unique). No
