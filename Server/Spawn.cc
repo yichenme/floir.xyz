@@ -123,6 +123,9 @@ static void _announce_spawn(Entity &mob) {
     if (rarity < RarityID::kSuper) return;
     if (!(mob.get_team() == NULL_ENTITY)) return;
     if (!(mob.get_parent() == NULL_ENTITY)) return;
+    // Pollen is a Bumble Bee projectile, not a real mob encounter -- never
+    // worth a spawn announcement even at high rarity.
+    if (mob.get_mob_id() == MobID::kPollen) return;
     bool const uniq = rarity >= RarityID::kUnique;
     std::string const msg = std::string("A ") + (uniq ? "Unique " : "Super ")
         + MOB_DATA[mob.get_mob_id()].name + " has spawned!";
