@@ -137,9 +137,14 @@ void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
     Vector separation(ent1.get_x() - ent2.get_x(), ent1.get_y() - ent2.get_y());
     float dist = min_dist - separation.magnitude();
     if (dist < 0) return;
+    // A dead player corpse is physically immobile: it neither gets pushed nor
+    // pushes others. Compute the dead-flower flags here so the push block below
+    // (and the damage block further down) can both skip it.
+    bool const dead1 = ent1.has_component(kFlower) && !ent1.has_component(kMob) && ent1.get_dead();
+    bool const dead2 = ent2.has_component(kFlower) && !ent2.has_component(kMob) && ent2.get_dead();
     // kNoPush bodies (e.g. Stick's Sandstorms) overlay creatures: skip the
     // physical push below, but the damage step still runs.
-    if (NO(kDrop) && NO(kWeb) && !BitMath::at((ent1.flags | ent2.flags), EntityFlags::kNoPush)) {
+    if (NO(kDrop) && NO(kWeb) && !dead1 && !dead2 && !BitMath::at((ent1.flags | ent2.flags), EntityFlags::kNoPush)) {
         if (separation.x == 0 && separation.y == 0)
             separation.unit_normal(frand() * 2 * M_PI);
         else
@@ -186,8 +191,6 @@ void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
 
     // A dead player corpse neither deals nor takes contact damage (so it can't be
     // farmed and doesn't chip mobs that walk over it).
-    bool const dead1 = ent1.has_component(kFlower) && !ent1.has_component(kMob) && ent1.get_dead();
-    bool const dead2 = ent2.has_component(kFlower) && !ent2.has_component(kMob) && ent2.get_dead();
     if (BOTH(kHealth) && !(ent1.get_team() == ent2.get_team()) && !BOTH(kFlower) && !dead1 && !dead2) {
         if (ent1.health > 0 && ent2.health > 0) {
             // Mjolnir deals LIGHTNING damage (ignores armor, teal damage number).

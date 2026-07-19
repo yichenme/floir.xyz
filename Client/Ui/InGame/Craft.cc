@@ -292,8 +292,17 @@ namespace {
 
     class CraftChance final : public Element {
     public:
-        CraftChance() : Element(120, 16, {}) {}
+        CraftChance() : Element(160, 16, {}) {}
         void on_render(Renderer &ctx) override {
+            if (g_anim == kAnimReveal) {
+                bool const success = Game::last_craft_result.any_success;
+                uint32_t const survived = std::min<uint32_t>(4, (uint32_t) Game::last_craft_result.remaining);
+                std::string const text = success
+                    ? "Crafted!"
+                    : "Failed -- " + std::to_string(survived) + " petal" + (survived == 1 ? "" : "s") + " left";
+                ctx.draw_text(text.c_str(), { .fill = success ? 0xff75dd34u : 0xffcc3333u, .size = 14 });
+                return;
+            }
             float const chance = g_sel_type == PetalID::kNone
                 ? 0
                 : craft_success_chance(g_sel_rarity) * 100.0f;
