@@ -655,7 +655,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     },
     {
         .name = "Yggdrasil",
-        .description = "Unfortunately, its powers are useless here",
+        .description = "Revives a dead flower on contact",
         .health = 5.0,
         .damage = 0.0,
         .radius = 12.0,

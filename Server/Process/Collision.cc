@@ -104,10 +104,33 @@ static void _kill_from_collision(Simulation *sim, Entity &ent) {
     }
 }
 
+// A loaded Yggdrasil petal that touches ANY dead flower (allies or enemies,
+// per spec) sticks onto the corpse and brings it back at full HP. Runs before
+// _should_interact because that gate refuses petal-vs-flower contact -- the
+// revive is a deliberate exception. Deleting the petal restarts the owner's
+// Yggdrasil reload naturally (Flower.cc reloads the slot once its petal entity
+// is gone).
+static bool try_yggdrasil_revive(Simulation *sim, Entity &petal, Entity &dead) {
+    if (petal.pending_delete) return false;
+    if (!petal.has_component(kPetal) || petal.get_petal_id() != PetalID::kYggdrasil) return false;
+    if (!dead.has_component(kFlower) || dead.has_component(kMob) || !dead.get_dead()) return false;
+    Vector d(petal.get_x() - dead.get_x(), petal.get_y() - dead.get_y());
+    if (d.magnitude() > petal.get_radius() + dead.get_radius()) return false;
+    dead.set_dead(0);
+    dead.health = dead.max_health;
+    dead.set_health_ratio(1);
+    dead.set_face_flags(0);
+    // Brief grace so a revive amid enemies isn't instantly undone.
+    dead.immunity_ticks = 1.0 * TPS;
+    sim->request_delete(petal.id);
+    return true;
+}
+
 void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
     //do a distance dependent check first (it's faster)
     float min_dist = ent1.get_radius() + ent2.get_radius();
     if (fabs(ent1.get_x() - ent2.get_x()) > min_dist || fabs(ent1.get_y() - ent2.get_y()) > min_dist) return;
+    if (try_yggdrasil_revive(sim, ent1, ent2) || try_yggdrasil_revive(sim, ent2, ent1)) return;
     //check if collide (distance independent)
     if (!_should_interact(ent1, ent2)) return;
     //finer distance check
