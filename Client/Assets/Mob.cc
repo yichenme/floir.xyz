@@ -352,18 +352,25 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
         case MobID::kCactus: {
             SET_BASE_COLOR(0xff32a852)
             uint32_t vertices = radius / 10 + 5;
+            // Proportions measured directly from the reference
+            // petals-and-mobs/mobs/2.svg (a precise 10-fold symmetric shape):
+            // parsing its path data gives body tip radius 33.33, body
+            // concave-control radius 28.53, and spike tips at radius 40.0,
+            // each spike base spanning +-3.35 degrees around its body tip's
+            // angle. Spike tips sit AT the physics radius (matching the
+            // existing hitbox-accuracy invariant); body and spike-base scale
+            // down from that using the measured 33.33:40 / 28.53:40 ratios.
+            float const BODY_R = radius * (33.33f / 40.0f);
+            float const BODY_INNER_R = radius * (28.53f / 40.0f);
+            float const SPIKE_HALF_W = BODY_R * 0.0585f;   // tan(3.35 deg)
             {
-                // Spike tips sit AT the physics radius (not beyond it) so the
-                // hitbox boundary matches what's visually drawn -- they used to
-                // overshoot to radius+10, making the collision circle visibly
-                // smaller than the spiky sprite.
                 RenderContext context(&ctx);
                 ctx.set_fill(0xff222222);
                 ctx.begin_path();
                 for (uint32_t i = 0; i < vertices; ++i) {
                     ctx.move_to(radius,0);
-                    ctx.line_to(radius*0.85f,3);
-                    ctx.line_to(radius*0.85f,-3);
+                    ctx.line_to(BODY_R,SPIKE_HALF_W);
+                    ctx.line_to(BODY_R,-SPIKE_HALF_W);
                     ctx.line_to(radius,0);
                     ctx.rotate(M_PI * 2 / vertices);
                 }
@@ -375,12 +382,12 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.round_line_cap();
             ctx.round_line_join();
             ctx.begin_path();
-            ctx.move_to(radius,0);
+            ctx.move_to(BODY_R,0);
             for (uint32_t i = 0; i < vertices; ++i) {
                 float base_angle = M_PI * 2 * i / vertices;
                 ctx.qcurve_to(
-                    radius*0.8*cosf(base_angle+M_PI/vertices),radius*0.8*sinf(base_angle+M_PI/vertices),
-                    radius*cosf(base_angle+2*M_PI/vertices),radius*sinf(base_angle+2*M_PI/vertices));
+                    BODY_INNER_R*cosf(base_angle+M_PI/vertices),BODY_INNER_R*sinf(base_angle+M_PI/vertices),
+                    BODY_R*cosf(base_angle+2*M_PI/vertices),BODY_R*sinf(base_angle+2*M_PI/vertices));
             }
             ctx.fill();
             ctx.stroke();
