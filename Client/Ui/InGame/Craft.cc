@@ -105,7 +105,7 @@ namespace {
     public:
         PetalID::T type;
         uint8_t rarity;
-        RecipeCell(PetalID::T t, uint8_t r) : Element(40, 40, { .round_radius = 4 }), type(t), rarity(r) {}
+        RecipeCell(PetalID::T t, uint8_t r) : Element(36, 36, { .round_radius = 4 }), type(t), rarity(r) {}
         void on_render(Renderer &ctx) override {
             uint64_t const count = owned_count(type, rarity);
             bool const can = craftable(rarity, count);
@@ -131,18 +131,29 @@ namespace {
             uint64_t const count = owned_count(type, rarity);
             if (!craftable(rarity, count)) return;
             if (g_anim != kAnimIdle) return;   // can't reselect mid-animation
-            g_craft_all = Input::keys_held.contains('\x10');
-            uint64_t const amount = g_craft_all ? count : 5;
-            begin_craft(type, rarity, (uint32_t) amount);
+            // Alt+click is the quick-craft shortcut (Shift picks 5 vs all, same
+            // as the Craft button); a plain click just selects the recipe so
+            // the pentagon preview and success% can be checked before
+            // committing via the Craft button.
+            bool const alt_held = Input::keys_held.contains('\x12');
+            if (alt_held) {
+                bool const shift_held = Input::keys_held.contains('\x10');
+                uint64_t const amount = shift_held ? count : 5;
+                begin_craft(type, rarity, (uint32_t) amount);
+            } else {
+                g_sel_type = type;
+                g_sel_rarity = rarity;
+                g_craft_all = Input::keys_held.contains('\x10');
+            }
         }
     };
 
     // A flat grid of every owned (type, rarity) stack.
     // Ordered highest-rarity-first, then by petal name, matching the inventory's
     // display order so the two panels read consistently.
-    int const CRAFT_COLUMNS = 8;
+    int const CRAFT_COLUMNS = 6;
     Element *make_recipe_grid() {
-        Element *grid = new VContainer({}, 10, 8, {});
+        Element *grid = new VContainer({}, 8, 6, {});
         struct Cell { PetalID::T type; uint8_t rarity; };
         std::vector<Cell> cells;
         for (PetalStack const &s : Game::inventory_stacks)
@@ -158,8 +169,8 @@ namespace {
                 row->add_child(new RecipeCell(cells[i].type, cells[i].rarity));
             row->refactor();
             // Fixed row width so short final rows stay left-aligned instead of
-            // centering (40px cells, 6px gaps), same idea as the inventory grid.
-            row->width = CRAFT_COLUMNS * 40 + (CRAFT_COLUMNS - 1) * 6;
+            // centering (36px cells, 6px gaps), same idea as the inventory grid.
+            row->width = CRAFT_COLUMNS * 36 + (CRAFT_COLUMNS - 1) * 6;
             grid->add_child(row);
         }
         return grid;

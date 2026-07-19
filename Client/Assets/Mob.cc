@@ -838,15 +838,17 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             break;
         }
         case MobID::kPollen: {
-            // Identical to the Pollen petal's particle (Client/Assets/Petal.cc):
-            // a plain yellow disc with a soft golden outline.
-            ctx.set_fill(0xffffe763);
-            ctx.set_stroke(0xffcfbb50);
-            ctx.set_line_width(radius * 0.15f);
+            // Identical to the Pollen petal (Client/Assets/Petal.cc, kPollen):
+            // two concentric filled discs, darker gold ring + lighter yellow
+            // core, same 0.647 inner/outer radius ratio.
+            ctx.set_fill(0xffcfbb50);
             ctx.begin_path();
             ctx.arc(0, 0, radius);
             ctx.fill();
-            ctx.stroke();
+            ctx.set_fill(0xffffe763);
+            ctx.begin_path();
+            ctx.arc(0, 0, radius * 0.647f);
+            ctx.fill();
             break;
         }
         default:

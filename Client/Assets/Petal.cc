@@ -11,13 +11,24 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
         case PetalID::kNone:
             break;
         case PetalID::kDandelion:
-            ctx.set_stroke(0xff222222);
-            ctx.round_line_cap();
-            ctx.set_line_width(7);
+            // Fluffy puff (light-grey ring + white core) with a small dark
+            // charcoal seed mark at the upper-left, traced from
+            // petals-and-mobs/petals/15.svg (its own 110x110 viewBox,
+            // centered) -- same r/55 convention as Magnet above.
+            ctx.scale(r / 55.0);
+            ctx.set_fill(0xffcfcfcf);
             ctx.begin_path();
-            ctx.move_to(0,0);
-            ctx.line_to(-1.6 * r, 0);
-            ctx.stroke();
+            ctx.arc(0, -7.25, 14.7);
+            ctx.fill();
+            ctx.set_fill(0xffffffff);
+            ctx.begin_path();
+            ctx.arc(0, -7.25, 10.5);
+            ctx.fill();
+            ctx.set_fill(0xff333333);
+            ctx.begin_path();
+            ctx.ellipse(-10.5, -24, 6.7, 7.2);
+            ctx.fill();
+            break;
         case PetalID::kUniqueBasic:
         case PetalID::kBasic:
         case PetalID::kLight:
@@ -133,13 +144,18 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.stroke();
             break;
         case PetalID::kPollen:
-            ctx.set_fill(0xffffe763);
-            ctx.set_stroke(0xffcfbb50);
-            ctx.set_line_width(3);
+            // Two concentric filled discs (darker gold ring + lighter yellow
+            // core), matching petals-and-mobs/petals/14.svg exactly -- ratio
+            // of inner to outer radius taken from that svg's own two circles
+            // (r=7.857 inner / r=12.143 outer).
+            ctx.set_fill(0xffcfbb50);
             ctx.begin_path();
-            ctx.arc(0,0,r);
+            ctx.arc(0, 0, r);
             ctx.fill();
-            ctx.stroke();
+            ctx.set_fill(0xffffe763);
+            ctx.begin_path();
+            ctx.arc(0, 0, r * 0.647f);
+            ctx.fill();
             break;
         case PetalID::kBubble:
             ctx.begin_path();
@@ -461,37 +477,37 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             MjolnirArt::draw(ctx, r);
             break;
         case PetalID::kMagnet:
-            // A horseshoe magnet (translated from magnet.svg): a red arm and a
-            // blue arm curving down to meet at a point, each drawn as a thick
-            // outer stroke plus a thinner, lighter inner stroke for a rounded
-            // highlight. Coordinates are relative to the svg's 110x110
-            // viewBox center, scaled down to the petal's actual radius, then
-            // 3x on top so the model reads clearly at typical petal sizes.
-            ctx.scale(r / 55.0 * 3.0);
+            // A horseshoe magnet: a red arm and a blue arm curving down to
+            // meet at a point, each drawn as a thick outer stroke plus a
+            // thinner, lighter inner stroke for a rounded highlight. Traced
+            // directly from the reference petals-and-mobs/petals/29.svg
+            // (florr.io's actual Magnet icon), coordinates relative to that
+            // svg's 110x110 viewBox center, scaled to the petal's radius.
+            ctx.scale(r / 55.0);
             ctx.round_line_cap();
             ctx.set_line_width(24);
             ctx.set_stroke(0xff363685);
             ctx.begin_path();
-            ctx.move_to(20.34, -3.57);
-            ctx.bcurve_to(13.91, 19.12, 3.49, 25.84, -10.94, 16.58);
+            ctx.move_to(19.7, -9.27);
+            ctx.qcurve_to(10.06, 24.78, -11.58, 10.89);
             ctx.stroke();
             ctx.set_line_width(14.4);
             ctx.set_stroke(0xff4343a4);
             ctx.begin_path();
-            ctx.move_to(20.57, -3.94);
-            ctx.bcurve_to(13.99, 19.00, 3.49, 25.84, -10.94, 16.58);
+            ctx.move_to(19.93, -9.63);
+            ctx.qcurve_to(10.06, 24.78, -11.58, 10.89);
             ctx.stroke();
             ctx.set_line_width(24);
             ctx.set_stroke(0xff853636);
             ctx.begin_path();
-            ctx.move_to(-5.63, -20.25);
-            ctx.bcurve_to(-23.59, -4.96, -25.36, 7.32, -10.94, 16.58);
+            ctx.move_to(-6.27, -25.94);
+            ctx.qcurve_to(-33.22, -3.01, -11.58, 10.89);
             ctx.stroke();
             ctx.set_line_width(14.4);
             ctx.set_stroke(0xffa44343);
             ctx.begin_path();
-            ctx.move_to(-5.40, -20.61);
-            ctx.bcurve_to(-23.52, -5.08, -25.36, 7.32, -10.94, 16.58);
+            ctx.move_to(-6.04, -26.3);
+            ctx.qcurve_to(-33.22, -3.01, -11.58, 10.89);
             ctx.stroke();
             break;
         case PetalID::kLotus:
