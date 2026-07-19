@@ -30,7 +30,10 @@ namespace {
     uint8_t g_sel_rarity = 0;
     bool g_craft_all = false;
 
-    void clear_selection() { g_sel_type = PetalID::kNone; }
+    void clear_selection() {
+        g_sel_type = PetalID::kNone;
+        g_craft_all = false;
+    }
 
     uint64_t owned_count(PetalID::T type, uint8_t rarity) {
         for (PetalStack const &s : Game::inventory_stacks)
@@ -40,6 +43,14 @@ namespace {
 
     bool craftable(uint8_t rarity, uint64_t count) {
         return rarity < RarityID::kSuper && count >= 5;
+    }
+
+    // Drop selection when the stack is gone or no longer craftable; keep it
+    // after reveal so the Craft button can retry (5 or all per g_craft_all).
+    void sync_selection_after_craft() {
+        if (g_sel_type == PetalID::kNone) return;
+        uint64_t const count = owned_count(g_sel_type, g_sel_rarity);
+        if (!craftable(g_sel_rarity, count)) clear_selection();
     }
 
     // Roll/reveal animation state, driven by Craft button clicks and the
@@ -184,6 +195,11 @@ namespace {
     public:
         CraftControls() : Element(200, 185, {}) {}
         void on_render(Renderer &ctx) override {
+            static bool was_craft_open = false;
+            bool const craft_open = Ui::panel_open == Panel::kCraft;
+            if (was_craft_open && !craft_open) clear_selection();
+            was_craft_open = craft_open;
+
             bool const has_selection = g_sel_type != PetalID::kNone;
 
             // Transition rolling -> reveal once ROLL_MS has passed AND a
@@ -197,7 +213,7 @@ namespace {
             } else if (g_anim == kAnimReveal) {
                 if (Game::timestamp - g_anim_started > REVEAL_MS) {
                     g_anim = kAnimIdle;
-                    clear_selection();
+                    sync_selection_after_craft();
                 }
             }
 
