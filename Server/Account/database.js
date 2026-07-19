@@ -15,7 +15,10 @@ const DB_PATH = path.join(__dirname, '..', 'database.json');
 // PetalID enum (so surviving petals keep their saved IDs), but any copies still
 // sitting in accounts are purged: dropped from inventory, and cleared to an
 // empty slot (type 0) in loadouts. kTringer (29) folded into kStinger.
-const RETIRED_PETALS = new Set([3, 6, 21, 23, 27, 29, 30, 32, 36]);
+// 50 = Mjolnir: not retired, but a transient leaderboard-#1 reward that must
+// never live in a saved account (stripped on load as a backstop so it can't be
+// duplicated/kept via any persistence path).
+const RETIRED_PETALS = new Set([3, 6, 21, 23, 27, 29, 30, 32, 36, 50]);
 
 global.purgeRetiredPetals = () => {
     let changed = false;

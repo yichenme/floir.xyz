@@ -4,6 +4,8 @@
 
 #include <Client/Assets/Assets.hh>
 
+#include <Helpers/Math.hh>
+
 #include <cmath>
 #include <vector>
 
@@ -11,6 +13,7 @@ using namespace Particle;
 
 static std::vector<TitleParticleEntity> title_particles;
 static std::vector<GameParticleEntity> game_particles;
+static std::vector<DamageNumber> damage_numbers;
 
 void Particle::tick_title(Renderer &ctx, double dt) {
     RenderContext c(&ctx);
@@ -81,6 +84,40 @@ void Particle::tick_game(Renderer &ctx, double dt) {
         ctx.arc(part.x,part.y,part.radius);
         ctx.fill();
     }
+    // Floating damage numbers (world space): rise, drift, and fade.
+    for (size_t i = damage_numbers.size(); i > 0; --i) {
+        DamageNumber &d = damage_numbers[i - 1];
+        if (d.opacity < 0.05f) {
+            d = damage_numbers[damage_numbers.size() - 1];
+            damage_numbers.pop_back();
+            continue;
+        }
+        d.y -= 40.0f * dt / 1000.0f;
+        d.x += d.vx * dt / 1000.0f;
+        d.opacity = fclamp(d.opacity - dt / 900.0f, 0, 1);
+        RenderContext c(&ctx);
+        ctx.set_global_alpha(d.opacity);
+        ctx.translate(d.x, d.y);
+        ctx.center_text_align();
+        ctx.set_text_size(22);
+        ctx.set_fill(d.color);
+        ctx.set_stroke(0xff222222);
+        ctx.set_line_width(22 * 0.14f);
+        ctx.stroke_text(d.text.c_str());
+        ctx.fill_text(d.text.c_str());
+    }
+}
+
+void Particle::add_damage_number(float x, float y, double amount, uint32_t color) {
+    if (amount < 1) return;
+    DamageNumber d;
+    d.x = x + (frand() - 0.5f) * 20.0f;
+    d.y = y;
+    d.vx = (frand() - 0.5f) * 20.0f;
+    d.opacity = 1.0f;
+    d.color = color;
+    d.text = format_score((float) amount);   // compact (e.g. 328k)
+    damage_numbers.push_back(std::move(d));
 }
 
 void Particle::add_game_particle(float x, float y, uint32_t color) {

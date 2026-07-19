@@ -467,6 +467,29 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
         case MobID::kDigger:
             tick_digger(sim, ent);
             break;
+        case MobID::kMoon: {
+            // A heavy moon rock that gently roams around its owner. It picks a
+            // new slow wander heading every ~2.5s and ambles back toward the
+            // player when it drifts too far; its high mass keeps it from being
+            // shoved around (except by the player's own Bubble, see Petal.cc).
+            if (sim->ent_alive(ent.get_parent())) {
+                Entity const &parent = sim->get_ent(ent.get_parent());
+                Vector delta(parent.get_x() - ent.get_x(), parent.get_y() - ent.get_y());
+                float const dist = delta.magnitude();
+                if (ent.lifetime % (uint32_t)(2.5 * TPS) == 0)
+                    ent.heading_angle = frand() * 2 * M_PI;
+                if (dist > 240) {
+                    delta.set_magnitude(PLAYER_ACCELERATION * 0.6f);
+                    ent.acceleration = delta;
+                } else {
+                    Vector wander;
+                    wander.unit_normal(ent.heading_angle).set_magnitude(PLAYER_ACCELERATION * 0.4f);
+                    ent.acceleration = wander;
+                }
+                ent.set_angle(ent.get_angle() + 0.02f);   // slow tumble
+            }
+            break;
+        }
         default:
             break;
     }

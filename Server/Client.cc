@@ -218,8 +218,24 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
                 if (client->alive()) {
                     std::string const target_name = message.substr(14);
                     Client *target = client->game->client_for_username(target_name);
+                    Entity &cam = client->game->simulation.get_ent(client->camera);
+                    uint32_t const sid_before = cam.get_squad_id();
+                    bool ok = false;
                     if (target != nullptr && target != client && target->alive())
-                        Squad::invite(&client->game->simulation, client->camera, target->camera);
+                        ok = Squad::invite(&client->game->simulation, client->camera, target->camera);
+                    // Confirmation shown ONLY to the commander (a system chat line,
+                    // never broadcast) -- the command itself is consumed.
+                    auto notify = [&](std::string const &t){
+                        Writer w(Server::OUTGOING_PACKET);
+                        w.write<uint8_t>(Clientbound::kSystemMessage);
+                        w.write<uint8_t>(SystemMsgKind::kSysSuper);
+                        w.write<std::string>(t);
+                        client->send_packet(w.packet, w.at - w.packet);
+                    };
+                    if (ok) {
+                        if (sid_before == 0) notify("Squad created");
+                        notify("Squad invite sent to " + target_name);
+                    } else notify("Could not invite " + target_name);
                 }
                 break;
             }

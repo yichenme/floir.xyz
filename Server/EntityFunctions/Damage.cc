@@ -32,8 +32,12 @@ void inflict_damage(Simulation *sim, EntityID const atk_id, EntityID const def_i
     //if (amt <= defender.armor) return;
     float old_health = defender.health;
     defender.set_damaged(1);
-    defender.health = fclamp(defender.health - amt, 0, defender.health);  
+    defender.health = fclamp(defender.health - amt, 0, defender.health);
     float damage_dealt = old_health - defender.health;
+    // Feed the client-side floating damage number: the amount received and
+    // whether it was lightning (Mjolnir -> teal number, else white).
+    defender.set_damage_taken((uint32_t)(damage_dealt + 0.5f));
+    defender.set_damage_lightning(type == DamageType::kLightning ? 1 : 0);
     // Individual-loot: attribute damage on a mob to the attacking player's
     // camera (persistent identity), so on death we can pick the eligible looters.
     if (damage_dealt > 0 && defender.has_component(kMob)) {
@@ -89,8 +93,14 @@ void inflict_damage(Simulation *sim, EntityID const atk_id, EntityID const def_i
     
     if (!sim->ent_alive(atk_id)) return;
 
-    if (defender.slow_ticks < attacker.slow_inflict)
-        defender.slow_ticks = attacker.slow_inflict;
+    // Pincer's stun only affects mobs of the same or lower rarity than the
+    // pincer; a mob one tier higher is fully immune (RarityID is ascending).
+    if (attacker.slow_inflict > 0 && defender.slow_ticks < attacker.slow_inflict) {
+        bool const immune = attacker.has_component(kPetal) && defender.has_component(kMob)
+                          && attacker.get_petal_rarity() < defender.get_mob_rarity();
+        if (!immune)
+            defender.slow_ticks = attacker.slow_inflict;
+    }
     
     if (attacker.has_component(kPetal)) {
         switch (attacker.get_petal_id()) {

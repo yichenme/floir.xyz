@@ -18,8 +18,11 @@ namespace {
     // First timestamp (ms) each super/unique mob entered vision, so bars can be
     // ordered by appearance. Pruned each frame to only mobs currently in view.
     std::unordered_map<uint32_t, double> g_first_seen;
+    // Decaying "recent health" per boss, so the bar shows a red trail draining
+    // behind the green fill (same feel as the in-world mob HP bar).
+    std::unordered_map<uint32_t, float> g_lag;
 
-    struct BossEntry { uint8_t rarity; float ratio; char const *name; double seen; };
+    struct BossEntry { uint8_t rarity; float ratio; char const *name; double seen; uint32_t id; };
 
     // Top-centre boss bars for Super and Unique mobs in view. Unique(s) on top,
     // then by the order they entered vision; at most 3, drawn in absolute screen
@@ -55,7 +58,7 @@ namespace {
                 if (std::fabs(sx) > halfw + m || std::fabs(sy) > halfh + m) return;
                 double const seen = g_first_seen.count(ent.id.id) ? g_first_seen[ent.id.id] : Game::timestamp;
                 seen_now[ent.id.id] = seen;
-                bosses.push_back({ rar, ent.get_health_ratio(), MOB_DATA[ent.get_mob_id()].name, seen });
+                bosses.push_back({ rar, ent.get_health_ratio(), MOB_DATA[ent.get_mob_id()].name, seen, ent.id.id });
             });
             g_first_seen.swap(seen_now);   // forget mobs that left vision / died
             if (bosses.empty()) return;
@@ -102,11 +105,23 @@ namespace {
                     ctx.move_to(-bar_w / 2, 0);
                     ctx.line_to(bar_w / 2, 0);
                     ctx.stroke();
-                    ctx.set_stroke(0xff75dd34);
+                    // Red "lag" trail: a decaying copy of health that eases down to
+                    // the real ratio, so a hit leaves a draining red streak.
+                    float const cur = fclamp(b.ratio, 0, 1);
+                    float lag = g_lag.count(b.id) ? g_lag[b.id] : cur;
+                    if (lag < cur) lag = cur;                 // healing snaps up
+                    else lag += (cur - lag) * 0.08f;          // damage drains slowly
+                    g_lag[b.id] = lag;
+                    ctx.set_stroke(0xffed2f31);
                     ctx.set_line_width(bar_h * 0.72f);
                     ctx.begin_path();
                     ctx.move_to(-bar_w / 2, 0);
-                    ctx.line_to(-bar_w / 2 + bar_w * fclamp(b.ratio, 0, 1), 0);
+                    ctx.line_to(-bar_w / 2 + bar_w * lag, 0);
+                    ctx.stroke();
+                    ctx.set_stroke(0xff75dd34);
+                    ctx.begin_path();
+                    ctx.move_to(-bar_w / 2, 0);
+                    ctx.line_to(-bar_w / 2 + bar_w * cur, 0);
                     ctx.stroke();
                 }
                 // Rarity below the bar.

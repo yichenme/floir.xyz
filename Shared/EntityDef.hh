@@ -73,7 +73,9 @@ SINGLE(Petal, split_projectile, uint8_t)
 
 #define FIELDS_Health \
 SINGLE(Health, health_ratio, Float) \
-SINGLE(Health, damaged, StickyFlag)
+SINGLE(Health, damaged, StickyFlag) \
+SINGLE(Health, damage_taken, uint32_t) \
+SINGLE(Health, damage_lightning, uint8_t)
 
 #define FIELDS_Mob \
 SINGLE(Mob, mob_id, MobID::T) \

@@ -593,7 +593,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     },
     {
         .name = "Moon",
-        .description = "Where did this come from?",
+        .description = "A heavy moon rock that roams around you. Bump it with Bubble to send it flying.",
         .health = 100.0,
         .damage = 10.0,
         .radius = 50.0,
@@ -601,7 +601,13 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .count = 1,
         .rarity = RarityID::kUnique,
         .attributes = {
-            .mass = 200
+            // Moon is no longer an orbiting petal: it summons a free-roaming,
+            // player-owned Moon MOB (spawn_count 0 -> the mob replaces the petal,
+            // like Beetle Egg). Wandering/heaviness/size live on that mob.
+            .secondary_reload = 0.5,
+            .defend_only = 1,
+            .rotation_style = PetalAttributes::kNoRot,
+            .spawns = MobID::kMoon
         }
     },
     {
@@ -723,6 +729,19 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .attributes = {
             .extra_reload_factor = 0.95,
             .icon_angle = -1
+        }
+    },
+    {
+        .name = "Mjolnir",
+        .description = "The hammer of thunder. Only the level leaderboard's number one may wield it.",
+        .health = 328050.0,
+        .damage = 328050.0,
+        .radius = 28.0,
+        .reload = 2.5,
+        .count = 1,
+        .rarity = RarityID::kUnique,
+        .attributes = {
+            .mass = 40
         }
     },
 }};
@@ -1034,6 +1053,20 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         },
         .attributes = {}
     },
+    {
+        // Moon: summoned only by the Moon petal (never wild-spawns; NoDrops via
+        // the summon flags). Base stats; the summon scales HP/damage/size by the
+        // petal's rarity (see Flower.cc + summon_base_*).
+        .name = "Moon",
+        .description = "A heavy moon rock summoned by the Moon petal.",
+        .rarity = RarityID::kUnique,
+        .health = {100.0},
+        .damage = 10.0,
+        .radius = {50.0},
+        .xp = 0,
+        .drops = {},
+        .attributes = {}
+    },
 }};
 
 std::array<StaticArray<float, MAX_DROPS_PER_MOB>, MobID::kNumMobs> const MOB_DROP_CHANCES = [](){
@@ -1129,7 +1162,10 @@ uint32_t loadout_slots_at_level(uint32_t level) {
 
 float hp_at_level(uint32_t level) {
     if (level > MAX_LEVEL) level = MAX_LEVEL;
-    // Levels 1-99 unchanged: 200 * 3^(0.05*(n-1)) (~+5.6%/level, ~3x per 20).
+    // HP caps at level 75 (~11,651 base HP); leveling past 75 grants no more HP
+    // (the player still levels up for slots/XP, just not for max health).
+    if (level > 75) level = 75;
+    // Levels 1-75 unchanged: 200 * 3^(0.05*(n-1)) (~+5.6%/level, ~3x per 20).
     if (level < 100)
         return 200.0f * std::pow(3.0f, 0.05f * ((float)level - 1.0f));
     // Past 99 the exponential would blow up (L999 -> ~10^24 HP), so continue

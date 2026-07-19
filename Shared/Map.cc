@@ -54,8 +54,11 @@ void Map::spawn_random_mob(Simulation *sim, float x, float y) {
     for (SpawnChance const &s : zone.spawns) {
         sum -= s.chance;
         if (sum <= 0) {
-            // Reject if the chosen mob's body would overlap any wall/water.
-            if (Tilemap::solid_circle(x, y, MOB_DATA[s.id].radius.upper)) return;
+            // Reject only if the mob's SMALLEST body would grossly overlap a
+            // wall/water (was radius.upper, which reserved a large clear band and
+            // produced an "air wall" gap). __alloc_mob's push_circle un-embeds
+            // the final rarity-scaled body, so mobs now settle right against walls.
+            if (Tilemap::solid_circle(x, y, MOB_DATA[s.id].radius.lower)) return;
             uint8_t rarity = roll_spawn_rarity((uint8_t)zone.difficulty);
             Entity &ent = alloc_mob(sim, s.id, x, y, NULL_ENTITY, rarity, [&](Entity &mob){
                 mob.zone = zone_id;
@@ -72,7 +75,11 @@ void Map::spawn_random_mob(Simulation *sim, float x, float y) {
 bool Map::find_spawn_location(Simulation *sim, float d, Vector &vref) {
     for (uint32_t i = 0; i < 10; ++i) {
         vref.set(frand() * ARENA_WIDTH, frand() * ARENA_HEIGHT);
-        if (Tilemap::solid_circle(vref.x, vref.y, BASE_FLOWER_RADIUS)) continue;
+        // Only reject a candidate whose centre is (nearly) inside a wall -- a
+        // small clearance, not a full flower-radius band, so mobs can spawn
+        // adjacent to terrain instead of leaving a wide gap. The per-mob body
+        // check in spawn_random_mob handles the actual size.
+        if (Tilemap::solid_circle(vref.x, vref.y, 8)) continue;
         bool valid = true;
         sim->for_each<kFlower>([&](Simulation *, Entity &ent) {
             if (ent.has_component(kMob)) return;

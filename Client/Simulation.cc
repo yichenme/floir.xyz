@@ -1,6 +1,7 @@
 #include <Shared/Simulation.hh>
 
 #include <Client/Game.hh>
+#include <Client/Particle.hh>
 
 #include <Client/Ui/Extern.hh>
 
@@ -40,8 +41,16 @@ void Entity::tick_lerp(float amt) {
             damage_flash = 1;
         else //damage_flash = fclamp(damage_flash - Ui::dt / 150, 0, 1);
             damage_flash = lerp(damage_flash, 0, amt);
-        if (damaged)
+        if (damaged) {
             last_damaged_time = Game::timestamp;
+            // Floating damage number over creatures (not petals): white for
+            // normal damage, teal (#36FFE7) for Mjolnir lightning.
+            if ((has_component(kMob) || has_component(kFlower)) && damage_taken >= 1) {
+                uint32_t const col = damage_lightning ? 0xff36ffe7u : 0xffffffffu;
+                Particle::add_damage_number((float) x, (float) y - get_radius() * 0.6f,
+                                            (double) damage_taken, col);
+            }
+        }
         damaged.clear();
         if ((float) health_ratio > 0.999)
             healthbar_opacity = lerp(healthbar_opacity, 0, amt);

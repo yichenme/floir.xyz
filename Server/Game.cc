@@ -98,6 +98,54 @@ void GameInstance::tick() {
         save_counter = 0;
         persist_alive_progress();
     }
+    // Recompute the leaderboard-#1 Mjolnir holder about once a second.
+    if (++mjolnir_counter >= TPS) {
+        mjolnir_counter = 0;
+        update_mjolnir_ownership();
+    }
+}
+
+void GameInstance::update_mjolnir_ownership() {
+    // Find the highest-score ALIVE player (level leaderboard #1).
+    Client *top = nullptr; uint32_t best = 0;
+    for (Client *c : clients) {
+        if (!c->alive()) continue;
+        Entity &cam = simulation.get_ent(c->camera);
+        if (!simulation.ent_alive(cam.get_player())) continue;
+        uint32_t const sc = simulation.get_ent(cam.get_player()).get_score();
+        if (top == nullptr || sc > best) { best = sc; top = c; }
+    }
+    for (Client *c : clients) {
+        if (!c->alive()) continue;
+        Entity &cam = simulation.get_ent(c->camera);
+        if (!simulation.ent_alive(cam.get_player())) continue;
+        Entity &fl = simulation.get_ent(cam.get_player());
+        int has = -1;
+        for (uint32_t i = 0; i < 2 * fl.get_loadout_count(); ++i)
+            if (fl.get_loadout_ids(i) == PetalID::kMjolnir) { has = (int)i; break; }
+        bool const should = (c == top);
+        if (should && has < 0) {
+            // Grant: prefer an empty slot (any row) so we don't bump an equipped
+            // petal; fall back to the last secondary slot.
+            uint32_t slot = 2 * fl.get_loadout_count() - 1;
+            for (uint32_t i = 0; i < 2 * fl.get_loadout_count(); ++i)
+                if (fl.get_loadout_ids(i) == PetalID::kNone) { slot = i; break; }
+            PetalTracker::remove_petal(&simulation, fl.get_loadout_ids(slot));
+            fl.set_loadout_ids(slot, PetalID::kMjolnir);
+            fl.set_loadout_rarities(slot, RarityID::kUnique);
+            PetalTracker::add_petal(&simulation, PetalID::kMjolnir);
+            std::string const nm = fl.get_name().empty() ? c->username : fl.get_name();
+            system_message(SystemMsgKind::kSysUnique, nm + " is now the Unique Mjolnir owner!");
+        } else if (!should && has >= 0) {
+            // Revoke: blank every Mjolnir slot (it just vanishes from the loadout).
+            for (uint32_t i = 0; i < 2 * fl.get_loadout_count(); ++i)
+                if (fl.get_loadout_ids(i) == PetalID::kMjolnir) {
+                    fl.set_loadout_ids(i, PetalID::kNone);
+                    fl.set_loadout_rarities(i, 0);
+                    PetalTracker::remove_petal(&simulation, PetalID::kMjolnir);
+                }
+        }
+    }
 }
 
 void GameInstance::persist_alive_progress() {

@@ -1,5 +1,6 @@
 #include <Client/Assets/Assets.hh>
 
+#include <Client/Assets/MjolnirArt.hh>
 #include <Client/StaticData.hh>
 
 #include <cmath>
@@ -455,6 +456,10 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.fill(1);
             break;
         }
+        case PetalID::kMjolnir:
+            // The hammer of thunder (translated from Mjölnir.svg).
+            MjolnirArt::draw(ctx, r);
+            break;
         case PetalID::kLotus:
             ctx.scale(r / 10);
             ctx.set_fill(0xffce76db);

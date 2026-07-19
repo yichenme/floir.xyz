@@ -107,6 +107,31 @@ void tick_petal_behavior(Simulation *sim, Entity &petal) {
             // Short kickback: launch the flower away from the bubble on defend,
             // at half the original strength (20 -> 10) for a shorter hop.
             if (BitMath::at(player.input, InputFlags::kDefending)) {
+                // If this bubble is sitting on the player's Moon summon, it
+                // shoves the MOON instead -- the player is not pushed, only the
+                // moon flies. Otherwise it kicks the player as usual.
+                Entity *moon = nullptr;
+                for (uint32_t i = 0; i < player.get_loadout_count() && moon == nullptr; ++i) {
+                    LoadoutSlot const &slot = player.loadout[i];
+                    if (slot.get_petal_id() != PetalID::kMoon) continue;
+                    for (uint32_t j = 0; j < slot.size(); ++j) {
+                        if (!sim->ent_alive(slot.petals[j].ent_id)) continue;
+                        Entity &m = sim->get_ent(slot.petals[j].ent_id);
+                        if (m.has_component(kMob) && m.get_mob_id() == MobID::kMoon) { moon = &m; break; }
+                    }
+                }
+                if (moon != nullptr) {
+                    float const dx = moon->get_x() - petal.get_x();
+                    float const dy = moon->get_y() - petal.get_y();
+                    if (dx * dx + dy * dy <
+                        (moon->get_radius() + petal.get_radius() + 30) * (moon->get_radius() + petal.get_radius() + 30)) {
+                        Vector v(dx, dy);
+                        v.set_magnitude(PLAYER_ACCELERATION * 14);
+                        moon->velocity += v;
+                        sim->request_delete(petal.id);
+                        break;
+                    }
+                }
                 Vector v(player.get_x() - petal.get_x(), player.get_y() - petal.get_y());
                 v.set_magnitude(PLAYER_ACCELERATION * 10);
                 player.velocity += v;

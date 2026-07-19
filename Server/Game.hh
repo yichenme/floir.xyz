@@ -13,6 +13,8 @@ class GameInstance {
     TeamManager team_manager;
     // Ticks since the last periodic progress flush (see persist_alive_progress).
     uint32_t save_counter = 0;
+    // Ticks since the last Mjolnir-ownership recompute (see update_mjolnir_ownership).
+    uint32_t mjolnir_counter = 0;
 public:
     Simulation simulation;
     GameInstance();
@@ -33,6 +35,11 @@ public:
     // authentication so a flower/loadout can never straddle two accounts on
     // the same socket (the cross-account loadout-leak / dupe exploit).
     void reset_session(Client *);
+    // Grant the Mjolnir petal to the current level-leaderboard #1 (alive) and
+    // revoke it from anyone who is no longer #1. Mjolnir is transient (lives
+    // only on the live flower loadout, never persisted), so losing #1 makes it
+    // vanish from the loadout. Run on a periodic cadence from tick().
+    void update_mjolnir_ownership();
     // Resolves the Client owning a camera without a second registry; used by
     // Collision/Death to reach account state from ECS entities.
     Client *client_for_camera(EntityID const &);

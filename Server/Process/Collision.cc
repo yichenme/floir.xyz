@@ -151,8 +151,13 @@ void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
 
     if (BOTH(kHealth) && !(ent1.get_team() == ent2.get_team()) && !BOTH(kFlower)) {
         if (ent1.health > 0 && ent2.health > 0) {
-            inflict_damage(sim, ent1.id, ent2.id, ent1.damage, DamageType::kContact);
-            inflict_damage(sim, ent2.id, ent1.id, ent2.damage, DamageType::kContact);
+            // Mjolnir deals LIGHTNING damage (ignores armor, teal damage number).
+            uint8_t const dt1 = (ent1.has_component(kPetal) && ent1.get_petal_id() == PetalID::kMjolnir)
+                ? (uint8_t)DamageType::kLightning : (uint8_t)DamageType::kContact;
+            uint8_t const dt2 = (ent2.has_component(kPetal) && ent2.get_petal_id() == PetalID::kMjolnir)
+                ? (uint8_t)DamageType::kLightning : (uint8_t)DamageType::kContact;
+            inflict_damage(sim, ent1.id, ent2.id, ent1.damage, dt1);
+            inflict_damage(sim, ent2.id, ent1.id, ent2.damage, dt2);
         }
         if (ent1.health == 0) sim->request_delete(ent1.id);
         if (ent2.health == 0) sim->request_delete(ent2.id);

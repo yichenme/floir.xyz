@@ -20,7 +20,8 @@ namespace DamageType {
     enum : uint8_t {
         kContact,
         kPoison,
-        kReflect
+        kReflect,
+        kLightning   // Mjölnir: ignores armor (matches neither armor branch in inflict_damage)
     };
 }
 
@@ -79,6 +80,7 @@ namespace PetalID {
         kYucca,
         kCorn,
         kGoldenLeaf,
+        kMjolnir,
         kNumPetals
     };
 };
@@ -107,6 +109,7 @@ namespace MobID {
         kShinyLadybug,
         kSquare,
         kDigger,
+        kMoon,
         kNumMobs
     };
 };

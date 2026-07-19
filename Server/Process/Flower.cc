@@ -96,25 +96,15 @@ static uint32_t _get_petal_rotation_count(Simulation *sim, Entity &player) {
 }
 
 static RotationCenter const _get_petal_rotation_center(Simulation *sim, Entity const &player) {
-    RotationCenter rotation_center = { 
-        .x = player.get_x(), 
-        .y = player.get_y(), 
-        .r = player.get_radius() 
+    // Petals always orbit the player. (Moon used to be an orbiting petal that
+    // other petals rotated around; it's now a free-roaming summoned mob, so
+    // there's no petal-as-centre special case anymore.)
+    (void)sim;
+    return RotationCenter {
+        .x = player.get_x(),
+        .y = player.get_y(),
+        .r = player.get_radius()
     };
-    for (uint32_t i = 0; i < player.get_loadout_count(); ++i) {
-        LoadoutSlot const &slot = player.loadout[i];
-        if (slot.get_petal_id() != PetalID::kMoon) continue;
-        for (uint32_t j = 0; j < slot.size(); ++j) {
-            LoadoutPetal const &petal_slot = slot.petals[j];
-            if (!sim->ent_alive(petal_slot.ent_id)) continue;
-            Entity &moon = sim->get_ent(petal_slot.ent_id);
-            rotation_center.x = moon.get_x();
-            rotation_center.y = moon.get_y();
-            rotation_center.r = moon.get_radius();
-            return rotation_center;
-        }
-    }
-    return rotation_center;
 }
 
 void tick_player_behavior(Simulation *sim, Entity &player) {
@@ -251,8 +241,13 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
                             // instead of the 1.4x mob_size_mult already applied,
                             // so a high-rarity summon isn't oversized. Divide out
                             // the 1.4x scaling and re-apply 1.2x.
+                            float const size_mult = spawn_id == MobID::kMoon ? 1.1f : 1.2f;
                             mob.set_radius(mob.get_radius() / mob_size_mult(summon_rarity)
-                                           * powf(1.2f, (float)summon_rarity));
+                                           * powf(size_mult, (float)summon_rarity));
+                            // Moon is a heavy moon rock: give it a huge mass so
+                            // creatures/knockback barely move it, and it just
+                            // roams (see the kMoon case in tick_ai_behavior).
+                            if (spawn_id == MobID::kMoon) mob.mass = 400;
                             // The petal spawns the summon at its own position; if
                             // the player is hugging a wall that spot can be inside
                             // terrain. Push the summon out so it never starts

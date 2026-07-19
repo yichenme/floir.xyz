@@ -53,10 +53,18 @@ void SpatialHash::collide(std::function<void(Simulation *, Entity &, Entity &)> 
 }
 
 void SpatialHash::query(float x, float y, float w, float h, std::function<void(Simulation *, Entity &)> cb) {
-    uint32_t sx = fclamp(x - w - GRID_SIZE / 2, 0, ARENA_WIDTH - 1) / GRID_SIZE;
-    uint32_t sy = fclamp(y - h - GRID_SIZE / 2, 0, ARENA_HEIGHT - 1) / GRID_SIZE;
-    uint32_t ex = fclamp(x + w + GRID_SIZE / 2, 0, ARENA_WIDTH - 1) / GRID_SIZE;
-    uint32_t ey = fclamp(y + h + GRID_SIZE / 2, 0, ARENA_HEIGHT - 1) / GRID_SIZE;
+    // The Uniform hash stores each entity in only its CENTER cell, so a large
+    // mob (Ultra+ can reach radius ~900) whose centre cell is just outside the
+    // view was never visited -- its body overlapped the view but the model was
+    // never sent to the client. Pad the cell scan by the max entity radius (not
+    // GRID_SIZE/2) so those centre cells are reached; the precise radius-aware
+    // AABB test below still culls anything not actually overlapping, so no
+    // extra entities are sent -- only a few more cells are scanned.
+    float const PAD = MAX_ENTITY_QUERY_RADIUS;
+    uint32_t sx = fclamp(x - w - PAD, 0, ARENA_WIDTH - 1) / GRID_SIZE;
+    uint32_t sy = fclamp(y - h - PAD, 0, ARENA_HEIGHT - 1) / GRID_SIZE;
+    uint32_t ex = fclamp(x + w + PAD, 0, ARENA_WIDTH - 1) / GRID_SIZE;
+    uint32_t ey = fclamp(y + h + PAD, 0, ARENA_HEIGHT - 1) / GRID_SIZE;
     for (uint32_t _x = sx; _x <= ex; ++_x) {
         for (uint32_t _y = sy; _y <= ey; ++_y) {
             std::vector<EntityID> &cell = cells[_x][_y];

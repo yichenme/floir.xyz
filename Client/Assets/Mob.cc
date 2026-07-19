@@ -704,6 +704,32 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             draw_static_flower(ctx, attr.flower_attrs);
             break;
         };
+        case MobID::kMoon: {
+            // Grey cratered moon rock (same look as the old Moon petal).
+            ctx.set_fill(0xff878787);
+            ctx.set_stroke(0xff6d6d6d);
+            ctx.set_line_width(radius * 0.1f);
+            ctx.begin_path();
+            ctx.arc(0, 0, radius);
+            ctx.stroke();
+            ctx.fill();
+            ctx.clip();
+            SeedGenerator gen(seed * 274633 + 284562);
+            ctx.set_fill(0xff999999);
+            ctx.set_stroke(0xff7c7c7c);
+            ctx.set_line_width(radius * 0.06f);
+            ctx.begin_path();
+            for (uint32_t i = 0; i < 10; ++i) {
+                float _x = gen.binext() * radius;
+                float _y = gen.binext() * radius;
+                float _r = (gen.binext() * 0.5f + 0.5f) * radius * 0.22f;
+                ctx.move_to(_x, _y);
+                ctx.arc(_x, _y, _r);
+            }
+            ctx.stroke();
+            ctx.fill(1);
+            break;
+        }
         default:
             assert(!"Didn't cover mob render");
             break;

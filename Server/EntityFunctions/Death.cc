@@ -128,7 +128,7 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             // Unsquadded players are just squads of one, so this is the exact
             // same behaviour as before when nobody's in a squad.
             float threshold_pct = 0.05f;   // Common..Ultra
-            uint32_t max_looters = 4;
+            uint32_t max_looters = 6;
             if (mob_rarity == RarityID::kSuper)       { threshold_pct = 0.01f;  max_looters = 25; }
             else if (mob_rarity == RarityID::kUnique) { threshold_pct = 0.005f; max_looters = 100; }
             float const threshold = ent.max_health * threshold_pct;

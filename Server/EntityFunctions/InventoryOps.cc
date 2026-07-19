@@ -58,6 +58,9 @@ void store_from_loadout(Client *client, Entity &player, uint8_t static_pos) {
     PetalTracker::remove_petal(&client->game->simulation, id);
     player.set_loadout_ids(static_pos, PetalID::kNone);
     player.set_loadout_rarities(static_pos, 0);
+    // Mjolnir can't be stored into the inventory (that would persist a transient
+    // leaderboard reward): unequipping it just discards it.
+    if (id == PetalID::kMjolnir) return;
 
     std::vector<PetalStack> inv = load_inventory(client);
     add_stack(inv, id, rarity, 1);
@@ -182,6 +185,9 @@ void persist_account_petals(Client *client, Entity &player) {
     for (uint32_t i = 0; i < 2 * MAX_SLOT_COUNT; ++i) {
         items[i].type = player.get_loadout_ids(i);
         items[i].rarity = player.get_loadout_rarities(i);
+        // Mjolnir is a transient leaderboard-#1 reward: never persist it to the
+        // account, or it would survive losing #1 (and be duplicable).
+        if (items[i].type == PetalID::kMjolnir) { items[i].type = PetalID::kNone; items[i].rarity = 0; }
     }
     AccountDB::write_loadout(username, items.data());
     AccountDB::save();
