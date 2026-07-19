@@ -11,24 +11,13 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
         case PetalID::kNone:
             break;
         case PetalID::kDandelion:
-            // Fluffy puff (light-grey ring + white core) with a small dark
-            // charcoal seed mark at the upper-left, traced from
-            // petals-and-mobs/petals/15.svg (its own 110x110 viewBox,
-            // centered) -- same r/55 convention as Magnet above.
-            ctx.scale(r / 55.0);
-            ctx.set_fill(0xffcfcfcf);
+            ctx.set_stroke(0xff222222);
+            ctx.round_line_cap();
+            ctx.set_line_width(7);
             ctx.begin_path();
-            ctx.arc(0, -7.25, 14.7);
-            ctx.fill();
-            ctx.set_fill(0xffffffff);
-            ctx.begin_path();
-            ctx.arc(0, -7.25, 10.5);
-            ctx.fill();
-            ctx.set_fill(0xff333333);
-            ctx.begin_path();
-            ctx.ellipse(-10.5, -24, 6.7, 7.2);
-            ctx.fill();
-            break;
+            ctx.move_to(0,0);
+            ctx.line_to(-1.6 * r, 0);
+            ctx.stroke();
         case PetalID::kUniqueBasic:
         case PetalID::kBasic:
         case PetalID::kLight:
