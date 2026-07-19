@@ -261,42 +261,50 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             DEBUG_ONLY(assert(ent.get_loadout_ids(i) < PetalID::kNumPetals));
             PetalTracker::remove_petal(sim, ent.get_loadout_ids(i));
         }
-        // ent.get_parent() (the camera) may already be gone on disconnect, in
-        // which case there's no live Client; fall back to the account_name
-        // that was stamped onto the flower at spawn so persistence still
-        // happens for a disconnecting player.
+        // Persist ONTO THE FLOWER'S OWN account, stamped onto it at spawn --
+        // never whatever account is currently bound to this socket. On a
+        // same-socket account switch the old flower dies (deferred) AFTER the
+        // camera has re-bound to the new account; keying persistence off the
+        // live client would leak this flower's loadout + level into the new
+        // account (the cross-account dupe / level-force bug).
+        std::string const owner = ent.get_account_name();
         Client *client = sim->ent_alive(ent.get_parent()) ?
             Server::game.client_for_camera(ent.get_parent()) : nullptr;
         InventoryOps::persist_account_petals(client, sim->get_ent(ent.id));
-        if (!sim->ent_alive(ent.get_parent()))
-            return;
-        Entity &camera = sim->get_ent(ent.get_parent());
+        // Does the live camera still belong to THIS flower's account? If the
+        // socket switched accounts, the camera is now someone else's -- we must
+        // not write this dead flower's score/level onto it.
+        bool const camera_is_owner =
+            client != nullptr && !owner.empty() && client->username == owner;
         // No death loss: preserve the EXACT peak score ever reached, so even
         // partial XP within a level survives death (respawn restores this score,
         // not the level's base). Score only grows, never drops.
-        uint32_t respawn_score = std::max(ent.get_score(), camera.get_respawn_score());
+        uint32_t respawn_score = ent.get_score();
+        if (camera_is_owner)
+            respawn_score = std::max(respawn_score, sim->get_ent(ent.get_parent()).get_respawn_score());
         uint32_t respawn_level = score_to_level(respawn_score);
         if (respawn_level < 1) respawn_level = 1;
         if (respawn_level > MAX_LEVEL) {
             respawn_level = MAX_LEVEL;
             respawn_score = std::min(respawn_score, level_to_score(MAX_LEVEL));
         }
-        camera.set_respawn_score(respawn_score);
-        camera.set_respawn_level(respawn_level);
-        // Persist the peak level/XP onto the account too, so progress survives
-        // across sessions (a fresh connection), not just across deaths within
-        // one connection (camera.respawn_level alone only lives as long as the
-        // camera entity does). Same username fallback as persist_account_petals.
-        {
-            std::string const username = client != nullptr ? client->username : ent.get_account_name();
-            if (!username.empty()) {
-                AccountDB::write_progress(username, respawn_level, respawn_score);
-                AccountDB::save();
-            }
+        // Bank onto the live camera only when it's still this account's camera.
+        if (camera_is_owner) {
+            Entity &camera = sim->get_ent(ent.get_parent());
+            camera.set_respawn_score(respawn_score);
+            camera.set_respawn_level(respawn_level);
         }
-        // Returning to the title screen: refresh the Mob Gallery kill tally the
-        // client will show (kills accrued during this life are now persisted).
-        InventoryOps::sync_kills_update(client);
+        // Persist the peak level/XP onto the flower's OWN account so progress
+        // survives across sessions -- and lands on the RIGHT account even after
+        // a same-socket switch.
+        if (!owner.empty()) {
+            AccountDB::write_progress(owner, respawn_level, respawn_score);
+            AccountDB::save();
+        }
+        // Refresh the (owning) client's Mob Gallery kill tally, if they're still
+        // the one on this socket.
+        if (camera_is_owner)
+            InventoryOps::sync_kills_update(client);
     } else if (ent.has_component(kDrop)) {
         if (BitMath::at(ent.flags, EntityFlags::kIsDespawning))
             PetalTracker::remove_petal(sim, ent.get_drop_id());

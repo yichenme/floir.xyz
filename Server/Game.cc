@@ -14,24 +14,46 @@
 #include <Shared/Entity.hh>
 #include <Shared/Map.hh>
 
+// Minimum level to be granted the leaderboard-#1 Mjolnir. Below this nobody
+// holds it, regardless of leaderboard rank.
+static uint32_t const MJOLNIR_MIN_LEVEL = 125;
+
 static void _update_client(Simulation *sim, Client *client) {
     if (client == nullptr) return;
     if (!client->verified) return;
     if (sim == nullptr) return;
     if (!sim->ent_exists(client->camera)) return;
-    std::set<EntityID> in_view;
-    std::vector<EntityID> deletes;
-    in_view.insert(client->camera);
+    // These three are REUSED across every client every tick instead of being
+    // allocated fresh each call. At 100 players that was 100 std::set + vector
+    // allocations per tick, which both cost CPU and ratcheted the Emscripten
+    // linear heap (it never shrinks, so transient churn permanently raised RSS
+    // -- the "memory build-up"). in_view_mark tags each entity SLOT with the
+    // (hash+1) of the in-view entity occupying it, giving O(1) full-EntityID
+    // membership (so a recycled slot with a new hash is still detected as a
+    // delete, not a false match). Only touched slots are reset at the end.
+    static std::vector<EntityID> in_view;
+    static std::vector<EntityID> deletes;
+    static std::vector<uint32_t> in_view_mark(ENTITY_CAP, 0);
+    in_view.clear();
+    deletes.clear();
+    auto add_view = [&](EntityID e){
+        if (e == NULL_ENTITY) return;
+        uint32_t const tag = (uint32_t) e.hash + 1;
+        if (in_view_mark[e.id] == tag) return;   // this exact entity already added
+        in_view_mark[e.id] = tag;
+        in_view.push_back(e);
+    };
+    add_view(client->camera);
     Entity &camera = sim->get_ent(client->camera);
-    if (sim->ent_exists(camera.get_player())) 
-        in_view.insert(camera.get_player());
+    if (sim->ent_exists(camera.get_player()))
+        add_view(camera.get_player());
     Writer writer(Server::OUTGOING_PACKET);
     writer.write<uint8_t>(Clientbound::kClientUpdate);
     writer.write<EntityID>(client->camera);
     sim->spatial_hash.query(camera.get_camera_x(), camera.get_camera_y(),
     960 / camera.get_fov() + 50, 540 / camera.get_fov() + 50,
     [&](Simulation *, Entity &ent){
-        in_view.insert(ent.id);
+        add_view(ent.id);
     });
 
     // Squadmates' camera + flower are always synced, regardless of distance,
@@ -40,15 +62,15 @@ static void _update_client(Simulation *sim, Client *client) {
     if (squad_id != 0) {
         for (EntityID const &m : Squad::members(squad_id)) {
             if (!sim->ent_exists(m)) continue;
-            in_view.insert(m);
+            add_view(m);
             Entity &mcam = sim->get_ent(m);
             if (sim->ent_exists(mcam.get_player()))
-                in_view.insert(mcam.get_player());
+                add_view(mcam.get_player());
         }
     }
 
     for (EntityID const &i: client->in_view) {
-        if (!in_view.contains(i)) {
+        if (in_view_mark[i.id] != (uint32_t) i.hash + 1) {   // not this exact entity in view
             writer.write<EntityID>(i);
             deletes.push_back(i);
         }
@@ -59,7 +81,7 @@ static void _update_client(Simulation *sim, Client *client) {
 
     writer.write<EntityID>(NULL_ENTITY);
     //upcreates
-    for (EntityID id: in_view) {
+    for (EntityID const &id: in_view) {
         DEBUG_ONLY(assert(sim->ent_exists(id));)
         Entity &ent = sim->get_ent(id);
         uint8_t create = !client->in_view.contains(id);
@@ -69,6 +91,8 @@ static void _update_client(Simulation *sim, Client *client) {
         client->in_view.insert(id);
     }
     writer.write<EntityID>(NULL_ENTITY);
+    // Reset only the slots we touched, keeping the array allocated for next call.
+    for (EntityID const &e : in_view) in_view_mark[e.id] = 0;
     //write arena stuff
     writer.write<uint8_t>(!client->seen_arena);
     sim->arena_info.write(&writer, !client->seen_arena);
@@ -79,7 +103,10 @@ static void _update_client(Simulation *sim, Client *client) {
 GameInstance::GameInstance() : simulation(), clients(), team_manager(&simulation) {}
 
 void GameInstance::init() {
-    for (uint32_t i = 0; i < ENTITY_CAP / 2; ++i)
+    // Seed the map to the steady-state mob target (not ENTITY_CAP/2). Every mob
+    // ticks every frame on the single game thread, so this count is the main
+    // determinant of how many players the server can carry.
+    for (uint32_t i = 0; i < MOB_TARGET; ++i)
         Map::spawn_random_mob(&simulation, frand() * ARENA_WIDTH, frand() * ARENA_HEIGHT);
     #ifdef GAMEMODE_TDM
     team_manager.add_team(ColorID::kBlue);
@@ -115,6 +142,9 @@ void GameInstance::update_mjolnir_ownership() {
         uint32_t const sc = simulation.get_ent(cam.get_player()).get_score();
         if (top == nullptr || sc > best) { best = sc; top = c; }
     }
+    // Mjolnir requires at least level 125: below that nobody holds it, even the
+    // leaderboard #1.
+    if (top != nullptr && score_to_level(best) < MJOLNIR_MIN_LEVEL) top = nullptr;
     for (Client *c : clients) {
         if (!c->alive()) continue;
         Entity &cam = simulation.get_ent(c->camera);

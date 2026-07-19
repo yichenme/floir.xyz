@@ -179,7 +179,15 @@ void sync_kills_update(Client *client) {
 }
 
 void persist_account_petals(Client *client, Entity &player) {
-    std::string const username = client != nullptr ? client->username : player.get_account_name();
+    // Key persistence off the flower's OWN account, stamped onto it at spawn --
+    // never the socket's currently-bound username. On a same-socket account
+    // switch the dying flower's camera has already re-bound to the NEW account;
+    // keying off the live client would write this flower's loadout into the
+    // wrong account (the cross-account leak / dupe exploit). account_name is
+    // always set for a real player flower at spawn; the client fallback only
+    // covers oddities where it somehow wasn't.
+    std::string username = player.get_account_name();
+    if (username.empty() && client != nullptr) username = client->username;
     if (username.empty()) return;
     std::array<PetalItem, 2 * MAX_SLOT_COUNT> items{};
     for (uint32_t i = 0; i < 2 * MAX_SLOT_COUNT; ++i) {

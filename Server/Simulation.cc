@@ -32,11 +32,20 @@ static void calculate_leaderboard(Simulation *sim) {
 
 void Simulation::on_tick() {
     spatial_hash.refresh(ARENA_WIDTH, ARENA_HEIGHT);
+    // Roughly once a second, top the wild-mob population back up toward
+    // MOB_TARGET. Without a cap this burst ran unconditionally and the
+    // population drifted up toward ENTITY_CAP, making every tick progressively
+    // more expensive (the "server froze for a while" reports). Counting mobs is
+    // O(n) but only happens on this ~1/sec branch.
     if (frand() < 1.0f / TPS) {
-        for (uint32_t i = 0; i < 10; ++i) {
+        uint32_t mob_count = 0;
+        for_each<kMob>([&](Simulation *, Entity &){ ++mob_count; });
+        for (uint32_t i = 0; i < 10 && mob_count < MOB_TARGET; ++i) {
             Vector v;
-            if (Map::find_spawn_location(this, 500, v))
+            if (Map::find_spawn_location(this, 500, v)) {
                 Map::spawn_random_mob(this, v.x, v.y);
+                ++mob_count;
+            }
         }
     }
     for_each_entity([](Simulation *sim, Entity &ent) {
