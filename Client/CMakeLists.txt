@@ -35,6 +35,7 @@ set(SRCS
     Storage.cc
     Ui/InGame/BossBar.cc
     Ui/InGame/Chat.cc
+    Ui/InGame/Craft.cc
     Ui/InGame/Inventory.cc
     Ui/InGame/Leaderboard.cc
     Ui/InGame/LevelBar.cc
@@ -42,6 +43,7 @@ set(SRCS
     Ui/InGame/LoadoutSlot.cc
     Ui/InGame/Map.cc
     Ui/InGame/Mobile.cc
+    Ui/InGame/SquadBar.cc
     Ui/InGame/Tooltip.cc
     Ui/TitleScreen/Account.cc
     Ui/TitleScreen/Changelog.cc

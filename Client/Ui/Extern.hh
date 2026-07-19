@@ -12,7 +12,8 @@ namespace Ui {
             kPetals,
             kMobs,
             kChangelog,
-            kInventory
+            kInventory,
+            kCraft
         };
         extern Element *settings;
         extern Element *account;

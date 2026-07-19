@@ -29,24 +29,31 @@ void Ui::ui_swap_petals(uint8_t static_pos1, uint8_t static_pos2) {
     //found static pos, now swap
     UiLoadoutPetal *a1 = Ui::UiLoadout::petal_slots[static_pos1];
     UiLoadoutPetal *a2 = Ui::UiLoadout::petal_slots[static_pos2];
-    // Only skip a truly identical swap (same petal AND same rarity) -- swapping
-    // same-type different-rarity petals is a real, useful swap.
-    if (a1->petal_id == a2->petal_id) {
-        uint8_t r1 = 0, r2 = 0;
-        if (Game::alive()) {
-            Entity const &player = Game::simulation.get_ent(Game::player_id);
-            r1 = player.get_loadout_rarities(static_pos1);
-            r2 = player.get_loadout_rarities(static_pos2);
-        }
-        if (r1 == r2) return;
-    }
-    a2->petal_id = Game::cached_loadout[static_pos1];
-    a1->petal_id = Game::cached_loadout[static_pos2];
+    // Skip only a truly identical swap (same petal AND same rarity). Compare the
+    // slots' own frozen display state, not a live entity read that may have
+    // reverted while a previous swap's round-trip is still pending.
+    if (a1->petal_id == a2->petal_id && a1->rarity == a2->rarity) return;
+    // Drive the swap from the OPTIMISTIC displayed values (petal_id/rarity), not
+    // Game::cached_loadout -- cached is re-synced from the not-yet-updated server
+    // state every frame, so a rapid second switch used to read reverted values
+    // and no-op, which felt like a per-switch cooldown.
+    PetalID::T const p1 = a1->petal_id, p2 = a2->petal_id;
+    uint8_t const rr1 = a1->rarity, rr2 = a2->rarity;
+    auto apply = [](UiLoadoutPetal *s, PetalID::T id, uint8_t rar){
+        s->petal_id = id; s->rarity = rar;
+        // Update the frozen render fields too so the switch shows THIS frame and
+        // a follow-up switch reads the just-applied state.
+        s->last_id = id; s->last_rarity = rar;
+    };
+    apply(a2, p1, rr1);
+    apply(a1, p2, rr2);
     a1->static_pos = static_pos2;
     a2->static_pos = static_pos1;
     Ui::UiLoadout::petal_slots[static_pos1] = a2;
     Ui::UiLoadout::petal_slots[static_pos2] = a1;
-    a1->no_change_ticks = a2->no_change_ticks = 100;
+    // Short freeze (was 100 frames): long enough to hold the optimistic swap
+    // until the server confirms, short enough not to mask a rapid re-swap.
+    a1->no_change_ticks = a2->no_change_ticks = 20;
     Game::swap_petals(static_pos1, static_pos2);
 }
 
@@ -72,8 +79,9 @@ uint8_t Ui::find_viable_target(float x, float y) {
     return min_index;
 }
 
-UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60), 
-    static_pos(pos), no_change_ticks(0), petal_id(PetalID::kNone), last_id(PetalID::kNone) 
+UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
+    static_pos(pos), no_change_ticks(0), petal_id(PetalID::kNone), last_id(PetalID::kNone),
+    rarity(0), last_rarity(0)
 {
     reload = 1;
     health = 1;
@@ -87,8 +95,11 @@ UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
             if (no_change_ticks == 0 || player.get_state_loadout_ids(static_pos)) {
                 no_change_ticks = 0;
                 petal_id = Game::cached_loadout[static_pos];
-                if (petal_id != PetalID::kNone && petal_id < PetalID::kNumPetals)
+                rarity = player.get_loadout_rarities(static_pos);
+                if (petal_id != PetalID::kNone && petal_id < PetalID::kNumPetals) {
                     last_id = petal_id;
+                    last_rarity = rarity;
+                }
             } else --no_change_ticks;
         }
         if (static_pos < Game::loadout_count && Game::alive()) {
@@ -216,15 +227,14 @@ UiLoadoutPetal::UiLoadoutPetal(uint8_t pos) : Element(60, 60),
 void UiLoadoutPetal::on_render(Renderer &ctx) {
     if (last_id == PetalID::kNone) return;
     ctx.scale(width / 60);
-    // Use the equipped slot's actual rarity so the loadout tile colour matches
-    // the same petal shown in the inventory / as a ground drop.
-    uint8_t rarity = PETAL_DATA[last_id].rarity;
-    if (Game::alive() && static_pos < 2 * MAX_SLOT_COUNT)
-        rarity = Game::simulation.get_ent(Game::player_id).get_loadout_rarities(static_pos);
+    // last_rarity is frozen alongside last_id (see the should_render refresh in
+    // the constructor) instead of read live, so a rapid second swap fired
+    // before the first's server confirmation can't pair this slot's frozen
+    // (optimistic) petal type with a stale live rarity from a different swap.
     if (static_pos < Game::loadout_count && PETAL_DATA[last_id].count != 0)
-        draw_loadout_background(ctx, last_id, (float) reload, (float) health, rarity);
+        draw_loadout_background(ctx, last_id, (float) reload, (float) health, last_rarity);
     else
-        draw_loadout_background(ctx, last_id, 1, 1, rarity);
+        draw_loadout_background(ctx, last_id, 1, 1, last_rarity);
 }
 
 void UiLoadoutPetal::on_render_skip(Renderer &ctx) {
@@ -257,13 +267,9 @@ void UiLoadoutPetal::on_event(uint8_t event) {
     }
     if (event != kFocusLost && (!selected || Input::is_mobile) && last_id != PetalID::kNone) {
         rendering_tooltip = 1;
-        uint8_t rarity = PETAL_DATA[last_id].rarity;
-        if (Game::alive()) {
-            Entity const &player = Game::simulation.get_ent(Game::player_id);
-            if (static_pos < 2 * MAX_SLOT_COUNT)
-                rarity = player.get_loadout_rarities(static_pos);
-        }
-        tooltip = Ui::UiLoadout::petal_tooltips[last_id][rarity];
+        // last_rarity, not a live re-read -- matches whatever this slot is
+        // actually showing right now (see on_render).
+        tooltip = Ui::UiLoadout::petal_tooltips[last_id][last_rarity];
     } else
         rendering_tooltip = 0;
 }

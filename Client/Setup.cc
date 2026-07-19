@@ -118,6 +118,13 @@ int setup_inputs() {
         });
         window.addEventListener("mousedown", (e) => {
             //e.preventDefault();
+            // Clicking anything that isn't a text input releases focus from the
+            // chat/nickname box (outside-click blur). Guard on e.target so a
+            // click INTO an input still focuses it normally.
+            if (!(e.target && e.target.tagName === 'INPUT')) {
+                const ae = document.activeElement;
+                if (ae && ae.tagName === 'INPUT') ae.blur();
+            }
             _mouse_event(e.clientX * devicePixelRatio * (Module.renderScale||1), e.clientY * devicePixelRatio * (Module.renderScale||1), 0, +!!e.button);
         });
         window.addEventListener("mousemove", (e) => {

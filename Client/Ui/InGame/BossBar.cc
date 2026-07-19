@@ -44,6 +44,9 @@ namespace {
             Game::simulation.for_each<kMob>([&](Simulation *sim, Entity const &ent){
                 uint8_t const rar = ent.get_mob_rarity();
                 if (rar < RarityID::kSuper) return;
+                // Petal-summoned creatures (Ant Egg, Beetle Egg, Stick, Square,
+                // Queen Ant's ants, ...) never get a boss bar even at Super/Unique.
+                if (ent.get_is_summon()) return;
                 // On-screen test in screen pixels (the boss bar only shows while
                 // the mob is actually in the player's vision).
                 float const sx = (ent.get_x() - Game::view_cam_x) * vs;

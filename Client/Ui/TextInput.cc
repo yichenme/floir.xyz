@@ -35,3 +35,7 @@ void TextInput::clear() {
     ref.clear();
     DOM::update_text(name.c_str(), ref, max);
 }
+
+void TextInput::focus() {
+    DOM::focus(name.c_str());
+}

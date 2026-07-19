@@ -17,5 +17,6 @@ namespace Ui {
         virtual void on_render_skip(Renderer &) override;
 
         void clear();   // empty the backing text + DOM element
+        void focus();   // give the DOM <input> browser-native keyboard focus
     };
 }

@@ -353,14 +353,18 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             SET_BASE_COLOR(0xff32a852)
             uint32_t vertices = radius / 10 + 5;
             {
+                // Spike tips sit AT the physics radius (not beyond it) so the
+                // hitbox boundary matches what's visually drawn -- they used to
+                // overshoot to radius+10, making the collision circle visibly
+                // smaller than the spiky sprite.
                 RenderContext context(&ctx);
                 ctx.set_fill(0xff222222);
                 ctx.begin_path();
                 for (uint32_t i = 0; i < vertices; ++i) {
-                    ctx.move_to(10+radius,0);
-                    ctx.line_to(0.5+radius,3);
-                    ctx.line_to(0.5+radius,-3);
-                    ctx.line_to(10+radius,0);
+                    ctx.move_to(radius,0);
+                    ctx.line_to(radius*0.85f,3);
+                    ctx.line_to(radius*0.85f,-3);
+                    ctx.line_to(radius,0);
                     ctx.rotate(M_PI * 2 / vertices);
                 }
                 ctx.fill();

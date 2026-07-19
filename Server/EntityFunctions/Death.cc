@@ -7,6 +7,7 @@
 #include <Server/PetalTracker.hh>
 #include <Server/Server.hh>
 #include <Server/Spawn.hh>
+#include <Server/Squad.hh>
 
 #include <Shared/Entity.hh>
 #include <Shared/Map.hh>
@@ -16,6 +17,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <unordered_map>
 #include <utility>
 
 // One dropped item: petal kind, its rolled rarity, and a stack count (>1 only
@@ -63,15 +65,43 @@ static void _add_score(Simulation *sim, EntityID const killer_id, Entity const &
     }
 }
 
+// The flower (base_entity) that dealt the MOST damage to `ent` -- used for
+// kill reward + kill-message credit instead of the finishing blow. Falls back
+// to last_damaged_by when there's no recorded damage (poison / self-death).
+static EntityID _top_damage_killer(Simulation *sim, Entity const &ent) {
+    uint32_t best_cam = 0; float best = -1.f;
+    for (auto const &kv : ent.mob_damage)
+        if (kv.second > best) { best = kv.second; best_cam = kv.first; }
+    if (best_cam != 0) {
+        Client *c = Server::game.client_for_camera_id(best_cam);
+        if (c != nullptr && sim->ent_exists(c->camera)) {
+            Entity &cam = sim->get_ent(c->camera);
+            if (sim->ent_alive(cam.get_player())) return cam.get_player();
+        }
+    }
+    if (sim->ent_exists(ent.last_damaged_by))
+        return sim->get_ent(ent.last_damaged_by).base_entity;
+    return NULL_ENTITY;
+}
+
 void entity_on_death(Simulation *sim, Entity const &ent) {
     //don't do on_death for any despawned entity
     uint8_t natural_despawn = BitMath::at(ent.flags, EntityFlags::kIsDespawning) && ent.despawn_tick == 0;
-    if (ent.score_reward > 0 && sim->ent_exists(ent.last_damaged_by) && !natural_despawn) {
-        EntityID killer_id = sim->get_ent(ent.last_damaged_by).base_entity;
-        _add_score(sim, killer_id, ent);
+    if (ent.score_reward > 0 && !natural_despawn) {
+        // Award the mob's XP to whoever dealt the most damage, not the finishing
+        // blow. Non-mob entities (no damage tally) fall back to last_damaged_by.
+        EntityID killer_id = ent.has_component(kMob)
+            ? _top_damage_killer(sim, ent)
+            : (sim->ent_exists(ent.last_damaged_by) ? sim->get_ent(ent.last_damaged_by).base_entity : NULL_ENTITY);
+        if (sim->ent_alive(killer_id)) _add_score(sim, killer_id, ent);
     }
     if (ent.has_component(kFlower) && sim->ent_alive(ent.get_parent())) {
         Entity &camera = sim->get_ent(ent.get_parent());
+        // Bug 2: a player who dies forfeits their loot claims until they respawn
+        // and re-engage -- purge this camera's damage from every live mob so a
+        // dead non-respawner can't be credited when a mob later dies.
+        uint32_t const dead_cam = camera.id.id;
+        sim->for_each<kMob>([dead_cam](Simulation *, Entity &m){ m.mob_damage.erase(dead_cam); });
         EntityID killer_id = sim->ent_exists(ent.last_damaged_by) ?
             sim->get_ent(ent.last_damaged_by).base_entity : NULL_ENTITY;
         if (sim->ent_alive(killer_id)) {
@@ -91,17 +121,49 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             // rarity-based fraction of its max HP, and only the top-damage players
             // loot, capped by rarity. Each eligible player gets their OWN drop set
             // (owned drops are visible/collectable only by that player).
+            //
+            // Squads loot as a unit: a squad's damage is pooled, its required
+            // threshold scales with member count (threshold * squad size), and
+            // if the squad qualifies every member loots -- if not, none do.
+            // Unsquadded players are just squads of one, so this is the exact
+            // same behaviour as before when nobody's in a squad.
             float threshold_pct = 0.05f;   // Common..Ultra
             uint32_t max_looters = 4;
             if (mob_rarity == RarityID::kSuper)       { threshold_pct = 0.01f;  max_looters = 25; }
             else if (mob_rarity == RarityID::kUnique) { threshold_pct = 0.005f; max_looters = 100; }
             float const threshold = ent.max_health * threshold_pct;
+            struct LootGroup { std::vector<uint16_t> ids; float total_damage = 0; };
+            std::unordered_map<uint32_t, LootGroup> squad_groups;
+            std::vector<LootGroup> groups;
+            for (auto const &kv : ent.mob_damage) {
+                uint32_t squad_id = 0;
+                Client *dc = Server::game.client_for_camera_id(kv.first);
+                if (dc != nullptr && sim->ent_exists(dc->camera))
+                    squad_id = sim->get_ent(dc->camera).get_squad_id();
+                if (squad_id == 0) {
+                    LootGroup g; g.ids.push_back(kv.first); g.total_damage = kv.second;
+                    groups.push_back(std::move(g));
+                } else {
+                    LootGroup &g = squad_groups[squad_id];
+                    g.ids.push_back(kv.first);
+                    g.total_damage += kv.second;
+                }
+            }
+            for (auto &kv : squad_groups) groups.push_back(std::move(kv.second));
+            // Each qualifying group's total damage must clear threshold*group size.
+            groups.erase(std::remove_if(groups.begin(), groups.end(), [&](LootGroup const &g) {
+                return g.total_damage < threshold * (float)g.ids.size();
+            }), groups.end());
+            std::sort(groups.begin(), groups.end(),
+                [](LootGroup const &a, LootGroup const &b){ return a.total_damage > b.total_damage; });
+            // max_looters caps the number of qualifying GROUPS (a full squad
+            // loots together as one unit, even if that puts more than
+            // max_looters individual players on the ground).
+            if (groups.size() > max_looters) groups.resize(max_looters);
             std::vector<std::pair<uint16_t, float>> looters;
-            for (auto const &kv : ent.mob_damage)
-                if (kv.second >= threshold) looters.push_back({kv.first, kv.second});
-            std::sort(looters.begin(), looters.end(),
-                [](auto const &a, auto const &b){ return a.second > b.second; });
-            if (looters.size() > max_looters) looters.resize(max_looters);
+            for (auto const &g : groups)
+                for (uint16_t id : g.ids)
+                    looters.push_back({id, g.total_damage});
             bool credited_kill = false;
             for (auto const &looter : looters) {
                 std::vector<DropSpec> drops;
@@ -138,11 +200,39 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             // just the killer.
             if (mob_rarity >= RarityID::kSuper) {
                 std::string killer_name = "someone";
-                if (sim->ent_exists(ent.last_damaged_by)) {
-                    EntityID kid = sim->get_ent(ent.last_damaged_by).base_entity;
+                {
+                    // Credit the highest-damage killer (and their squad), not the
+                    // finishing blow.
+                    EntityID kid = _top_damage_killer(sim, ent);
                     if (sim->ent_alive(kid) && sim->get_ent(kid).has_component(kName)
-                        && !sim->get_ent(kid).get_name().empty())
+                        && !sim->get_ent(kid).get_name().empty()) {
                         killer_name = sim->get_ent(kid).get_name();
+                        // Squadded kill: name every squad member, comma-separated,
+                        // instead of just the finishing blow's dealer.
+                        Entity &kfl = sim->get_ent(kid);
+                        if (sim->ent_exists(kfl.get_parent())) {
+                            Entity &kcam = sim->get_ent(kfl.get_parent());
+                            uint32_t const sid = kcam.get_squad_id();
+                            if (sid != 0) {
+                                std::vector<EntityID> const &mem = Squad::members(sid);
+                                std::vector<std::string> names;
+                                for (EntityID const &m : mem) {
+                                    if (!sim->ent_alive(m)) continue;
+                                    Entity &mcam = sim->get_ent(m);
+                                    if (!sim->ent_alive(mcam.get_player())) continue;
+                                    std::string const nm = sim->get_ent(mcam.get_player()).get_name();
+                                    if (!nm.empty()) names.push_back(nm);
+                                }
+                                if (!names.empty()) {
+                                    killer_name.clear();
+                                    for (size_t i = 0; i < names.size(); ++i) {
+                                        if (i) killer_name += ", ";
+                                        killer_name += names[i];
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 bool const uniq = mob_rarity >= RarityID::kUnique;
                 std::string const msg = std::string("A ") + (uniq ? "unique " : "super ")

@@ -4,6 +4,7 @@
 #include <Server/PetalTracker.hh>
 #include <Server/Server.hh>
 
+#include <Shared/Binary.hh>
 #include <Shared/Map.hh>
 #include <Shared/RarityScale.hh>
 #include <Shared/Simulation.hh>
@@ -100,22 +101,37 @@ static Entity &__alloc_mob(
         mob.add_component(kFlower);
         mob.set_angle(0);
         mob.set_color(ColorID::kGray);
+        // A Digger is a planted ground trap, not a trampoline: give it a large
+        // mass so it barely moves when other creatures collide with it (the
+        // elastic bounce was also removed in Collision.cc by routing kFlower
+        // mobs through mass-based knockback instead of _cancel_movement).
+        mob.mass = 1000;
     }
     if (on_spawn) 
         on_spawn(mob);
     return mob;
 }
 
+// Announce Super/Unique WILD mob spawns (team == NULL_ENTITY excludes player
+// summons, whose rarity is clamped below Super anyway). One message per mob.
+static void _announce_spawn(uint8_t mob_id, uint8_t rarity, EntityID const team) {
+    if (rarity < RarityID::kSuper || !(team == NULL_ENTITY)) return;
+    bool const uniq = rarity >= RarityID::kUnique;
+    std::string const msg = std::string("A ") + (uniq ? "Unique " : "Super ")
+        + MOB_DATA[mob_id].name + " has spawned!";
+    Server::game.system_message(uniq ? SystemMsgKind::kSysUnique : SystemMsgKind::kSysSuper, msg);
+}
+
 Entity &alloc_mob(
-    Simulation *sim, MobID::T mob_id, float x, float y, 
+    Simulation *sim, MobID::T mob_id, float x, float y,
     EntityID const team, uint8_t rarity, std::function<void(Entity &)> on_spawn
 ) {
     struct MobData const &data = MOB_DATA[mob_id];
     if (data.attributes.segments <= 1) {
         Entity &ent = __alloc_mob(sim, mob_id, x, y, team, rarity, on_spawn);
         if (mob_id == MobID::kAntHole) {
-            std::vector<MobID::T> const spawns = { 
-                MobID::kBabyAnt, MobID::kBabyAnt, MobID::kBabyAnt, 
+            std::vector<MobID::T> const spawns = {
+                MobID::kBabyAnt, MobID::kBabyAnt, MobID::kBabyAnt,
                 MobID::kWorkerAnt, MobID::kWorkerAnt, MobID::kSoldierAnt
             };
             for (MobID::T mob_id : spawns) {
@@ -124,6 +140,7 @@ Entity &alloc_mob(
                 ant.set_parent(ent.id);
             }
         }
+        _announce_spawn(mob_id, rarity, team);
         return ent;
     }
     else {
@@ -137,8 +154,16 @@ Entity &alloc_mob(
             seg.set_angle(curr->get_angle() + frand() * 0.1 - 0.05);
             seg.set_x(curr->get_x() - (curr->get_radius() + seg.get_radius()) * cosf(seg.get_angle()));
             seg.set_y(curr->get_y() - (curr->get_radius() + seg.get_radius()) * sinf(seg.get_angle()));
+            // Only the head's spawn point was terrain-validated (in __alloc_mob);
+            // each segment's final chained position must be pushed out of solid
+            // terrain too, or long bodies spawn buried in walls.
+            float sx = seg.get_x(), sy = seg.get_y();
+            Tilemap::push_circle(sx, sy, seg.get_radius());
+            seg.set_x(sx);
+            seg.set_y(sy);
             curr = &seg;
         }
+        _announce_spawn(mob_id, rarity, team);
         return head;
     }
 }

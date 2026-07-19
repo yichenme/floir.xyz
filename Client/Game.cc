@@ -53,6 +53,11 @@ namespace Game {
 
     uint32_t respawn_level = 1;
 
+    uint32_t squad_id = 0;
+    std::vector<SquadMember> squad_members;
+    std::string squad_notice;
+    double squad_notice_until = 0;
+    CraftResult last_craft_result;
 
     uint8_t loadout_count = 5;
     uint8_t simulation_ready = 0;
@@ -106,6 +111,9 @@ void Game::init() {
         Ui::make_level_bar()
     );
     game_ui_window.add_child(
+        Ui::make_squad_bars()
+    );
+    game_ui_window.add_child(
         Ui::make_minimap()
     );
     game_ui_window.add_child(
@@ -128,6 +136,14 @@ void Game::init() {
     );
     game_ui_window.add_child(
         Ui::make_chat_box()
+    );
+    // Craft added before Inventory so Inventory's button/panel always draw on
+    // top when the two overlap (both anchor to the same corner).
+    game_ui_window.add_child(
+        Ui::make_craft_button()
+    );
+    game_ui_window.add_child(
+        Ui::make_craft_panel()
     );
     game_ui_window.add_child(
         Ui::make_inventory_button()
@@ -167,6 +183,25 @@ void Game::init() {
                 .v_justify = Ui::Style::Top
             });
             elt->y = 50;
+            return elt;
+        }()
+    );
+    other_ui_window.add_child(
+        [](){
+            // Squad join/leave notice, same visual style as the disconnect
+            // banner above but its own timed visibility (not tied to socket
+            // state).
+            Ui::Element *elt = new Ui::HContainer({
+                new Ui::DynamicText(16, [](){ return Game::squad_notice; })
+            }, 5, 5, {
+                .fill = 0x40000000,
+                .round_radius = 5,
+                .should_render = [](){
+                    return Game::timestamp < Game::squad_notice_until;
+                },
+                .v_justify = Ui::Style::Top
+            });
+            elt->y = 90;
             return elt;
         }()
     );
@@ -375,11 +410,13 @@ void Game::tick(double time) {
 
     // Close any in-game panel on death so a stale panel_open doesn't keep
     // movement frozen after respawn (the panel itself is alive-gated).
-    if (!alive() && Ui::panel_open == Ui::Panel::kInventory)
+    if (!alive() && (Ui::panel_open == Ui::Panel::kInventory || Ui::panel_open == Ui::Panel::kCraft))
         Ui::panel_open = Ui::Panel::kNone;
-    // A panel (inventory / craft) being open freezes movement: the player holds
-    // still and touches drive the panel instead of the joystick.
-    if (Ui::panel_open != Ui::Panel::kNone) {
+    // Inventory being open freezes movement: the player holds still and
+    // touches drive the panel instead of the joystick. Craft is exempt --
+    // unlike inventory's drag-and-drop, crafting doesn't need the player to
+    // stand still, so movement stays live while it's open.
+    if (Ui::panel_open != Ui::Panel::kNone && Ui::panel_open != Ui::Panel::kCraft) {
         Input::game_inputs.x = 0;
         Input::game_inputs.y = 0;
     }
@@ -388,9 +425,15 @@ void Game::tick(double time) {
 
     if (Input::keys_held_this_tick.contains(';'))
         show_debug = !show_debug;
-    // Enter sends chat when the chat box is focused; otherwise spawns.
-    if (!Ui::chat_try_send() && Input::keys_held_this_tick.contains('\r') && !Game::alive())
-        Game::spawn_in();
+    // Enter handling, in priority order: send chat if the box has text ->
+    // otherwise, in-game & not already typing, focus the chat box (Enter-to-open)
+    // -> otherwise, on the title screen, spawn.
+    if (!Ui::chat_try_send() && Input::keys_held_this_tick.contains('\r')) {
+        if (Game::alive() && !Ui::is_typing_dom())
+            Ui::chat_focus();
+        else if (!Game::alive())
+            Game::spawn_in();
+    }
 
     //clearing operations
     simulation.post_tick();

@@ -38,6 +38,14 @@ namespace Ui {
         uint8_t moved_far = 0;
         PetalID::T petal_id;
         PetalID::T last_id;
+        // Rarity is frozen alongside petal_id/last_id (same no_change_ticks /
+        // get_state_loadout_ids gate) instead of being re-read live from the
+        // entity every frame. Reading it live let a rapid second swap -- fired
+        // before the first swap's server round-trip landed -- pair the FROZEN
+        // (optimistic) type with a STALE live rarity from a different position,
+        // showing a type/rarity combination that never actually existed.
+        uint8_t rarity;
+        uint8_t last_rarity;
         UiLoadoutPetal(uint8_t);
 
         virtual void on_render(Renderer &) override;

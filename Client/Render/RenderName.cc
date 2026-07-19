@@ -12,7 +12,16 @@ void render_name(Renderer &ctx, Entity const &ent) {
     ctx.translate(0, -ent.get_radius() - 18);
     ctx.set_global_alpha(1 - ent.deletion_animation);
     ctx.scale(1 + 0.5 * ent.deletion_animation);
-    ctx.draw_text(ent.get_name().c_str(), { .size = 18 });
+    // Tag squadmates -- a flower whose owning camera shares our squad id (only
+    // meaningful once that camera is actually synced to us, which the server
+    // guarantees for squadmates regardless of distance).
+    std::string label = ent.get_name();
+    if (Game::squad_id != 0 && Game::simulation.ent_exists(ent.get_parent())) {
+        Entity const &owner_cam = Game::simulation.get_ent(ent.get_parent());
+        if (owner_cam.has_component(kCamera) && owner_cam.get_squad_id() == Game::squad_id)
+            label += " [squad]";
+    }
+    ctx.draw_text(label.c_str(), { .size = 18 });
     if (!ent.get_account_name().empty()) {
         ctx.translate(0, -20);
         std::string tag = "@" + ent.get_account_name();

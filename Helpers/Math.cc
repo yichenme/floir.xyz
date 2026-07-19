@@ -112,9 +112,9 @@ std::string const RangeValue::to_string() const {
 
 std::string format_pct(float pct) {
     if (pct >= 0.9) return std::format("{:.0f}%", pct);
-    if (pct >= 0.09) return std::format(".{:.0f}%", pct * 10);
-    if (pct >= 0.009) return std::format(".0{:.0f}%", pct * 100);
-    return std::format(".00{:.0}%", pct * 1000);
+    if (pct >= 0.09) return std::format("0.{:.0f}%", pct * 10);   // 0.1%
+    if (pct >= 0.009) return std::format("0.0{:.0f}%", pct * 100); // 0.01%
+    return std::format("0.00{:.0}%", pct * 1000);
 }
 
 std::string format_score(float score) {

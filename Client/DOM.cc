@@ -98,3 +98,17 @@ void DOM::open_page(char const *url) {
         } catch(e) {}
     }, url);
 }
+
+void DOM::focus(char const *name) {
+    EM_ASM({
+        const e = document.getElementById(UTF8ToString($0));
+        if (e) e.focus();
+    }, name);
+}
+
+void DOM::blur_active_input() {
+    EM_ASM({
+        const e = document.activeElement;
+        if (e && e.tagName === 'INPUT') e.blur();
+    });
+}

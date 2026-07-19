@@ -6,6 +6,7 @@ project(floir-server)
 include_directories(..)
 
 set(SOURCES
+    EntityFunctions/CraftOps.cc
     EntityFunctions/Damage.cc
     EntityFunctions/Death.cc
     EntityFunctions/Detection.cc
@@ -29,6 +30,7 @@ set(SOURCES
     Server.cc
     Simulation.cc
     Spawn.cc
+    Squad.cc
     TeamManager.cc
     ../Helpers/Math.cc
     ../Helpers/UTF8.cc
@@ -74,7 +76,7 @@ endif()
 if(WASM_SERVER)
     set(CMAKE_CXX_COMPILER "em++")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWASM_SERVER=1")
-    add_link_options(-sEXIT_RUNTIME=0 -sEXPORTED_FUNCTIONS=_main,_on_connect,_on_disconnect,_tick,_on_message,_admin_spawn_mob,_malloc,_free)
+    add_link_options(-sEXIT_RUNTIME=0 -sEXPORTED_FUNCTIONS=_main,_on_connect,_on_disconnect,_tick,_on_message,_admin_spawn_mob,_admin_build_live_json,_graceful_shutdown_flush,_malloc,_free)
     if (NOT DEBUG) 
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --closure=1")
     endif()

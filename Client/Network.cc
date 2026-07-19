@@ -102,6 +102,38 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
             }
             break;
         }
+        case Clientbound::kCraftResult: {
+            CraftResult r;
+            r.type = static_cast<PetalID::T>(reader.read<uint8_t>());
+            r.out_rarity = reader.read<uint8_t>();
+            r.crafted = reader.read<uint32_t>();
+            r.remaining = reader.read<uint32_t>();
+            r.any_success = reader.read<uint8_t>();
+            r.received_at = Game::timestamp;
+            Game::last_craft_result = r;
+            break;
+        }
+        case Clientbound::kSquadUpdate: {
+            uint32_t const sid = reader.read<uint32_t>();
+            uint32_t const n = reader.read<uint32_t>();
+            Game::squad_id = sid;
+            Game::squad_members.clear();
+            Game::squad_members.reserve(n);
+            for (uint32_t i = 0; i < n; ++i) {
+                SquadMember m;
+                m.camera_id = reader.read<EntityID>();
+                reader.read<std::string>(m.name);
+                Game::squad_members.push_back(m);
+            }
+            break;
+        }
+        case Clientbound::kSquadNotice: {
+            std::string message;
+            reader.read<std::string>(message);
+            Game::squad_notice = message;
+            Game::squad_notice_until = Game::timestamp + 4000;
+            break;
+        }
         default:
             break;
     }
@@ -176,6 +208,16 @@ void Game::send_chat(std::string const &msg) {
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
     writer.write<uint8_t>(Serverbound::kChat);
     writer.write<std::string>(msg);
+    socket.send(writer.packet, writer.at - writer.packet);
+}
+
+void Game::send_craft(PetalID::T type, uint8_t rarity, uint32_t amount) {
+    if (amount < 5) return;
+    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
+    writer.write<uint8_t>(Serverbound::kCraft);
+    writer.write<uint8_t>(type);
+    writer.write<uint8_t>(rarity);
+    writer.write<uint32_t>(amount);
     socket.send(writer.packet, writer.at - writer.packet);
 }
 

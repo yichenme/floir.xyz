@@ -47,8 +47,36 @@ global.loadDatabase = () => {
     }
 };
 
+// Coalesced persistence. The whole account DB is one JSON file and writing it
+// is synchronous, which blocks the same event loop the WASM tick loop runs on.
+// Doing that on every account mutation -- and O(N) times per 15s persist pass
+// (persist_alive_progress) plus a hidden double-write from the dbSet* helpers --
+// periodically froze the server for hundreds of ms. Instead every save request
+// just marks the DB dirty and schedules ONE coalesced flush; the actual write
+// happens at most once per FLUSH_INTERVAL_MS, and is compact (no pretty-print)
+// to shrink the payload. A synchronous immediate flush is kept for shutdown.
+let dbDirty = false;
+let flushTimer = null;
+const FLUSH_INTERVAL_MS = 3000;
+const writeDatabaseSync = () => {
+    fs.writeFileSync(DB_PATH, JSON.stringify(global.db));
+    dbDirty = false;
+};
 global.saveDatabase = () => {
-    fs.writeFileSync(DB_PATH, JSON.stringify(global.db, null, 2));
+    dbDirty = true;
+    if (flushTimer === null) {
+        flushTimer = setTimeout(() => {
+            flushTimer = null;
+            if (dbDirty) writeDatabaseSync();
+        }, FLUSH_INTERVAL_MS);
+    }
+};
+// Synchronous, immediate flush -- called by the SIGTERM/SIGINT graceful-shutdown
+// handler (see Server/Wasm.cc) so a deploy's pm2 restart never drops the last
+// few seconds of coalesced writes.
+global.flushDatabaseNow = () => {
+    if (flushTimer !== null) { clearTimeout(flushTimer); flushTimer = null; }
+    if (dbDirty) writeDatabaseSync();
 };
 
 global.hashPassword = (p) => crypto.createHash('sha256').update(p).digest('hex');

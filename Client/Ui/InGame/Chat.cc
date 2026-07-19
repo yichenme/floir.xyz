@@ -12,6 +12,8 @@
 
 #include <Shared/Config.hh>
 
+#include <emscripten.h>
+
 #include <string>
 
 using namespace Ui;
@@ -19,7 +21,11 @@ using namespace Ui;
 // Kept so the tick loop can detect Enter-to-send and clear the box.
 static TextInput *chat_input_box = nullptr;
 
-static bool chat_visible() { return Game::alive(); }
+// Hidden while any in-game panel (inventory/craft) is open: the chat input is a
+// native DOM overlay that always paints above the canvas, so it can't be hidden
+// by z-order -- gating should_render is what removes the DOM <input> (via
+// TextInput::on_render_skip -> DOM::element_hide).
+static bool chat_visible() { return Game::alive() && Ui::panel_open == Panel::kNone; }
 
 namespace {
     // Boxless, left-aligned message log sitting above the input. Newest message
@@ -104,4 +110,15 @@ void Ui::chat_send_current() {
     if (Game::chat_input.empty()) return;
     Game::send_chat(Game::chat_input);
     chat_input_box->clear();
+}
+
+void Ui::chat_focus() {
+    if (chat_input_box != nullptr) chat_input_box->focus();
+}
+
+bool Ui::is_typing_dom() {
+    return EM_ASM_INT({
+        const e = document.activeElement;
+        return (e && e.tagName === 'INPUT') ? 1 : 0;
+    }) != 0;
 }

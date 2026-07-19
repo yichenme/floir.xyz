@@ -59,6 +59,27 @@ namespace Game {
 
     extern uint32_t respawn_level;
 
+    // Squad: 0 = not in one. squad_members excludes nobody (includes self);
+    // UI code filters self out where that matters (e.g. SquadBar).
+    extern uint32_t squad_id;
+    struct SquadMember { EntityID camera_id; std::string name; };
+    extern std::vector<SquadMember> squad_members;
+    // Standalone banner text (join/leave notices), shown the same way as the
+    // disconnect-with-code banner -- not routed through the chat log.
+    extern std::string squad_notice;
+    extern double squad_notice_until;
+    // Latest craft outcome, for the Craft panel's roll/reveal animation.
+    struct CraftResult {
+        PetalID::T type = PetalID::kNone;
+        uint8_t out_rarity = 0;
+        uint32_t crafted = 0;
+        uint32_t remaining = 0;
+        uint8_t any_success = 0;
+        double received_at = 0;
+    };
+    extern CraftResult last_craft_result;
+    void send_craft(PetalID::T, uint8_t rarity, uint32_t amount);
+
     extern std::array<PetalID::T, 2 * MAX_SLOT_COUNT> cached_loadout;
 
     extern uint8_t loadout_count;

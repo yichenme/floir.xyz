@@ -4,6 +4,7 @@
 #include <Shared/Entity.hh>
 #include <Shared/Simulation.hh>
 
+#include <algorithm>
 #include <cmath>
 
 static bool _yggdrasil_revival_clause(Simulation *sim, Entity &player) {
@@ -35,12 +36,17 @@ void inflict_damage(Simulation *sim, EntityID const atk_id, EntityID const def_i
     float damage_dealt = old_health - defender.health;
     // Individual-loot: attribute damage on a mob to the attacking player's
     // camera (persistent identity), so on death we can pick the eligible looters.
-    if (damage_dealt > 0 && defender.has_component(kMob) && sim->ent_alive(atk_id)) {
-        Entity &atk = sim->get_ent(atk_id);
-        if (sim->ent_alive(atk.base_entity)) {
-            Entity &owner = sim->get_ent(atk.base_entity);
-            if (owner.has_component(kFlower) && sim->ent_alive(owner.get_parent()))
-                defender.mob_damage[owner.get_parent().id] += damage_dealt;
+    if (damage_dealt > 0 && defender.has_component(kMob)) {
+        // Stamp the last-damaged time so the 120s loot-tally decay (Ai.cc) has
+        // a per-mob clock.
+        defender.last_damage_tick = defender.lifetime;
+        if (sim->ent_alive(atk_id)) {
+            Entity &atk = sim->get_ent(atk_id);
+            if (sim->ent_alive(atk.base_entity)) {
+                Entity &owner = sim->get_ent(atk.base_entity);
+                if (owner.has_component(kFlower) && sim->ent_alive(owner.get_parent()))
+                    defender.mob_damage[owner.get_parent().id] += damage_dealt;
+            }
         }
     }
     //ant hole spawns
@@ -50,12 +56,16 @@ void inflict_damage(Simulation *sim, EntityID const atk_id, EntityID const def_i
         uint32_t start = ceilf((defender.max_health - old_health) / defender.max_health * num_waves);
         uint32_t end = ceilf((defender.max_health - defender.health) / defender.max_health * num_waves);
         if (defender.health <= 0) end = num_waves + 1;
+        // Summoned ants can never exceed the ant-hole's own rarity (a Common
+        // hole in an Ultra zone must not birth Super ants).
+        uint8_t const hole_rarity = defender.get_mob_rarity();
+        uint8_t const child_rarity = std::min<uint8_t>(inherited_spawn_rarity(defender), hole_rarity);
         for (uint32_t i = start; i < end; ++i) {
             for (MobID::T mob_id : ANTHOLE_SPAWNS[i]) {
                 Entity &child = alloc_mob(
-                    sim, mob_id, 
-                    defender.get_x(), defender.get_y(), 
-                    defender.get_team(), inherited_spawn_rarity(defender), [](Entity &mob) {
+                    sim, mob_id,
+                    defender.get_x(), defender.get_y(),
+                    defender.get_team(), child_rarity, [](Entity &mob) {
                     BitMath::set(mob.flags, EntityFlags::kHasCulling);
                 });
                 child.set_parent(defender.id);

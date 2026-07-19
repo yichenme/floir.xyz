@@ -44,15 +44,26 @@ InventoryStackSlot::InventoryStackSlot(uint32_t idx) :
         ctx.scale((float) elt->animation);
         if (!selected) return;
         if (BitMath::at(Input::mouse_buttons_released, Input::LeftMouse)) {
-            // Equip one from this stack. If the stack has more than one, just
-            // decrement it optimistically (the slot stays, showing count-1)
-            // instead of blanking; only a last-copy equip blanks the slot until
-            // the server-confirmed inventory update lands.
+            // Rapid-click guard: once we've fired an equip from this slot, ignore
+            // further equips until the server-confirmed inventory update lands
+            // (inventory_version bumps). Without this, a second click before the
+            // round-trip re-targeted the SAME empty slot and double-decremented
+            // the stack -- the petal appeared to "mutate" in the slot.
+            if (equip_locked && Game::inventory_version == equip_lock_version) {
+                selected = 0;
+                Ui::dragging_inventory_index = -1;
+                return;
+            }
+            // Equip one from this stack. The rapid-click lock latches on ANY
+            // equip; equip_pending (last-copy blank) stays separate so a
+            // multi-stack slot still shows count-1 rather than going blank.
             auto equip_one = [this](uint32_t real, uint8_t static_target){
                 Game::equip_petal(real, static_target);
                 if (Game::inventory_stacks[real].count > 1)
                     --Game::inventory_stacks[real].count;
                 else { equip_pending = 1; equip_version = Game::inventory_version; }
+                equip_locked = 1;
+                equip_lock_version = Game::inventory_version;
             };
             uint32_t const real = Game::inventory_display_order[index];
             uint8_t potential_swap = find_viable_target(Input::mouse_x, Input::mouse_y);
@@ -151,10 +162,14 @@ Element *Ui::make_inventory_button() {
             if (Ui::panel_open != Panel::kInventory) {
                 Ui::panel_open = Panel::kInventory;
                 Element *pg = Ui::Panel::inventory;
-                pg->x = elt->screen_x / Ui::scale - pg->width / 2;
-                pg->y = -(elt->height + 20);
+                // To the right of the button (not stacked above it), bottom-
+                // aligned with it.
+                pg->x = elt->screen_x / Ui::scale + elt->width / 2 + 10;
+                pg->y = elt->y;
                 if (pg->x < 10)
                     pg->x = 10;
+                if (pg->x + pg->width > Ui::window_width / Ui::scale - 10)
+                    pg->x = Ui::window_width / Ui::scale - 10 - pg->width;
             }
             else Ui::panel_open = Panel::kNone;
         } },
@@ -188,14 +203,15 @@ Element *Ui::make_inventory_panel() {
         .fill = 0xff5a9fdb,
         .line_width = 7,
         .round_radius = 3,
-        .animate = [](Element *elt, Renderer &ctx){
-            ctx.translate(0, (1 - elt->animation) * 2 * elt->height);
-        },
+        // Hard show/hide (no slide-out lerp): craft & inventory share the same
+        // corner, so an animated close would briefly overlap the other panel and
+        // read as "both open at once".
         .should_render = [](){
             return Ui::panel_open == Panel::kInventory && Game::alive();
         },
         .h_justify = Style::Left,
-        .v_justify = Style::Bottom
+        .v_justify = Style::Bottom,
+        .no_animation = 1
     });
     Ui::Panel::inventory = elt;
     return elt;

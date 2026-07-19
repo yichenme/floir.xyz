@@ -48,7 +48,8 @@ MULTIPLE(Camera, inventory_rarity, uint8_t, 2 * MAX_SLOT_COUNT) \
 SINGLE(Camera, killed_by, std::string) \
 SINGLE(Camera, camera_x, Float) \
 SINGLE(Camera, camera_y, Float) \
-SINGLE(Camera, fov, Float)
+SINGLE(Camera, fov, Float) \
+SINGLE(Camera, squad_id, uint32_t)
 
 #define FIELDS_Relations \
 SINGLE(Relations, team, EntityID) \
@@ -76,7 +77,8 @@ SINGLE(Health, damaged, StickyFlag)
 
 #define FIELDS_Mob \
 SINGLE(Mob, mob_id, MobID::T) \
-SINGLE(Mob, mob_rarity, uint8_t)
+SINGLE(Mob, mob_rarity, uint8_t) \
+SINGLE(Mob, is_summon, uint8_t)
 
 #define FIELDS_Drop \
 SINGLE(Drop, drop_id, PetalID::T) \
@@ -106,6 +108,7 @@ SINGLE(Name, nametag_visible, uint8_t)
     SINGLE(friction, float, =0) \
     SINGLE(mass, float, =1) \
     SINGLE(speed_ratio, float, =1) \
+    SINGLE(last_damage_tick, uint32_t, =0) \
     \
     MULTIPLE(loadout, LoadoutSlot, MAX_SLOT_COUNT, .reset()) \
     SINGLE(heading_angle, float, =0) \

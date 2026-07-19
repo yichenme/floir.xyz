@@ -2,10 +2,12 @@
 
 #include <Server/Account/Auth.hh>
 #include <Server/Account/Database.hh>
+#include <Server/EntityFunctions/CraftOps.hh>
 #include <Server/EntityFunctions/InventoryOps.hh>
 #include <Server/Game.hh>
 #include <Server/Server.hh>
 #include <Server/Spawn.hh>
+#include <Server/Squad.hh>
 
 #include <Helpers/UTF8.hh>
 
@@ -210,6 +212,22 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             reader.read<std::string>(message);
             if (client->check_invalid(UTF8Parser::is_valid_utf8(message))) return;
             if (message.empty()) break;
+            // Squad slash-commands: handled here directly, never broadcast as
+            // chat text.
+            if (message.rfind("/squad-invite ", 0) == 0) {
+                if (client->alive()) {
+                    std::string const target_name = message.substr(14);
+                    Client *target = client->game->client_for_username(target_name);
+                    if (target != nullptr && target != client && target->alive())
+                        Squad::invite(&client->game->simulation, client->camera, target->camera);
+                }
+                break;
+            }
+            if (message == "/squad-leave") {
+                if (client->alive())
+                    Squad::leave(&client->game->simulation, client->camera);
+                break;
+            }
             // Prefer the flower's in-game name; fall back to the account name.
             std::string sender = client->username.empty() ? "Anonymous" : client->username;
             if (client->alive()) {
@@ -225,6 +243,16 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             writer.write<std::string>(sender);
             writer.write<std::string>(message);
             client->game->broadcast(writer.packet, writer.at - writer.packet);
+            break;
+        }
+        case Serverbound::kCraft: {
+            if (!client->alive()) break;
+            if (client->check_invalid(validator.validate_uint8() && validator.validate_uint8()
+                && validator.validate_uint32())) return;
+            uint8_t const type = reader.read<uint8_t>();
+            uint8_t const rarity = reader.read<uint8_t>();
+            uint32_t const amount = reader.read<uint32_t>();
+            CraftOps::try_craft(client, (PetalID::T)type, rarity, amount);
             break;
         }
     }

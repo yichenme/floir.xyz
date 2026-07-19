@@ -8,6 +8,10 @@ static float const HP_STEP[8] = {5,5,5,5,10,45,30,5};
 float rarity_pow3(uint8_t rarity) {
     return std::pow(3.f, (float)rarity);
 }
+float craft_success_chance(uint8_t rarity) {
+    if (rarity >= RarityID::kSuper) return 0.f;
+    return 0.64f * std::pow(0.5f, (float)rarity);
+}
 float petal_hp_mult(uint8_t r) { return rarity_pow3(r); }
 float petal_damage_mult(uint8_t r) { return rarity_pow3(r); }
 float mob_body_damage_mult(uint8_t r) { return rarity_pow3(r); }

@@ -6,6 +6,7 @@
 #include <Server/PetalTracker.hh>
 #include <Server/Server.hh>
 #include <Server/Spawn.hh>
+#include <Server/Squad.hh>
 
 #include <algorithm>
 
@@ -27,11 +28,24 @@ static void _update_client(Simulation *sim, Client *client) {
     Writer writer(Server::OUTGOING_PACKET);
     writer.write<uint8_t>(Clientbound::kClientUpdate);
     writer.write<EntityID>(client->camera);
-    sim->spatial_hash.query(camera.get_camera_x(), camera.get_camera_y(), 
-    960 / camera.get_fov() + 50, 540 / camera.get_fov() + 50, 
+    sim->spatial_hash.query(camera.get_camera_x(), camera.get_camera_y(),
+    960 / camera.get_fov() + 50, 540 / camera.get_fov() + 50,
     [&](Simulation *, Entity &ent){
         in_view.insert(ent.id);
     });
+
+    // Squadmates' camera + flower are always synced, regardless of distance,
+    // so the squad HP bars and the [squad] nametag work anywhere on the map.
+    uint32_t const squad_id = camera.get_squad_id();
+    if (squad_id != 0) {
+        for (EntityID const &m : Squad::members(squad_id)) {
+            if (!sim->ent_exists(m)) continue;
+            in_view.insert(m);
+            Entity &mcam = sim->get_ent(m);
+            if (sim->ent_exists(mcam.get_player()))
+                in_view.insert(mcam.get_player());
+        }
+    }
 
     for (EntityID const &i: client->in_view) {
         if (!in_view.contains(i)) {
@@ -165,6 +179,12 @@ Client *GameInstance::client_for_camera_id(EntityID::id_type id) {
     return nullptr;
 }
 
+Client *GameInstance::client_for_username(std::string const &username) {
+    for (Client *client : clients)
+        if (client->logged_in && client->username == username) return client;
+    return nullptr;
+}
+
 void GameInstance::broadcast(uint8_t const *packet, size_t len) {
     for (Client *client : clients)
         client->send_packet(packet, len);
@@ -193,14 +213,51 @@ void GameInstance::remove_client(Client *client) {
     DEBUG_ONLY(assert(client->game == this);)
     clients.erase(client);
     if (simulation.ent_exists(client->camera)) {
+        Squad::leave(&simulation, client->camera);
         Entity &c = simulation.get_ent(client->camera);
         if (simulation.ent_exists(c.get_team()))
             --simulation.get_ent(c.get_team()).player_count;
         if (simulation.ent_exists(c.get_player()))
             simulation.request_delete(c.get_player());
+        // Drop this camera's loot claims so a disconnected player can't be
+        // credited when a mob they damaged later dies.
+        uint32_t const cam_id = client->camera.id;
+        simulation.for_each<kMob>([cam_id](Simulation *, Entity &m){ m.mob_damage.erase(cam_id); });
         for (uint32_t i = 0; i < 2 * MAX_SLOT_COUNT; ++i)
             PetalTracker::remove_petal(&simulation, c.get_inventory(i));
         simulation.request_delete(client->camera);
     }
     client->game = nullptr;
+}
+
+void GameInstance::reset_session(Client *client) {
+    if (!simulation.ent_exists(client->camera)) return;
+    Entity &cam = simulation.get_ent(client->camera);
+    // Kill any live flower -> the client returns to the title screen. This is
+    // the core of the fix: a flower (and the loadout it holds) must never
+    // survive an account switch on the same socket.
+    if (simulation.ent_exists(cam.get_player()))
+        simulation.request_delete(cam.get_player());
+    // Drop this camera's loot claims -- a switched-away identity shouldn't be
+    // credited when a mob it damaged later dies.
+    uint32_t const cam_id = client->camera.id;
+    simulation.for_each<kMob>([cam_id](Simulation *, Entity &m){ m.mob_damage.erase(cam_id); });
+    // Reset progress to a fresh-account baseline; the real account's saved peak
+    // is re-applied from the DB on the next spawn (kClientSpawn's read_progress).
+    // Without this, the previous account's inflated level/score would persist on
+    // the camera and get written back into the NEW account's DB record.
+    cam.set_respawn_level(1);
+    cam.set_respawn_score(level_to_score(1));
+    // Reset the camera loadout/inventory arrays to defaults (mirrors add_client),
+    // keeping PetalTracker's global counts balanced.
+    for (uint32_t i = 0; i < 2 * MAX_SLOT_COUNT; ++i) {
+        PetalTracker::remove_petal(&simulation, cam.get_inventory(i));
+        cam.set_inventory(i, PetalID::kNone);
+        cam.set_inventory_rarity(i, 0);
+    }
+    for (uint32_t i = 0; i < loadout_slots_at_level(1); ++i) {
+        cam.set_inventory(i, PetalID::kBasic);
+        cam.set_inventory_rarity(i, PETAL_DATA[PetalID::kBasic].rarity);
+        PetalTracker::add_petal(&simulation, cam.get_inventory(i));
+    }
 }

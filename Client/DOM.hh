@@ -11,4 +11,7 @@ namespace DOM {
     std::string retrieve_text(char const *, uint32_t);
     void update_text(char const *, std::string const &, uint32_t);
     void open_page(char const *);
+    // Browser-native focus control for the DOM text inputs (chat / nickname).
+    void focus(char const *);       // focus the named input
+    void blur_active_input();       // blur whatever <input> currently has focus
 }

@@ -17,7 +17,14 @@
 void render_petal(Renderer &ctx, Entity const &ent) {
     ctx.scale(ent.get_radius() / PETAL_DATA[ent.get_petal_id()].radius);
     if (ent.get_split_projectile()) draw_static_petal(ent.get_petal_id(), ctx);
-    else draw_static_petal_single(ent.get_petal_id(), ctx);
+    else {
+        // Apply the petal's icon_angle in-world too, so a petal whose icon is
+        // drawn at an offset (e.g. Stinger's inward-pointing tip) looks the same
+        // in the game as on its loadout card instead of detached.
+        float const ia = PETAL_DATA[ent.get_petal_id()].attributes.icon_angle;
+        if (ia != 0) ctx.rotate(ia);
+        draw_static_petal_single(ent.get_petal_id(), ctx);
+    }
     // Rarity particles (toggle-able): Super = white, Unique = black. Square has
     // none. Uses the petal's actual rarity, not its base.
     uint8_t const rar = ent.get_petal_rarity();

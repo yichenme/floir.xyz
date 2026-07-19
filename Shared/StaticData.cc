@@ -75,7 +75,11 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .rarity = RarityID::kUncommon,
         .attributes = {
             // Point each stinger's sharp tip toward the cluster centre (inward).
-            .icon_angle = M_PI
+            .icon_angle = M_PI,
+            // Follow-rotation instead of the default free spin, so the in-world
+            // stinger holds a stable orientation that matches its loadout icon
+            // (it used to spin independently and look detached from the icon).
+            .rotation_style = PetalAttributes::kFollowRot
         }
     },
     {
@@ -497,7 +501,12 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .reload = 5.5,
         .count = 1,
         .rarity = RarityID::kEpic,
-        .attributes = {}
+        .attributes = {
+            // Mass is never rarity-scaled (see alloc_petal), so this push
+            // stays constant across rarities by construction -- only the
+            // health/damage/reload above scale with rarity.
+            .mass = 70
+        }
     },
     {
         .name = "Third Eye",

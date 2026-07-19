@@ -246,7 +246,7 @@ struct MobAttributes {
     uint8_t segments = 1;
     uint8_t stationary;
     struct PoisonDamage poison_damage;
-    float armor = 0;
+    float armor = 1;
     float missile_damage = 0;
 };
 
@@ -257,7 +257,7 @@ struct MobData {
     RangeValue health;
     float damage;
     RangeValue radius;
-    uint32_t xp;
+    uint32_t xp = 1;
     StaticArray<PetalID::T, MAX_DROPS_PER_MOB> drops;
     struct MobAttributes attributes;
 };

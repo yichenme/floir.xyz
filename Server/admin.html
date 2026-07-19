@@ -69,7 +69,8 @@
 
     <div class="card hidden" id="spawnCard">
         <label>Spawn mob (right-click the map)</label>
-        <canvas id="mapCanvas" width="300" height="306" style="width:100%;max-width:300px;height:auto;border-radius:5px;cursor:crosshair;"></canvas>
+        <canvas id="mapCanvas" width="600" height="612" style="width:100%;max-width:600px;height:auto;border-radius:5px;cursor:crosshair;"></canvas>
+        <div class="target" style="margin-top:4px;"><span style="color:#ffe066;">●</span> player &nbsp; <span style="color:#ff6e6e;">●</span> mob</div>
         <div class="row" style="margin-top:10px;">
             <div>
                 <label>Mob</label>
@@ -123,6 +124,7 @@
             document.getElementById('spawnCard').classList.remove('hidden');
             renderUsers(res.users);
             loadZones();
+            startLivePolling();
         } else {
             m.textContent = res.error || 'login failed';
         }
@@ -150,12 +152,58 @@
         mapImg.src = '/map-overview.png';   // ETag/no-cache revalidation is server-side (Wasm.cc)
     }
 
+    // Live overlay: polled from the running simulation (action:'live') so
+    // spawned mobs and moving players show up on top of the static terrain
+    // bitmap without a page reload. liveData is redrawn every poll tick and
+    // also immediately after a successful spawn, so the new mob appears at
+    // once instead of waiting for the next poll.
+    var liveData = { players: [], mobs: [] };
+    var liveTimer = null;
+
     function drawMap(){
         const cv = document.getElementById('mapCanvas');
         const ctx = cv.getContext('2d');
         ctx.clearRect(0, 0, cv.width, cv.height);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(mapImg, 0, 0, cv.width, cv.height);
+        drawLive(ctx, cv);
+    }
+
+    function drawLive(ctx, cv){
+        const sx = cv.width / ARENA_W, sy = cv.height / ARENA_H;
+        ctx.save();
+        ctx.fillStyle = '#ff6e6e';
+        liveData.mobs.forEach(function(m){
+            ctx.beginPath();
+            ctx.arc(m.x * sx, m.y * sy, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+        ctx.fillStyle = '#ffe066';
+        ctx.strokeStyle = '#00000080';
+        ctx.lineWidth = 1;
+        liveData.players.forEach(function(p){
+            ctx.beginPath();
+            ctx.arc(p.x * sx, p.y * sy, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+        });
+        ctx.restore();
+    }
+
+    async function pollLive(){
+        try {
+            const res = await api({ action: 'live' });
+            if (res.ok && res.live) {
+                liveData = res.live;
+                if (mapImg.complete) drawMap();
+            }
+        } catch (e) { /* transient -- next tick retries */ }
+    }
+
+    function startLivePolling(){
+        if (liveTimer) return;
+        pollLive();
+        liveTimer = setInterval(pollLive, 700);
     }
 
     document.getElementById('mapCanvas').addEventListener('contextmenu', async function(e){
@@ -175,6 +223,7 @@
         });
         m.className = 'msg ' + (res.ok ? 'ok' : 'err');
         m.textContent = res.ok ? 'spawned' : (res.error || 'failed');
+        if (res.ok) pollLive();   // don't wait for the next 700ms tick
     });
 
     var searchTimer = null;

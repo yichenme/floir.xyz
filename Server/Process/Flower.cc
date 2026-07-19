@@ -239,6 +239,7 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
                             BitMath::set(mob.flags, EntityFlags::kDieOnParentDeath);
                             BitMath::set(mob.flags, EntityFlags::kNoDrops);
                             BitMath::set(mob.flags, EntityFlags::kIsDetached);
+                            mob.set_is_summon(1);
                             // Fixed summon stats scaled x3 per rarity (not the
                             // wild-mob HP curve), so a summon matches its petal
                             // tooltip exactly. See summon_base_* in StaticData.

@@ -12,13 +12,24 @@
 // kChatMessage: string sender, string message
 // kSystemMessage: uint8 kind (SystemMsgKind), string message -- shown in chat as
 //   plain coloured text (no sender label)
+// kCraftResult: uint8 type, uint8 out_rarity, uint32 crafted, uint32 remaining,
+//   uint8 any_success -- remaining is how many of the SELECTED amount are left
+//   uncommitted (the rest of the stack, if any, is untouched); crafted can be
+//   >1 if a large selection rolled multiple successful rounds.
+// kSquadUpdate: uint32 squad_id (0 = none), uint32 n, then n × (EntityID
+//   camera_id, string name) -- full roster, pushed whenever membership changes.
+// kSquadNotice: string message -- shown as a standalone banner (like the
+//   disconnect-with-code one), not routed through the chat log.
 enum Clientbound {
     kClientUpdate,
     kAuthResponse,
     kInventoryUpdate,
     kKillsUpdate,
     kChatMessage,
-    kSystemMessage
+    kSystemMessage,
+    kCraftResult,
+    kSquadUpdate,
+    kSquadNotice
 };
 
 // Colour band for a system chat line.
@@ -33,7 +44,10 @@ enum SystemMsgKind {
 // kEquipPetal: uint32 inventory_index, uint8 loadout_static_pos
 // kInventorySwap: uint32 inventory_index, uint8 loadout_static_pos (swap one equipped ↔ one from stack)
 // kPetalSwap: loadout↔loadout (existing)
-// kChat: string message
+// kChat: string message -- "/squad-invite <username>" and "/squad-leave" are
+//   intercepted server-side (Client.cc) and never broadcast as chat text.
+// kCraft: uint8 type, uint8 rarity, uint32 amount -- craft `amount` (>=5) of
+//   the (type,rarity) inventory stack into (type,rarity+1).
 enum Serverbound {
     kVerify,
     kClientInput,
@@ -46,7 +60,8 @@ enum Serverbound {
     kLogin,
     kSessionRestore,
     kLogout,
-    kChat
+    kChat,
+    kCraft
 };
 
 enum CloseReason {

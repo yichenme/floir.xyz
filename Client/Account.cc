@@ -104,6 +104,11 @@ void Account::request_logout() {
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
     writer.write<uint8_t>(Serverbound::kLogout);
     Game::socket.send(writer.packet, writer.at - writer.packet);
+    // Tear down the game view atomically so the equipped-petal icons stop
+    // rendering in the SAME frame. Without this, the loadout slots kept their
+    // frozen petal ids while the flower's rarities zeroed out, drawing every
+    // equipped petal as Common for a frame (the "logout Common flash").
+    Game::reset();
     logged_in_user = "";
     session_key = "";
     status = "";

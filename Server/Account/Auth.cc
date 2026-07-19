@@ -3,6 +3,7 @@
 #include <Server/Account/Database.hh>
 #include <Server/Client.hh>
 #include <Server/EntityFunctions/InventoryOps.hh>
+#include <Server/Game.hh>
 #include <Server/Server.hh>
 
 #include <Shared/AccountValidation.hh>
@@ -10,6 +11,10 @@
 namespace Auth {
 
 static void on_authenticated(Client *client, std::string const &user, std::string const &session_key) {
+    // Wipe any leftover game session before binding the new account, so a
+    // stale flower/loadout/progress from a previous login on this socket can
+    // never carry into -- or be written back over -- the new account.
+    if (client->game != nullptr) client->game->reset_session(client);
     client->username = user;
     client->session_key = session_key;
     client->logged_in = 1;
@@ -65,6 +70,12 @@ void handle_session_restore(Client *client, Reader &reader) {
 }
 
 void handle_logout(Client *client) {
+    // Tear down the live game session FIRST: kill any flower and reset the
+    // camera loadout/progress. Without this the flower (holding this account's
+    // equipped petals) survived logout and, after logging into another account,
+    // leaked those petals into the new account -- a cross-account item transfer
+    // / duplication exploit, and forced the new account's saved level down.
+    if (client->game != nullptr) client->game->reset_session(client);
     // Clear this connection's login so the account can log in again on the same
     // socket without a page refresh. No response packet: the client already
     // cleared its own state before sending this.

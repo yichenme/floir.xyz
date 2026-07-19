@@ -13,7 +13,12 @@
 
 void render_mob(Renderer &ctx, Entity const &ent) {
     uint32_t flags = 0;
-    if (ent.get_team() == Game::simulation.get_ent(Game::camera_id).get_team()) BitMath::set(flags, 0);
+    // Petal-summoned creatures always render with their owner's flower colour
+    // to every viewer (not just teammates) -- the colour is what marks a mob
+    // as "this is somebody's summon" regardless of who's looking.
+    if (ent.get_team() == Game::simulation.get_ent(Game::camera_id).get_team() ||
+        ent.get_is_summon())
+        BitMath::set(flags, 0);
     if (ent.has_component(kSegmented)) BitMath::set(flags, 1);
     MobRenderAttributes attrs = {ent.animation, ent.get_radius(), ent.id.id, flags, ent.get_color()};
     if (ent.has_component(kFlower)) {

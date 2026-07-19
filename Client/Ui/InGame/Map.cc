@@ -117,6 +117,41 @@ void Minimap::on_render(Renderer &ctx) {
         ctx.fill();
         ctx.stroke();
     }
+
+    // Squadmates: pink dots with their name labelled above. Squadmate flowers
+    // are always synced to this client (Server/Game.cc force-includes them), so
+    // their world positions are readable even when off-screen. Dot + text size
+    // are in screen px converted to world units, and follow the same zoom curve
+    // as the self dot (bigger when the map is collapsed/zoomed-in, smaller when
+    // expanded).
+    if (Game::squad_id != 0) {
+        float const dot = lerp(size * 0.030f, size * 0.0090f, e) * view_w / size;
+        float const label_world = lerp(11.0f, 6.5f, e) * view_w / size;
+        for (Game::SquadMember const &m : Game::squad_members) {
+            if (m.camera_id == Game::camera_id) continue;
+            if (!Game::simulation.ent_exists(m.camera_id)) continue;
+            Entity const &cam = Game::simulation.get_ent(m.camera_id);
+            if (!Game::simulation.ent_exists(cam.get_player())) continue;
+            Entity const &f = Game::simulation.get_ent(cam.get_player());
+            ctx.set_fill(0xffff5fbf);
+            ctx.set_stroke(0xff000000);
+            ctx.set_line_width(dot * 0.18f);
+            ctx.begin_path();
+            ctx.arc(f.get_x(), f.get_y(), dot);
+            ctx.fill();
+            ctx.stroke();
+            if (!m.name.empty()) {
+                RenderContext c(&ctx);
+                ctx.translate(f.get_x(), f.get_y() - dot * 2.2f);
+                ctx.set_text_size(label_world);
+                ctx.set_fill(0xffffffff);
+                ctx.set_stroke(0xff000000);
+                ctx.set_line_width(label_world * 0.16f);
+                ctx.stroke_text(m.name.c_str());
+                ctx.fill_text(m.name.c_str());
+            }
+        }
+    }
 }
 
 Element *Ui::make_minimap() {

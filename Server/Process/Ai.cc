@@ -367,6 +367,10 @@ static void tick_digger(Simulation *sim, Entity &ent) {
 void tick_ai_behavior(Simulation *sim, Entity &ent) {
     if (ent.pending_delete) return;
     if (sim->ent_alive(ent.seg_head)) return;
+    // Loot damage tally decays: if a mob hasn't been damaged for 120s, drop all
+    // accumulated per-player damage so stale contributors don't claim its loot.
+    if (!ent.mob_damage.empty() && ent.lifetime - ent.last_damage_tick > 120 * TPS)
+        ent.mob_damage.clear();
     ent.acceleration.set(0,0);
     if (!sim->ent_alive(ent.target) && sim->ent_alive(ent.last_damaged_by))
         ent.target = ent.last_damaged_by;
@@ -436,9 +440,13 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
                 Vector behind;
                 behind.unit_normal(ent.get_angle() + M_PI);
                 behind *= ent.get_radius();
+                // Soldiers spawn exactly one rarity tier below the queen (floored
+                // at Common), instead of matching her rarity.
+                uint8_t const qr = ent.get_mob_rarity();
+                uint8_t const soldier_rarity = qr > RarityID::kCommon ? (uint8_t)(qr - 1) : (uint8_t)RarityID::kCommon;
                 Entity &spawned = alloc_mob(
-                    sim, MobID::kSoldierAnt, ent.get_x() + behind.x, ent.get_y() + behind.y, 
-                    ent.get_team(), inherited_spawn_rarity(ent), [](Entity &mob) {
+                    sim, MobID::kSoldierAnt, ent.get_x() + behind.x, ent.get_y() + behind.y,
+                    ent.get_team(), soldier_rarity, [](Entity &mob) {
                     BitMath::set(mob.flags, EntityFlags::kHasCulling);
                 });
                 entity_set_despawn_tick(spawned, 10 * TPS);

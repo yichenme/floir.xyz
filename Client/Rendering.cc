@@ -19,10 +19,10 @@
 void _apply_damage_filter(Renderer &ctx, Entity const &ent) {
     ctx.set_global_alpha(1 - ent.deletion_animation);
     ctx.scale(1 + 0.5 * ent.deletion_animation);
-    if (ent.damage_flash > 0.66)
-        ctx.add_color_filter(0xffffffff, ent.damage_flash);
-    else if (ent.damage_flash > 0.1)
-        ctx.add_color_filter(0xffff1200, ent.damage_flash * 1.5);
+    // A hit should read as a brief flash, not a flashbang: cap the whitening
+    // low instead of blending all the way to pure white.
+    if (ent.damage_flash > 0.1)
+        ctx.add_color_filter(0xffffffff, ent.damage_flash * 0.35f);
 }
 
 static float screen_shake_radius = 0;
@@ -183,8 +183,14 @@ void Game::render_game() {
         // "Show other petals" off: hide petals belonging to other players'
         // flowers (but keep mob projectiles like hornet missiles visible).
         if (!Input::show_other_petals) {
-            EntityID const p = ent.get_parent();
-            if (!(p == Game::player_id) && sim->ent_alive(p) && sim->get_ent(p).has_component(kFlower))
+            // Hide any petal that isn't parented to MY flower but still belongs
+            // to some player (non-null team). Using the petal's own networked
+            // team instead of looking up the parent flower means the hide holds
+            // even when that flower has scrolled off-FOV and is no longer synced
+            // (the old ent_alive(parent) check failed there, un-hiding them).
+            // Mob projectiles (hornet missiles etc.) have a null team, so they
+            // stay visible.
+            if (!(ent.get_parent() == Game::player_id) && !(ent.get_team() == NULL_ENTITY))
                 return;
         }
         RenderContext context(&renderer);

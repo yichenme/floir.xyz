@@ -32,6 +32,46 @@ extern "C" {
         y = fclamp(y, 0, (float) ARENA_HEIGHT);
         alloc_mob(&Server::game.simulation, mob_id, x, y, NULL_ENTITY, rarity);
     }
+
+    // Called from a SIGTERM/SIGINT handler (see WebSocketServer() below) so a
+    // deploy's `pm2 restart`/`stop` can't lose an alive player's progress from
+    // the window since the last periodic persist_alive_progress() tick.
+    void graceful_shutdown_flush() {
+        Server::game.persist_alive_progress();
+    }
+
+    // Same bridge, for the admin minimap's live overlay: serializes every
+    // alive player flower and mob's position (+ mob id/rarity) so the panel
+    // can poll and draw live dots instead of the static zone bitmap alone.
+    // Stashed into a JS global (Module.adminLiveJson) rather than returned
+    // directly -- WASM exported functions can't hand back a std::string, and
+    // the buffer needs to survive past this call's return for the HTTP
+    // handler (running in the same JS turn) to read it.
+    void admin_build_live_json() {
+        std::ostringstream out;
+        out << "{\"players\":[";
+        bool first = true;
+        Server::game.simulation.for_each<kCamera>([&](Simulation *sim, Entity &cam){
+            if (!sim->ent_exists(cam.get_player())) return;
+            Entity &player = sim->get_ent(cam.get_player());
+            if (!player.has_component(kPhysics)) return;
+            if (!first) out << ",";
+            first = false;
+            out << "{\"x\":" << player.get_x() << ",\"y\":" << player.get_y()
+                << ",\"color\":" << (int) cam.get_color() << "}";
+        });
+        out << "],\"mobs\":[";
+        first = true;
+        Server::game.simulation.for_each<kMob>([&](Simulation *sim, Entity &ent){
+            if (!first) out << ",";
+            first = false;
+            out << "{\"x\":" << ent.get_x() << ",\"y\":" << ent.get_y()
+                << ",\"mob\":" << (int) ent.get_mob_id() << ",\"rarity\":" << (int) ent.get_mob_rarity() << "}";
+        });
+        out << "]}";
+        std::string const s = out.str();
+        EM_ASM({ Module.adminLiveJson = UTF8ToString($0, $1); }, s.c_str(), (int) s.size());
+    }
 }
 
 // Serialized once at startup: MAP_DATA zone rectangles + colours, so the admin
@@ -104,17 +144,31 @@ WebSocketServer::WebSocketServer() {
                     let out = "{\"ok\":false,\"error\":\"unavailable\"}";
                     try {
                         const parsed = JSON.parse(body || "{}");
+                        // Bracket + string on every parsed.* read below: this JS runs
+                        // through Closure (--closure=1), which freely renames plain
+                        // dot-notation properties on objects it doesn't recognize as
+                        // externs. parsed comes from JSON.parse(networkBody), so its
+                        // real keys ("mobId", "rarity", ...) never change -- but a
+                        // dot-notation read like parsed.mobId got minified to
+                        // parsed.Ga in one build, silently reading undefined (|0 -> 0)
+                        // forever. Bracket-string access is never renamed.
                         // Spawning reaches into the live simulation, which the DB
                         // layer (global.adminApi) can't touch -- handled here,
                         // guarded by the same credential check.
-                        if (parsed.action === "spawn" && globalThis["checkAdmin"]
-                            && globalThis["checkAdmin"](parsed.user, parsed.password)) {
-                            const x = +parsed.x, y = +parsed.y;
-                            const mobId = parsed.mobId | 0, rarity = parsed.rarity | 0;
+                        if (parsed["action"] === "spawn" && globalThis["checkAdmin"]
+                            && globalThis["checkAdmin"](parsed["user"], parsed["password"])) {
+                            const x = +parsed["x"], y = +parsed["y"];
+                            const mobId = parsed["mobId"] | 0, rarity = parsed["rarity"] | 0;
                             if (Number.isFinite(x) && Number.isFinite(y)) {
                                 _admin_spawn_mob(x, y, mobId, rarity);
                                 out = "{\"ok\":true}";
                             } else out = "{\"ok\":false,\"error\":\"bad coordinates\"}";
+                        // Live player/mob positions for the minimap overlay --
+                        // same simulation-reach requirement as spawn above.
+                        } else if (parsed["action"] === "live" && globalThis["checkAdmin"]
+                            && globalThis["checkAdmin"](parsed["user"], parsed["password"])) {
+                            _admin_build_live_json();
+                            out = "{\"ok\":true,\"live\":" + Module.adminLiveJson + "}";
                         // Bracket + string so the closure minifier can't rename the
                         // property (it must match global.adminApi in database.js).
                         } else if (globalThis["adminApi"]) out = globalThis["adminApi"](body);
@@ -209,7 +263,28 @@ WebSocketServer::WebSocketServer() {
                 _on_disconnect(ws_id, reason);
                 delete Module.ws_connections[ws_id];
             });
-        })
+        });
+
+        // A deploy's `pm2 restart`/`stop` sends SIGTERM (SIGKILL after PM2's
+        // kill-timeout if this hangs) -- without this handler the process died
+        // immediately, and an alive player's progress was only as fresh as the
+        // last periodic persist_alive_progress() tick (see Game.cc), losing up
+        // to that window's worth of score/petals on every deploy. Flush
+        // synchronously (writeFileSync under the hood) before exiting.
+        if (!Module.shutdownHandlerInstalled) {
+            Module.shutdownHandlerInstalled = true;
+            const shutdown = function(signal){
+                console.log("received " + signal + ", flushing progress before exit");
+                // Bank alive players' progress into global.db (marks it dirty)...
+                try { _graceful_shutdown_flush(); } catch (e) { console.error(e); }
+                // ...then force the coalesced DB writer to flush to disk NOW
+                // (saves are otherwise debounced ~3s; see database.js).
+                try { if (globalThis["flushDatabaseNow"]) globalThis["flushDatabaseNow"](); } catch (e) { console.error(e); }
+                process.exit(0);
+            };
+            process.on("SIGTERM", function(){ shutdown("SIGTERM"); });
+            process.on("SIGINT", function(){ shutdown("SIGINT"); });
+        }
     }, SERVER_PORT, INCOMING_BUFFER, MAX_BUFFER_LEN, zones_json.c_str());
 }
 

@@ -28,6 +28,6 @@ void render_drop(Renderer &ctx, Entity const &ent) {
     // top-right, same idea as an inventory stack.
     if (ent.get_drop_count() > 1) {
         ctx.translate(20, -20);
-        ctx.draw_text(("x" + format_stack_count(ent.get_drop_count())).c_str(), { .fill = 0xffffffff, .size = 18 });
+        ctx.draw_text(format_stack_count(ent.get_drop_count()).c_str(), { .fill = 0xffffffff, .size = 18 });
     }
 }
