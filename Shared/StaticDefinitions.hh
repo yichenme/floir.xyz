@@ -110,6 +110,10 @@ namespace MobID {
         kSquare,
         kDigger,
         kMoon,
+        // Appended (never reorder -- mob ids are persisted in the kill gallery).
+        kBumbleBee,
+        kDandelion,
+        kPollen,     // the pushable floor particle dropped by Bumble Bee / Pollen petal
         kNumMobs
     };
 };

@@ -362,10 +362,12 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .name = "Pollen",
         .description = "Asthmatics beware",
         .health = 5.0,
-        .damage = 8.0,
+        .damage = 10.0,
         .radius = 7.0,
         .reload = 1.0,
-        .count = 3,
+        // One particle at a time: on attack the single pollen detaches and is
+        // left on the floor for a few seconds (see Server/Process/Petal.cc).
+        .count = 1,
         .rarity = RarityID::kEpic,
         .attributes = {
             .secondary_reload = 0.5,
@@ -851,7 +853,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .radius = {40.0},
         .xp = 12,
         .drops = {
-            PetalID::kAntennae, PetalID::kObserver, PetalID::kMissile
+            PetalID::kAntennae, PetalID::kMissile
         },
         .attributes = {
             .aggro_radius = 600,
@@ -1070,6 +1072,61 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         .xp = 0,
         .drops = {},
         .attributes = {}
+    },
+    {
+        // Bumble Bee: never aggros. Drifts in fast curvy arcs, turning at walls,
+        // and lands a Pollen particle every 0.5s (spawned in tick_ai_behavior).
+        .name = "Bumble Bee",
+        .description = "A gentle bee that wanders and scatters pollen.",
+        .rarity = RarityID::kCommon,
+        .health = {25.0},
+        .damage = 20.0,
+        .radius = {22.0},
+        .xp = 1,
+        .drops = {
+            PetalID::kPollen
+        },
+        .attributes = {
+            .armor = 1
+        }
+    },
+    {
+        // Dandelion: a mostly-stationary body ringed by missiles. When the body
+        // takes damage every missile fires outward; each missile is independently
+        // destroyable (its own HP/hitbox). missile_damage carries the seed shot's
+        // damage, mirroring Hornet.
+        .name = "Dandelion",
+        .description = "Strike the core and its seeds burst outward.",
+        .rarity = RarityID::kCommon,
+        .health = {25.0},
+        .damage = 15.0,
+        .radius = {28.0},
+        .xp = 3,
+        .drops = {
+            PetalID::kDandelion
+        },
+        .attributes = {
+            .stationary = 1,
+            .armor = 1,
+            .missile_damage = 10
+        }
+    },
+    {
+        // Pollen: the small particle a Bumble Bee (or the Pollen petal) leaves on
+        // the ground. NOT stationary -- stationary mobs get 10000 mass (immovable)
+        // and this must stay PUSHABLE. Its AI does nothing, so it never self-moves;
+        // it just sits and stings on contact until destroyed or it despawns.
+        .name = "Pollen",
+        .description = "A drifting mote of pollen. Mildly irritating.",
+        .rarity = RarityID::kCommon,
+        .health = {5.0},
+        .damage = 10.0,
+        .radius = {10.0},
+        .xp = 0,
+        .drops = {},
+        .attributes = {
+            .armor = 0
+        }
     },
 }};
 

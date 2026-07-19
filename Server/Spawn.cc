@@ -61,7 +61,12 @@ static Entity &__alloc_mob(
     mob.mass = (1 + mob.get_radius() / BASE_FLOWER_RADIUS) * (data.attributes.stationary ? 10000 : 1);
     if (mob_id == MobID::kAntHole)
         BitMath::set(mob.flags, EntityFlags::kNoFriendlyCollision);
-        
+    // Bumble Bee / Dandelion / Pollen cull when no camera sees them (their AI is
+    // then skipped entirely). Without this, every off-screen Bumble Bee keeps
+    // dropping Pollen every 0.5s and floods the entity pool far from any player.
+    if (mob_id == MobID::kBumbleBee || mob_id == MobID::kDandelion || mob_id == MobID::kPollen)
+        BitMath::set(mob.flags, EntityFlags::kHasCulling);
+
     mob.add_component(kRelations);
     mob.set_team(team);
 

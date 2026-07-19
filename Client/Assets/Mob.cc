@@ -730,6 +730,122 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             ctx.fill(1);
             break;
         }
+        case MobID::kBumbleBee: {
+            // A rounder, fuzzier bee. Same construction as kBee (body ellipse +
+            // black stripes clipped in, wing, antennae), tuned a touch chunkier.
+            SET_BASE_COLOR(0xffffd363)
+            ctx.scale(radius / 22.0f);
+            // Stinger tail.
+            ctx.set_fill(0xff333333);
+            ctx.set_stroke(0xff292929);
+            ctx.set_line_width(5);
+            ctx.round_line_cap();
+            ctx.round_line_join();
+            ctx.begin_path();
+            ctx.move_to(-26, 10);
+            ctx.line_to(-40, 0);
+            ctx.line_to(-26, -10);
+            ctx.fill();
+            ctx.stroke();
+            // Body.
+            ctx.set_fill(base_color);
+            ctx.begin_path();
+            ctx.ellipse(0, 0, 30, 22);
+            ctx.fill();
+            {
+                RenderContext context(&ctx);
+                ctx.clip();
+                ctx.set_fill(0xff333333);
+                ctx.fill_rect(-32, -22, 11, 44);
+                ctx.fill_rect(-11, -22, 11, 44);
+                ctx.fill_rect(10, -22, 11, 44);
+            }
+            ctx.set_stroke(Renderer::HSV(base_color, 0.8));
+            ctx.set_line_width(5);
+            ctx.begin_path();
+            ctx.ellipse(0, 0, 30, 22);
+            ctx.stroke();
+            // Antennae.
+            ctx.set_stroke(0xff333333);
+            ctx.set_line_width(3);
+            ctx.begin_path();
+            ctx.move_to(25, -6);
+            ctx.qcurve_to(36, -6, 42, -16);
+            ctx.stroke();
+            ctx.set_fill(0xff333333);
+            ctx.begin_path();
+            ctx.arc(42, -16, 5);
+            ctx.fill();
+            ctx.set_stroke(0xff333333);
+            ctx.set_line_width(3);
+            ctx.begin_path();
+            ctx.move_to(25, 6);
+            ctx.qcurve_to(36, 6, 42, 16);
+            ctx.stroke();
+            ctx.set_fill(0xff333333);
+            ctx.begin_path();
+            ctx.arc(42, 16, 5);
+            ctx.fill();
+            break;
+        }
+        case MobID::kDandelion: {
+            // Centre circle = the body; the ten spoke-lines with round fluff tips
+            // are the seed missiles (mirrors dandelion.svg). Slowly rotates.
+            SET_BASE_COLOR(0xffcfcfcf)
+            uint32_t const N = 10;
+            float const spin = attr.animation * 0.15f;
+            // Spokes + fluff first, so the body circle sits on top of the stalks.
+            for (uint32_t i = 0; i < N; ++i) {
+                float const a = 2 * M_PI * i / N + spin;
+                float const cx = cosf(a), cy = sinf(a);
+                ctx.set_stroke(0xff333333);
+                ctx.set_line_width(radius * 0.16f);
+                ctx.round_line_cap();
+                ctx.begin_path();
+                ctx.move_to(cx * radius * 0.5f, cy * radius * 0.5f);
+                ctx.line_to(cx * radius * 1.35f, cy * radius * 1.35f);
+                ctx.stroke();
+                // Fluff tip (the destroyable round end).
+                ctx.set_fill(0xffeaeaea);
+                ctx.set_stroke(0xff333333);
+                ctx.set_line_width(radius * 0.05f);
+                ctx.begin_path();
+                ctx.arc(cx * radius * 1.5f, cy * radius * 1.5f, radius * 0.28f);
+                ctx.fill();
+                ctx.stroke();
+            }
+            // Body core.
+            ctx.set_fill(base_color);
+            ctx.set_stroke(Renderer::HSV(base_color, 0.8));
+            ctx.set_line_width(radius * 0.1f);
+            ctx.begin_path();
+            ctx.arc(0, 0, radius * 0.55f);
+            ctx.fill();
+            ctx.stroke();
+            break;
+        }
+        case MobID::kPollen: {
+            // A small gold pollen grain with a few short spikes.
+            SET_BASE_COLOR(0xffffd84a)
+            ctx.set_stroke(0xffd9a441);
+            ctx.set_line_width(radius * 0.22f);
+            ctx.round_line_cap();
+            for (uint32_t i = 0; i < 8; ++i) {
+                float const a = 2 * M_PI * i / 8;
+                ctx.begin_path();
+                ctx.move_to(cosf(a) * radius * 0.7f, sinf(a) * radius * 0.7f);
+                ctx.line_to(cosf(a) * radius * 1.05f, sinf(a) * radius * 1.05f);
+                ctx.stroke();
+            }
+            ctx.set_fill(base_color);
+            ctx.set_stroke(0xffd9a441);
+            ctx.set_line_width(radius * 0.12f);
+            ctx.begin_path();
+            ctx.arc(0, 0, radius * 0.75f);
+            ctx.fill();
+            ctx.stroke();
+            break;
+        }
         default:
             assert(!"Didn't cover mob render");
             break;

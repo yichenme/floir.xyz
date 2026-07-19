@@ -36,7 +36,8 @@ static bool is_retired_petal(PetalID::T i) {
     return i == PetalID::kHeavyLegacy || i == PetalID::kAzalea ||
            i == PetalID::kBlueIris || i == PetalID::kTriweb ||
            i == PetalID::kTricac || i == PetalID::kPoisonCactus ||
-           i == PetalID::kTwin || i == PetalID::kTriplet || i == PetalID::kTringer;
+           i == PetalID::kTwin || i == PetalID::kTriplet || i == PetalID::kTringer ||
+           i == PetalID::kObserver;
 }
 
 static Element *make_scroll() {

@@ -187,6 +187,59 @@ static void tick_hornet_aggro(Simulation *sim, Entity &ent) {
     }
 }
 
+static void tick_bumblebee(Simulation *sim, Entity &ent) {
+    // Never aggros: drop any target the generic retaliate-when-hit logic set, so
+    // it just keeps wandering and the arena-wall reflection below always applies.
+    ent.target = NULL_ENTITY;
+    // Fast, curvy drift: weave the heading with a sine and thrust forward.
+    ent.set_angle(ent.get_angle() + 2.2f * sinf((float) ent.lifetime / (TPS * 0.6f)) / TPS);
+    // Every ~3s pick a fresh random heading too ("rotate randomly").
+    if (ent.ai_tick >= (uint32_t)(3 * TPS)) {
+        ent.ai_tick = 0;
+        ent.set_angle(frand() * 2 * M_PI);
+    }
+    Vector v;
+    v.unit_normal(ent.get_angle()).set_magnitude(PLAYER_ACCELERATION * 0.9f);
+    ent.acceleration = v;
+    // Land a Pollen particle on the ground every 0.5s.
+    if (ent.lifetime % (uint32_t)(TPS / 2) == 0) {
+        Entity &pollen = alloc_mob(sim, MobID::kPollen, ent.get_x(), ent.get_y(),
+            ent.get_team(), ent.get_mob_rarity());
+        entity_set_despawn_tick(pollen, 5 * TPS);
+    }
+}
+
+static void tick_dandelion(Simulation *sim, Entity &ent) {
+    // Rooted (stationary). When its body is struck, fire a ring of destroyable
+    // seed missiles outward -- rate-limited so a flurry of hits is one volley.
+    // Each missile has its own small round hitbox + HP, so it can be shot down in
+    // flight before it reaches a flower.
+    // Damage lands AFTER this AI pass each tick (collision runs later in on_tick),
+    // so a hit in tick T is only visible at T+1 -- test "damaged in the last
+    // couple of ticks", not "== lifetime" (which never matches here). mob_damage
+    // stays empty until something has actually hit it.
+    bool const struck = !ent.mob_damage.empty() && (ent.lifetime - ent.last_damage_tick) <= 2;
+    if (struck && ent.ai_tick >= (uint32_t)(0.6f * TPS)) {
+        ent.ai_tick = 0;
+        uint8_t const rarity = ent.get_mob_rarity();
+        float const dmg = MOB_DATA[ent.get_mob_id()].attributes.missile_damage
+            * mob_body_damage_mult(rarity);
+        int const N = 10;
+        for (int i = 0; i < N; ++i) {
+            float const a = 2 * M_PI * i / N + ent.get_angle();
+            Entity &m = alloc_petal(sim, PetalID::kMissile, ent, rarity);
+            m.set_radius(m.get_radius() * mob_size_mult(rarity));
+            m.damage = dmg;
+            m.health = m.max_health = 2.5f * mob_hp_mult(rarity);
+            m.set_health_ratio(1);
+            m.friction = DEFAULT_FRICTION;
+            m.set_angle(a);
+            entity_set_despawn_tick(m, 3 * TPS);
+            m.velocity.unit_normal(a).set_magnitude(12 * PLAYER_ACCELERATION);
+        }
+    }
+}
+
 static void tick_centipede_passive(Simulation *sim, Entity &ent) {
     switch(ent.ai_state) {
         case AIState::kIdle: {
@@ -457,9 +510,16 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
         case MobID::kHornet:
             tick_hornet_aggro(sim, ent);
             break;
+        case MobID::kBumbleBee:
+            tick_bumblebee(sim, ent);
+            break;
+        case MobID::kDandelion:
+            tick_dandelion(sim, ent);
+            break;
         case MobID::kRock:
         case MobID::kCactus:
         case MobID::kSquare:
+        case MobID::kPollen:   // inert: just sits and stings on contact
             break;
         case MobID::kSandstorm:
             tick_sandstorm(sim, ent);

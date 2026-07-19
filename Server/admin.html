@@ -86,19 +86,19 @@
     </div>
 </div>
 <script>
-    var PETALS = ["None","Basic","Light","Heavy(old)","Stinger","Leaf","Twin(retired)","Rose","Iris","Missile","Dandelion","Bubble","Faster","Rock","Cactus","Web","Wing","Peas","Sand","Pincer","Dahlia","Triplet(retired)","Ant Egg","Blue Iris(retired)","Pollen","Grapes","Beetle Egg","Azalea(retired)","Stick","Tringer","Triweb(retired)","Antennae","Tricactus(retired)","Heavy","Third Eye","Observer","Purple Cactus(retired)","Salt","Unique Basic","Square","Moon","Lotus","Cutter","Yin Yang","Yggdrasil","Rice","Bone","Yucca","Corn","Golden Leaf","Mjolnir"];
+    var PETALS = ["None","Basic","Light","Heavy(old)","Stinger","Leaf","Twin(retired)","Rose","Iris","Missile","Dandelion","Bubble","Faster","Rock","Cactus","Web","Wing","Peas","Sand","Pincer","Dahlia","Triplet(retired)","Ant Egg","Blue Iris(retired)","Pollen","Grapes","Beetle Egg","Azalea(retired)","Stick","Tringer","Triweb(retired)","Antennae","Tricactus(retired)","Heavy","Third Eye","Observer(retired)","Purple Cactus(retired)","Salt","Unique Basic","Square","Moon","Lotus","Cutter","Yin Yang","Yggdrasil","Rice","Bone","Yucca","Corn","Golden Leaf","Mjolnir"];
     var RARITIES = ["Common","Uncommon","Rare","Epic","Legendary","Mythic","Ultra","Super","Unique"];
     // Mirrors MobID's order in Shared/StaticDefinitions.hh. Two entries share
     // the in-game display name "Ladybug" (Dark/Shiny variants) -- disambiguated
     // here for the dropdown only, not a gameplay name change.
-    var MOBS = ["Baby Ant","Worker Ant","Soldier Ant","Bee","Ladybug","Beetle","Ladybug (Dark)","Hornet","Cactus","Rock","Centipede","Evil Centipede","Desert Centipede","Sandstorm","Scorpion","Spider","Ant Hole","Queen Ant","Ladybug (Shiny)","Square","Digger","Moon"];
+    var MOBS = ["Baby Ant","Worker Ant","Soldier Ant","Bee","Ladybug","Beetle","Ladybug (Dark)","Hornet","Cactus","Rock","Centipede","Evil Centipede","Desert Centipede","Sandstorm","Scorpion","Spider","Ant Hole","Queen Ant","Ladybug (Shiny)","Square","Digger","Moon","Bumble Bee","Dandelion","Pollen"];
     var creds = null, target = null;
     var zones = [];
 
     // Retired/removed petal IDs (kept numbered for account compatibility, but
     // never giveable). Mirrors RETIRED_PETALS in Server/Account/database.js.
     // Index 0 (None) is also hidden. kTringer (29) folded into Stinger.
-    var RETIRED = new Set([0,3,6,21,23,27,29,30,32,36,50]);   // 50 = Mjolnir (leaderboard-only, not giveable)
+    var RETIRED = new Set([0,3,6,21,23,27,29,30,32,35,36,50]);   // 35 = Observer (retired); 50 = Mjolnir (leaderboard-only, not giveable)
     function fillSelect(el, arr){ el.innerHTML = arr.map(function(n,i){ return '<option value="'+i+'">'+n+' ('+i+')</option>'; }).join(''); }
     function fillPetalSelect(el, arr){ el.innerHTML = arr.map(function(n,i){ return RETIRED.has(i) ? '' : '<option value="'+i+'">'+n+' ('+i+')</option>'; }).join(''); }
     fillPetalSelect(document.getElementById('petal'), PETALS);
