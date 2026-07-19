@@ -3,7 +3,7 @@
 #include <Shared/Simulation.hh>
 #include <Shared/Entity.hh>
 
-EntityID find_nearest_enemy(Simulation *simulation, Entity const &entity, float radius) {
+EntityID find_nearest_enemy(Simulation *simulation, Entity const &entity, float radius, bool mobs_only) {
     if ((entity.id.id - entity.lifetime) % (TPS / 5) != 0) return NULL_ENTITY;
     if (entity.immunity_ticks > 0) return NULL_ENTITY;
     EntityID ret;
@@ -12,7 +12,14 @@ EntityID find_nearest_enemy(Simulation *simulation, Entity const &entity, float 
         if (!sim->ent_alive(ent.id)) return;
         if (ent.get_team() == entity.get_team()) return;
         if (ent.immunity_ticks > 0) return;
-        if (!ent.has_component(kMob) && !ent.has_component(kFlower)) return;
+        if (mobs_only) {
+            if (!ent.has_component(kMob)) return;
+        } else {
+            if (!ent.has_component(kMob) && !ent.has_component(kFlower)) return;
+            // A dead player is an inert corpse: never a valid target, so mobs and
+            // summons don't swarm/farm it.
+            if (ent.has_component(kFlower) && !ent.has_component(kMob) && ent.get_dead()) return;
+        }
         if (sim->ent_alive(entity.get_parent())) {
             Entity &parent = sim->get_ent(entity.get_parent());
             float dist = Vector(ent.get_x()-parent.get_x(),ent.get_y()-parent.get_y()).magnitude();

@@ -657,7 +657,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
     },
     {
         .name = "Yggdrasil",
-        .description = "Unfortunately, its powers are useless here",
+        .description = "Revives a dead flower on contact",
         .health = 5.0,
         .damage = 0.0,
         .radius = 12.0,
@@ -983,7 +983,7 @@ std::array<struct MobData, MobID::kNumMobs> const MOB_DATA = {{
         },
         .attributes = { 
             .poison_damage = {
-                .damage = 5.0,
+                .damage = 3.75f,  // was 5.0; 0.75x
                 .time = 3.0
             }
         }
@@ -1222,17 +1222,9 @@ uint32_t loadout_slots_at_level(uint32_t level) {
 }
 
 float hp_at_level(uint32_t level) {
-    if (level > MAX_LEVEL) level = MAX_LEVEL;
-    // HP caps at level 75 (~11,651 base HP); leveling past 75 grants no more HP
-    // (the player still levels up for slots/XP, just not for max health).
-    if (level > 75) level = 75;
-    // Levels 1-75 unchanged: 200 * 3^(0.05*(n-1)) (~+5.6%/level, ~3x per 20).
-    if (level < 100)
-        return 200.0f * std::pow(3.0f, 0.05f * ((float)level - 1.0f));
-    // Past 99 the exponential would blow up (L999 -> ~10^24 HP), so continue
-    // linearly from the L99 value: +1% of L99 HP per level, ~10x L99 at 999.
-    float const hp99 = 200.0f * std::pow(3.0f, 0.05f * 98.0f);
-    return hp99 * (1.0f + 0.01f * (float)(level - 99));
+    if (level < 1) level = 1;
+    if (level > 100) level = 100;
+    return 200.0f * std::pow(std::pow(243.0f, 0.01f), (float)level - 1.0f);
 }
 
 uint32_t light_petal_count(uint8_t rarity) {

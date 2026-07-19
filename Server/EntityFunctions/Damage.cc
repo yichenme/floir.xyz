@@ -7,17 +7,6 @@
 #include <algorithm>
 #include <cmath>
 
-static bool _yggdrasil_revival_clause(Simulation *sim, Entity &player) {
-    for (uint32_t i = 0; i < player.get_loadout_count(); ++i) {
-        if (!player.loadout[i].already_spawned) continue;
-        if (player.loadout[i].get_petal_id() != PetalID::kYggdrasil) continue;
-        player.set_loadout_ids(i, PetalID::kNone);
-        player.set_loadout_rarities(i, 0);
-        return true;
-    }
-    return false;
-}
-
 void inflict_damage(Simulation *sim, EntityID const atk_id, EntityID const def_id, float amt, uint8_t type) {
     if (amt <= 0) return;
     if (!sim->ent_alive(def_id)) return;
@@ -56,35 +45,32 @@ void inflict_damage(Simulation *sim, EntityID const atk_id, EntityID const def_i
     //ant hole spawns
     //floor start, ceil end
     if (defender.has_component(kMob) && defender.get_mob_id() == MobID::kAntHole) {
-        uint32_t const num_waves = ANTHOLE_SPAWNS.size() - 1;
-        uint32_t start = ceilf((defender.max_health - old_health) / defender.max_health * num_waves);
-        uint32_t end = ceilf((defender.max_health - defender.health) / defender.max_health * num_waves);
-        if (defender.health <= 0) end = num_waves + 1;
-        // Summoned ants can never exceed the ant-hole's own rarity (a Common
-        // hole in an Ultra zone must not birth Super ants).
-        uint8_t const hole_rarity = defender.get_mob_rarity();
-        uint8_t const child_rarity = std::min<uint8_t>(inherited_spawn_rarity(defender), hole_rarity);
-        for (uint32_t i = start; i < end; ++i) {
-            for (MobID::T mob_id : ANTHOLE_SPAWNS[i]) {
-                Entity &child = alloc_mob(
-                    sim, mob_id,
-                    defender.get_x(), defender.get_y(),
-                    defender.get_team(), child_rarity, [](Entity &mob) {
-                    BitMath::set(mob.flags, EntityFlags::kHasCulling);
-                });
-                child.set_parent(defender.id);
-                child.target = defender.target;
+        // Full-bar one-shot: no wave spawns at all for this hit.
+        if (old_health >= defender.max_health && defender.health <= 0)
+            ; // skip spawn loop entirely
+        else {
+            uint32_t const num_waves = ANTHOLE_SPAWNS.size() - 1;
+            uint32_t start = ceilf((defender.max_health - old_health) / defender.max_health * num_waves);
+            uint32_t end = ceilf((defender.max_health - defender.health) / defender.max_health * num_waves);
+            if (defender.health <= 0) end = num_waves + 1;
+            // Summoned ants can never exceed the ant-hole's own rarity (a Common
+            // hole in an Ultra zone must not birth Super ants).
+            uint8_t const hole_rarity = defender.get_mob_rarity();
+            uint8_t const child_rarity = std::min<uint8_t>(inherited_spawn_rarity(defender), hole_rarity);
+            for (uint32_t i = start; i < end; ++i) {
+                for (MobID::T mob_id : ANTHOLE_SPAWNS[i]) {
+                    Entity &child = alloc_mob(
+                        sim, mob_id,
+                        defender.get_x(), defender.get_y(),
+                        defender.get_team(), child_rarity, [](Entity &mob) {
+                        BitMath::set(mob.flags, EntityFlags::kHasCulling);
+                    });
+                    child.set_parent(defender.id);
+                    child.target = defender.target;
+                }
             }
         }
     }
-    /* yggdrasil revive clause
-    if (defender.health == 0 && defender.has_component(kFlower)) {
-        if (_yggdrasil_revival_clause(sim, defender)) {
-            defender.health = defender.max_health * 0.25;
-            defender.immunity_ticks = 1.0 * TPS;
-        }
-    }
-    */
     if (!sim->ent_exists(atk_id)) return;
     Entity &attacker = sim->get_ent(atk_id);
 

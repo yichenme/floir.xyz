@@ -16,7 +16,6 @@ namespace Input {
     uint8_t movement_helper = 1;
     uint8_t keyboard_movement = 0;
     uint8_t high_quality = 1;
-    uint8_t show_grid = 0;
     uint8_t show_other_petals = 1;
     uint8_t show_particles = 1;
     // When on, the flower attacks/defends by DEFAULT and the key (space/shift or

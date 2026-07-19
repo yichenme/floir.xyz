@@ -85,6 +85,12 @@ static EntityID _top_damage_killer(Simulation *sim, Entity const &ent) {
 }
 
 void entity_on_death(Simulation *sim, Entity const &ent) {
+    // A real player already ran all of this at the moment it entered the dead
+    // state (enter_player_dead_state calls us once, before set_dead). Deleting
+    // the corpse afterwards (kLeave/cleanup/respawn) must not repeat the score
+    // award, kill credit, or progress persist -- so bail out for a dead flower.
+    if (ent.has_component(kFlower) && !ent.has_component(kMob) && ent.get_dead())
+        return;
     //don't do on_death for any despawned entity
     uint8_t natural_despawn = BitMath::at(ent.flags, EntityFlags::kIsDespawning) && ent.despawn_tick == 0;
     if (ent.score_reward > 0 && !natural_despawn) {

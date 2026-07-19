@@ -67,7 +67,7 @@ static void _deal_push(Entity &ent, Vector knockback, float mass_ratio, float sc
 // entity's own velocity is heading that way (it's the one charging in), the
 // impact shouldn't bounce it back at all; a stationary (or retreating)
 // entity still gets knocked, but only a token amount.
-static float const STANDING_PUSH_SCALE = 0.05f;
+static float const STANDING_PUSH_SCALE = 0.025f;
 static float _push_factor(Entity const &ent, Vector const &toward) {
     float const closing = ent.velocity.x * toward.x + ent.velocity.y * toward.y;
     float const ramming_speed = PLAYER_ACCELERATION * 30;
@@ -92,19 +92,59 @@ static void _cancel_movement(Entity &ent, Vector dir, Vector add, Vector const &
     ent.collision_velocity += push * (0.5 * PLAYER_ACCELERATION) * factor;
 }
 
+// A real player (kFlower && !kMob) killed by contact damage must become a
+// corpse via the dead-state path, not vanish through request_delete -- otherwise
+// pending_delete beats Health.cc to it and the death bookkeeping/corpse never
+// runs. Everything else (mobs, petals, etc.) dies normally.
+static void _kill_from_collision(Simulation *sim, Entity &ent) {
+    if (ent.has_component(kFlower) && !ent.has_component(kMob)) {
+        if (!ent.get_dead()) enter_player_dead_state(sim, ent);
+    } else {
+        sim->request_delete(ent.id);
+    }
+}
+
+// A loaded Yggdrasil petal that touches ANY dead flower (allies or enemies,
+// per spec) sticks onto the corpse and brings it back at full HP. Runs before
+// _should_interact because that gate refuses petal-vs-flower contact -- the
+// revive is a deliberate exception. Deleting the petal restarts the owner's
+// Yggdrasil reload naturally (Flower.cc reloads the slot once its petal entity
+// is gone).
+static bool try_yggdrasil_revive(Simulation *sim, Entity &petal, Entity &dead) {
+    if (petal.pending_delete) return false;
+    if (!petal.has_component(kPetal) || petal.get_petal_id() != PetalID::kYggdrasil) return false;
+    if (!dead.has_component(kFlower) || dead.has_component(kMob) || !dead.get_dead()) return false;
+    Vector d(petal.get_x() - dead.get_x(), petal.get_y() - dead.get_y());
+    if (d.magnitude() > petal.get_radius() + dead.get_radius()) return false;
+    dead.set_dead(0);
+    dead.health = dead.max_health;
+    dead.set_health_ratio(1);
+    dead.set_face_flags(0);
+    // Brief grace so a revive amid enemies isn't instantly undone.
+    dead.immunity_ticks = 1.0 * TPS;
+    sim->request_delete(petal.id);
+    return true;
+}
+
 void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
     //do a distance dependent check first (it's faster)
     float min_dist = ent1.get_radius() + ent2.get_radius();
     if (fabs(ent1.get_x() - ent2.get_x()) > min_dist || fabs(ent1.get_y() - ent2.get_y()) > min_dist) return;
+    if (try_yggdrasil_revive(sim, ent1, ent2) || try_yggdrasil_revive(sim, ent2, ent1)) return;
     //check if collide (distance independent)
     if (!_should_interact(ent1, ent2)) return;
     //finer distance check
     Vector separation(ent1.get_x() - ent2.get_x(), ent1.get_y() - ent2.get_y());
     float dist = min_dist - separation.magnitude();
     if (dist < 0) return;
+    // A dead player corpse is physically immobile: it neither gets pushed nor
+    // pushes others. Compute the dead-flower flags here so the push block below
+    // (and the damage block further down) can both skip it.
+    bool const dead1 = ent1.has_component(kFlower) && !ent1.has_component(kMob) && ent1.get_dead();
+    bool const dead2 = ent2.has_component(kFlower) && !ent2.has_component(kMob) && ent2.get_dead();
     // kNoPush bodies (e.g. Stick's Sandstorms) overlay creatures: skip the
     // physical push below, but the damage step still runs.
-    if (NO(kDrop) && NO(kWeb) && !BitMath::at((ent1.flags | ent2.flags), EntityFlags::kNoPush)) {
+    if (NO(kDrop) && NO(kWeb) && !dead1 && !dead2 && !BitMath::at((ent1.flags | ent2.flags), EntityFlags::kNoPush)) {
         if (separation.x == 0 && separation.y == 0)
             separation.unit_normal(frand() * 2 * M_PI);
         else
@@ -149,7 +189,9 @@ void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
         if (!immovable2) _deal_push(ent2, separation*-1, 1 - ratio, dist);
     }
 
-    if (BOTH(kHealth) && !(ent1.get_team() == ent2.get_team()) && !BOTH(kFlower)) {
+    // A dead player corpse neither deals nor takes contact damage (so it can't be
+    // farmed and doesn't chip mobs that walk over it).
+    if (BOTH(kHealth) && !(ent1.get_team() == ent2.get_team()) && !BOTH(kFlower) && !dead1 && !dead2) {
         if (ent1.health > 0 && ent2.health > 0) {
             // Mjolnir deals LIGHTNING damage (ignores armor, teal damage number).
             uint8_t const dt1 = (ent1.has_component(kPetal) && ent1.get_petal_id() == PetalID::kMjolnir)
@@ -159,8 +201,8 @@ void on_collide(Simulation *sim, Entity &ent1, Entity &ent2) {
             inflict_damage(sim, ent1.id, ent2.id, ent1.damage, dt1);
             inflict_damage(sim, ent2.id, ent1.id, ent2.damage, dt2);
         }
-        if (ent1.health == 0) sim->request_delete(ent1.id);
-        if (ent2.health == 0) sim->request_delete(ent2.id);
+        if (ent1.health == 0) _kill_from_collision(sim, ent1);
+        if (ent2.health == 0) _kill_from_collision(sim, ent2);
     }
 
     if (ent1.has_component(kDrop) && ent2.has_component(kFlower)) 

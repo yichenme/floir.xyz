@@ -8,6 +8,7 @@ include_directories(..)
 set(SOURCES
     EntityFunctions/CraftOps.cc
     EntityFunctions/Damage.cc
+    EntityFunctions/DeadPlayer.cc
     EntityFunctions/Death.cc
     EntityFunctions/Detection.cc
     EntityFunctions/Misc.cc

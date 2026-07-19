@@ -108,7 +108,8 @@ static void tick_default_aggro(Simulation *sim, Entity &ent, float speed) {
             ent.ai_tick = 0;
         }
         //if (ent.ai_state != AIState::kReturning) 
-        ent.target = find_nearest_enemy(sim, ent, ent.detection_radius + ent.get_radius());
+        ent.target = find_nearest_enemy(
+            sim, ent, ent.detection_radius + ent.get_radius(), ent.get_is_summon());
         tick_default_passive(sim, ent);
     }
 }
@@ -331,41 +332,56 @@ static void tick_centipede_aggro(Simulation *sim, Entity &ent) {
 }
 
 static void tick_sandstorm(Simulation *sim, Entity &ent) {
-    switch(ent.ai_state) {
-        case AIState::kIdle: {
-            if (frand() > 1.0f / TPS) {
-                ent.ai_tick = 0;
-                ent.heading_angle = frand() * 2 * M_PI;
-                ent.ai_state = AIState::kIdleMoving;
-            }
-            Vector rand = Vector::rand(PLAYER_ACCELERATION * 0.5);
-            ent.acceleration.set(rand.x, rand.y);
-            break;
+    bool summon_chasing = false;
+    if (ent.get_is_summon()) {
+        float const SANDSTORM_AGGRO = 250.f;
+        if (!sim->ent_alive(ent.target))
+            ent.target = find_nearest_enemy(sim, ent, SANDSTORM_AGGRO + ent.get_radius(), true);
+        if (sim->ent_alive(ent.target)) {
+            Entity &target = sim->get_ent(ent.target);
+            Vector v(target.get_x() - ent.get_x(), target.get_y() - ent.get_y());
+            v.set_magnitude(PLAYER_ACCELERATION * 0.95f);
+            ent.acceleration = v;
+            summon_chasing = true;
         }
-        case AIState::kIdleMoving: {
-            if (ent.ai_tick >= 2.5 * TPS) {
-                ent.ai_tick = 0;
+    }
+    if (!summon_chasing) {
+        switch(ent.ai_state) {
+            case AIState::kIdle: {
+                if (frand() > 1.0f / TPS) {
+                    ent.ai_tick = 0;
+                    ent.heading_angle = frand() * 2 * M_PI;
+                    ent.ai_state = AIState::kIdleMoving;
+                }
+                Vector rand = Vector::rand(PLAYER_ACCELERATION * 0.5);
+                ent.acceleration.set(rand.x, rand.y);
+                break;
+            }
+            case AIState::kIdleMoving: {
+                if (ent.ai_tick >= 2.5 * TPS) {
+                    ent.ai_tick = 0;
+                    ent.ai_state = AIState::kIdle;
+                }
+                if (frand() > 2.5f / TPS)
+                    ent.heading_angle += frand() * M_PI - M_PI / 2;
+                Vector head;
+                head.unit_normal(ent.heading_angle);
+                head.set_magnitude(PLAYER_ACCELERATION);
+                Vector rand;
+                rand.unit_normal(ent.heading_angle + frand() * M_PI - M_PI / 2);
+                rand.set_magnitude(PLAYER_ACCELERATION * 0.5);
+                head += rand;
+                ent.acceleration.set(head.x, head.y);
+                break;
+            }
+            case AIState::kReturning: {
+                default_tick_returning(sim, ent, 1.5);
+                break;
+            }
+            default:
                 ent.ai_state = AIState::kIdle;
-            }
-            if (frand() > 2.5f / TPS)
-                ent.heading_angle += frand() * M_PI - M_PI / 2;
-            Vector head;
-            head.unit_normal(ent.heading_angle);
-            head.set_magnitude(PLAYER_ACCELERATION);
-            Vector rand;
-            rand.unit_normal(ent.heading_angle + frand() * M_PI - M_PI / 2);
-            rand.set_magnitude(PLAYER_ACCELERATION * 0.5);
-            head += rand;
-            ent.acceleration.set(head.x, head.y);
-            break;
+                break;
         }
-        case AIState::kReturning: {
-            default_tick_returning(sim, ent, 1.5);
-            break;
-        }
-        default:
-            ent.ai_state = AIState::kIdle;
-            break;
     }
     if (sim->ent_alive(ent.get_parent())) {
         Entity &parent = sim->get_ent(ent.get_parent());
@@ -497,13 +513,14 @@ void tick_ai_behavior(Simulation *sim, Entity &ent) {
                 // at Common), instead of matching her rarity.
                 uint8_t const qr = ent.get_mob_rarity();
                 uint8_t const soldier_rarity = qr > RarityID::kCommon ? (uint8_t)(qr - 1) : (uint8_t)RarityID::kCommon;
+                EntityID const queen_id = ent.id;
                 Entity &spawned = alloc_mob(
                     sim, MobID::kSoldierAnt, ent.get_x() + behind.x, ent.get_y() + behind.y,
-                    ent.get_team(), soldier_rarity, [](Entity &mob) {
+                    ent.get_team(), soldier_rarity, [queen_id](Entity &mob) {
                     BitMath::set(mob.flags, EntityFlags::kHasCulling);
+                    mob.set_parent(queen_id);
                 });
                 entity_set_despawn_tick(spawned, 10 * TPS);
-                spawned.set_parent(ent.get_parent());
             }
             tick_default_aggro(sim, ent, 0.95);
             break;

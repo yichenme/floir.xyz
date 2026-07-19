@@ -85,6 +85,7 @@ namespace Game {
     extern uint8_t loadout_count;
     extern uint8_t simulation_ready;
     extern uint8_t on_game_screen;
+    extern uint8_t death_ui_dismissed;
     // Set when the player clicks Leave: suppresses the on_game_screen=1 reset so
     // the spawn transition plays in reverse back to the title screen.
     extern uint8_t leaving;
@@ -93,6 +94,7 @@ namespace Game {
     void init();
     void reset();
     uint8_t alive();
+    uint8_t player_is_dead_corpse();
     uint8_t in_game();
     uint8_t should_render_title_ui();
     uint8_t should_render_game_ui();
