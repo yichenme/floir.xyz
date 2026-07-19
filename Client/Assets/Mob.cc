@@ -797,10 +797,10 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             // whole, matching the asset -- the old body was far too small).
             SET_BASE_COLOR(0xffcfcfcf)
             uint32_t const N = 10;
-            float const spin = attr.animation * 0.15f;
+            // Static like a rock -- no spin (seeds sit at fixed angles).
             // Spokes + fluff first, so the body circle sits on top of the stalks.
             for (uint32_t i = 0; i < N; ++i) {
-                float const a = 2 * M_PI * i / N + spin;
+                float const a = 2 * M_PI * i / N;
                 float const cx = cosf(a), cy = sinf(a);
                 ctx.set_stroke(0xff333333);
                 ctx.set_line_width(radius * 0.14f);
