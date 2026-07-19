@@ -13,6 +13,8 @@
 void render_health(Renderer &ctx, Entity const &ent) {
     if (ent.has_component(kPetal)) return;
     bool const is_mob = ent.has_component(kMob);
+    // Pollen is a Bumble Bee projectile, not a real mob -- no health bar.
+    if (is_mob && ent.get_mob_id() == MobID::kPollen) return;
     // Players fade their bar in on damage / out at full health; mobs stay
     // always visible (so their strength is readable before engaging), fading
     // only on death like everything else.

@@ -791,61 +791,60 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
         case MobID::kDandelion: {
             // Centre circle = the body; the ten spoke-lines with round fluff tips
             // are the seed missiles (mirrors dandelion.svg). Slowly rotates.
-            // Proportions taken from dandelion.svg: a large central body (~0.85 of
-            // the collision radius) with ten spoke-stalks and round fluff tips
-            // forming the seed head out to ~2x the radius (body is ~0.44 of the
-            // whole, matching the asset -- the old body was far too small).
-            SET_BASE_COLOR(0xffcfcfcf)
-            uint32_t const N = 10;
-            // Static like a rock -- no spin (seeds sit at fixed angles).
-            // Spokes + fluff first, so the body circle sits on top of the stalks.
-            for (uint32_t i = 0; i < N; ++i) {
-                float const a = 2 * M_PI * i / N;
-                float const cx = cosf(a), cy = sinf(a);
+            // Matches dandelion.svg / the reference: a big WHITE core ringed by a
+            // light-grey outline, ten dark charcoal stalks, each ending in a small
+            // WHITE seed with the same grey ring. Static like a rock (no spin).
+            {
+                uint32_t const N = 10;
+                uint32_t const RING = 0xffcccccc;   // light-grey outline
+                float const RB = radius * 0.9f;      // body radius
+                float const FR = radius * 0.34f;     // seed (fluff) radius
+                float const FD = radius * 1.72f;     // seed centre distance
+                // Dark stalks first (drawn under the body + seeds so the joins are
+                // clean). Run from under the body edge out to under each seed.
                 ctx.set_stroke(0xff333333);
-                ctx.set_line_width(radius * 0.14f);
+                ctx.set_line_width(radius * 0.15f);
                 ctx.round_line_cap();
+                for (uint32_t i = 0; i < N; ++i) {
+                    float const a = 2 * M_PI * i / N;
+                    ctx.begin_path();
+                    ctx.move_to(cosf(a) * radius * 0.7f, sinf(a) * radius * 0.7f);
+                    ctx.line_to(cosf(a) * FD, sinf(a) * FD);
+                    ctx.stroke();
+                }
+                // Seeds: grey disc + smaller white disc = white circle w/ grey ring.
+                for (uint32_t i = 0; i < N; ++i) {
+                    float const a = 2 * M_PI * i / N;
+                    float const fx = cosf(a) * FD, fy = sinf(a) * FD;
+                    ctx.set_fill(RING);
+                    ctx.begin_path();
+                    ctx.arc(fx, fy, FR);
+                    ctx.fill();
+                    ctx.set_fill(0xffffffff);
+                    ctx.begin_path();
+                    ctx.arc(fx, fy, FR * 0.7f);
+                    ctx.fill();
+                }
+                // Body core: same white-with-grey-ring, on top of the stalk inner ends.
+                ctx.set_fill(RING);
                 ctx.begin_path();
-                ctx.move_to(cx * radius * 0.8f, cy * radius * 0.8f);
-                ctx.line_to(cx * radius * 1.6f, cy * radius * 1.6f);
-                ctx.stroke();
-                // Fluff tip (the destroyable round end).
-                ctx.set_fill(0xffeaeaea);
-                ctx.set_stroke(0xff333333);
-                ctx.set_line_width(radius * 0.05f);
-                ctx.begin_path();
-                ctx.arc(cx * radius * 1.72f, cy * radius * 1.72f, radius * 0.32f);
+                ctx.arc(0, 0, RB);
                 ctx.fill();
-                ctx.stroke();
+                ctx.set_fill(0xffffffff);
+                ctx.begin_path();
+                ctx.arc(0, 0, RB * 0.84f);
+                ctx.fill();
             }
-            // Body core.
-            ctx.set_fill(base_color);
-            ctx.set_stroke(Renderer::HSV(base_color, 0.8));
-            ctx.set_line_width(radius * 0.1f);
-            ctx.begin_path();
-            ctx.arc(0, 0, radius * 0.85f);
-            ctx.fill();
-            ctx.stroke();
             break;
         }
         case MobID::kPollen: {
-            // A small gold pollen grain with a few short spikes.
-            SET_BASE_COLOR(0xffffd84a)
-            ctx.set_stroke(0xffd9a441);
-            ctx.set_line_width(radius * 0.22f);
-            ctx.round_line_cap();
-            for (uint32_t i = 0; i < 8; ++i) {
-                float const a = 2 * M_PI * i / 8;
-                ctx.begin_path();
-                ctx.move_to(cosf(a) * radius * 0.7f, sinf(a) * radius * 0.7f);
-                ctx.line_to(cosf(a) * radius * 1.05f, sinf(a) * radius * 1.05f);
-                ctx.stroke();
-            }
-            ctx.set_fill(base_color);
-            ctx.set_stroke(0xffd9a441);
-            ctx.set_line_width(radius * 0.12f);
+            // Identical to the Pollen petal's particle (Client/Assets/Petal.cc):
+            // a plain yellow disc with a soft golden outline.
+            ctx.set_fill(0xffffe763);
+            ctx.set_stroke(0xffcfbb50);
+            ctx.set_line_width(radius * 0.15f);
             ctx.begin_path();
-            ctx.arc(0, 0, radius * 0.75f);
+            ctx.arc(0, 0, radius);
             ctx.fill();
             ctx.stroke();
             break;
