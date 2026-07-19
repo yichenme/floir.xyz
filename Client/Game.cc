@@ -12,6 +12,7 @@
 #include <cmath>
 
 static double g_last_time = 0;
+static uint8_t g_player_was_dead_corpse = 0;
 float const MAX_TRANSITION_CIRCLE = 2500;
 
 static int _c = setup_canvas();
@@ -62,6 +63,7 @@ namespace Game {
     uint8_t loadout_count = 5;
     uint8_t simulation_ready = 0;
     uint8_t on_game_screen = 0;
+    uint8_t death_ui_dismissed = 0;
     uint8_t leaving = 0;
     uint8_t show_debug = 1;
 }
@@ -215,6 +217,8 @@ void Game::init() {
 void Game::reset() {
     simulation_ready = 0;
     on_game_screen = 0;
+    death_ui_dismissed = 0;
+    g_player_was_dead_corpse = 0;
     leaving = 0;
     score = 0;
     overlevel_timer = 0;
@@ -229,9 +233,20 @@ void Game::reset() {
 }
 
 uint8_t Game::alive() {
-    return socket.ready && simulation_ready
-    && simulation.ent_exists(camera_id)
-    && simulation.ent_alive(simulation.get_ent(camera_id).get_player());
+    if (!(socket.ready && simulation_ready && simulation.ent_exists(camera_id))) return 0;
+    EntityID pid = simulation.get_ent(camera_id).get_player();
+    if (!simulation.ent_alive(pid)) return 0;
+    Entity const &player = simulation.get_ent(pid);
+    if (player.has_component(kFlower) && player.get_dead()) return 0;
+    return 1;
+}
+
+uint8_t Game::player_is_dead_corpse() {
+    if (!(simulation_ready && simulation.ent_exists(camera_id))) return 0;
+    EntityID pid = simulation.get_ent(camera_id).get_player();
+    if (!simulation.ent_alive(pid)) return 0;
+    Entity const &player = simulation.get_ent(pid);
+    return player.has_component(kFlower) && player.get_dead();
 }
 
 uint8_t Game::in_game() {
@@ -265,6 +280,11 @@ void Game::tick(double time) {
     Ui::lerp_amount = 1 - pow(1 - 0.2, Ui::dt * 60 / 1000);
     g_last_time = time;
     simulation.tick();
+
+    uint8_t const dead_corpse = player_is_dead_corpse();
+    if (dead_corpse != g_player_was_dead_corpse)
+        death_ui_dismissed = 0;
+    g_player_was_dead_corpse = dead_corpse;
     
     renderer.reset();
     game_ui_renderer.set_dimensions(renderer.width, renderer.height);
@@ -344,7 +364,7 @@ void Game::tick(double time) {
             renderer.clip();
         }
         render_game();
-        if (!Game::alive()) {
+        if (!Game::alive() && (!Game::death_ui_dismissed || !Game::player_is_dead_corpse())) {
             RenderContext c(&renderer);
             renderer.reset_transform();
             renderer.set_fill(0x20000000);
@@ -438,6 +458,8 @@ void Game::tick(double time) {
     if (!Ui::chat_try_send() && Input::keys_held_this_tick.contains('\r')) {
         if (Game::alive() && !Ui::is_typing_dom())
             Ui::chat_focus();
+        else if (Game::player_is_dead_corpse())
+            Game::leave_game();
         else if (!Game::alive())
             Game::spawn_in();
     }

@@ -64,9 +64,17 @@ Element *Ui::make_death_main_screen() {
         145,
         40,
         new Ui::StaticText(28, "Continue"),
-        [](Element *elt, uint8_t e){ if (e == Ui::kClick && Game::on_game_screen) Game::on_game_screen = 0; },
+        [](Element *elt, uint8_t e){ if (e == Ui::kClick && Game::on_game_screen) Game::leave_game(); },
         [](){ return !Game::in_game(); },
         {.fill = 0xff1dd129, .line_width = 5, .round_radius = 3 }
+    );
+    Ui::Element *close_button = new Ui::Button(
+        145,
+        40,
+        new Ui::StaticText(28, "Close"),
+        [](Element *elt, uint8_t e){ if (e == Ui::kClick) Game::death_ui_dismissed = 1; },
+        [](){ return !Game::in_game(); },
+        {.fill = 0xff888888, .line_width = 5, .round_radius = 3 }
     );
     Ui::Element *container = new Ui::VContainer({
         new Ui::StaticText(25, "You were killed by"),
@@ -79,9 +87,14 @@ Element *Ui::make_death_main_screen() {
         }),
         new Ui::DeadFlowerIcon(125),
         continue_button,
+        close_button,
         new Ui::StaticText(14, "(or press ENTER to continue)")
     }, 0, 10, { .animate = [](Element *elt, Renderer &ctx) {
         ctx.translate(0, (elt->animation - 1) * ctx.height * 0.6);
-    }, .should_render = [](){ return !Game::alive() && Game::should_render_game_ui(); } });
+    }, .should_render = [](){
+        return Game::player_is_dead_corpse()
+            && !Game::death_ui_dismissed
+            && Game::should_render_game_ui();
+    } });
     return container;
 }
