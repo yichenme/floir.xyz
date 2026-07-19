@@ -50,36 +50,80 @@ global.loadDatabase = () => {
     }
 };
 
-// Coalesced persistence. The whole account DB is one JSON file and writing it
-// is synchronous, which blocks the same event loop the WASM tick loop runs on.
-// Doing that on every account mutation -- and O(N) times per 15s persist pass
-// (persist_alive_progress) plus a hidden double-write from the dbSet* helpers --
-// periodically froze the server for hundreds of ms. Instead every save request
-// just marks the DB dirty and schedules ONE coalesced flush; the actual write
-// happens at most once per FLUSH_INTERVAL_MS, and is compact (no pretty-print)
-// to shrink the payload. A synchronous immediate flush is kept for shutdown.
+// Coalesced, ASYNC persistence. The whole account DB is one JSON file; writing
+// it on every account mutation (and O(N) times per 15s persist pass) previously
+// froze the tick loop for hundreds of ms. Now every mutation just marks the DB
+// dirty and a single flush is scheduled at most once per FLUSH_INTERVAL_MS.
+//
+// The flush writes ASYNCHRONOUSLY (fs.writeFile) so the disk I/O -- the slow
+// part, especially on a slow disk -- doesn't block the event loop / tick loop
+// under load. Only the JSON.stringify itself is synchronous (CPU-bound, brief),
+// and it's taken as a snapshot BEFORE the await so concurrent mutations during
+// the write are safe and never lost. Design notes:
+//   * Fixed-interval coalescing (schedule once, do NOT reset the timer on every
+//     save) -- a debounce-reset would starve the flush on a busy server and
+//     lose a lot of data on a crash. This guarantees a flush every ~3s.
+//   * dbDirty is cleared BEFORE the snapshot, so a mutation that lands during
+//     the async write re-marks it dirty and gets picked up by the next flush
+//     (rather than being cleared away after the await).
+//   * isWriting only prevents OVERLAPPING writes; it never causes a mutation to
+//     skip marking the DB dirty.
+//   * A temp-file + atomic rename avoids a truncated/corrupt DB if the process
+//     dies mid-write.
+//   * flushDatabaseNow stays SYNCHRONOUS: the shutdown handler (Wasm.cc) calls
+//     it and then process.exit(0) without awaiting, so it must finish the write
+//     before returning -- an async version would let the process exit mid-write.
 let dbDirty = false;
 let flushTimer = null;
+let isWriting = false;
 const FLUSH_INTERVAL_MS = 3000;
-const writeDatabaseSync = () => {
-    fs.writeFileSync(DB_PATH, JSON.stringify(global.db));
-    dbDirty = false;
+
+const scheduleFlush = () => {
+    if (flushTimer !== null) return;   // already scheduled (fixed interval, no reset)
+    flushTimer = setTimeout(() => { flushTimer = null; flushDatabase(); }, FLUSH_INTERVAL_MS);
 };
+
+const flushDatabase = async () => {
+    if (isWriting || !dbDirty) return;
+    isWriting = true;
+    // Clear dirty + snapshot the DB synchronously, before any await, so writes
+    // that happen DURING the async write re-mark dbDirty and aren't lost.
+    dbDirty = false;
+    let snapshot;
+    try {
+        snapshot = JSON.stringify(global.db);
+    } catch (e) {
+        dbDirty = true; isWriting = false; return;
+    }
+    const tmp = DB_PATH + '.tmp';
+    try {
+        await fs.promises.writeFile(tmp, snapshot);
+        await fs.promises.rename(tmp, DB_PATH);   // atomic swap
+    } catch (e) {
+        dbDirty = true;   // write failed -- keep it dirty so the next flush retries
+    } finally {
+        isWriting = false;
+    }
+    // If the DB changed while we were writing, make sure another flush is queued.
+    if (dbDirty) scheduleFlush();
+};
+
 global.saveDatabase = () => {
     dbDirty = true;
-    if (flushTimer === null) {
-        flushTimer = setTimeout(() => {
-            flushTimer = null;
-            if (dbDirty) writeDatabaseSync();
-        }, FLUSH_INTERVAL_MS);
-    }
+    scheduleFlush();
 };
-// Synchronous, immediate flush -- called by the SIGTERM/SIGINT graceful-shutdown
-// handler (see Server/Wasm.cc) so a deploy's pm2 restart never drops the last
-// few seconds of coalesced writes.
+
+// SYNCHRONOUS immediate flush -- called by the SIGTERM/SIGINT graceful-shutdown
+// handler (Server/Wasm.cc) right before process.exit(0). It must block until the
+// write completes (the process is exiting; there's no chance to await), so it
+// always writes the CURRENT state synchronously, superseding any in-flight async
+// write. A deploy's pm2 restart therefore never drops the last few seconds.
 global.flushDatabaseNow = () => {
     if (flushTimer !== null) { clearTimeout(flushTimer); flushTimer = null; }
-    if (dbDirty) writeDatabaseSync();
+    try {
+        fs.writeFileSync(DB_PATH, JSON.stringify(global.db));
+        dbDirty = false;
+    } catch (e) { /* best effort on shutdown */ }
 };
 
 global.hashPassword = (p) => crypto.createHash('sha256').update(p).digest('hex');
