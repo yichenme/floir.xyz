@@ -196,7 +196,9 @@ namespace {
 // Mobs that aren't catalogued in the gallery: Pollen is a Bumble Bee projectile,
 // not a mob a player hunts.
 static bool is_hidden_mob(MobID::T id) {
-    return id == MobID::kPollen;
+    // Pollen is a Bumble Bee projectile; Moon is a Moon-petal summon -- neither is
+    // a huntable wild mob, so keep them out of the gallery.
+    return id == MobID::kPollen || id == MobID::kMoon;
 }
 
 static Element *make_scroll() {

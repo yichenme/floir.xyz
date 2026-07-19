@@ -232,7 +232,10 @@ namespace MjolnirArt {
     inline void draw(Renderer &ctx, float r) {
         RenderContext _mj(&ctx);
         ctx.scale(r / 39.0f);
-        ctx.translate(-55.0f, -56.0f);
+        // Centre on the hammer content (55,56) but shifted DOWN in the tile (y
+        // -47 instead of -56) so the head sits higher and the handle runs into the
+        // bottom, where the "Mjölnir" name label overlaps it -- matching icon.svg.
+        ctx.translate(-55.0f, -47.0f);
         for (auto const &p : PATHS) {
             ctx.set_fill(p.color);
             ctx.begin_path();
