@@ -465,8 +465,9 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             // blue arm curving down to meet at a point, each drawn as a thick
             // outer stroke plus a thinner, lighter inner stroke for a rounded
             // highlight. Coordinates are relative to the svg's 110x110
-            // viewBox center, scaled down to the petal's actual radius.
-            ctx.scale(r / 55.0);
+            // viewBox center, scaled down to the petal's actual radius, then
+            // 3x on top so the model reads clearly at typical petal sizes.
+            ctx.scale(r / 55.0 * 3.0);
             ctx.round_line_cap();
             ctx.set_line_width(24);
             ctx.set_stroke(0xff363685);

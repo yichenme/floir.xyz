@@ -171,6 +171,12 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
             new Ui::StaticText(12, "+" + format_number(attrs.extra_range * (rarity + 1)))
         }, 0, 5, { .h_justify = Style::Left }));
     }
+    if (attrs.magnet_range > 0) {
+        stats.push_back(new Ui::HContainer({
+            new Ui::StaticText(12, "Pickup Range:", { .fill = 0xffcde23b }),
+            new Ui::StaticText(12, "+" + format_number(attrs.magnet_range * (rarity + 1)))
+        }, 0, 5, { .h_justify = Style::Left }));
+    }
     // Damage/reload multipliers: show whether they raise (+) or lower (-) the
     // stat (Golden Leaf, e.g., is -5% reload). format_pct only takes positives,
     // so pass the magnitude and prefix the sign.
