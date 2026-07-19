@@ -61,7 +61,8 @@ enum Serverbound {
     kSessionRestore,
     kLogout,
     kChat,
-    kCraft
+    kCraft,
+    kLeave      // voluntarily end the run: despawn the flower so re-entering spawns fresh
 };
 
 enum CloseReason {

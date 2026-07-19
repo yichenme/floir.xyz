@@ -48,7 +48,7 @@ void Entity::tick_lerp(float amt) {
             if ((has_component(kMob) || has_component(kFlower)) && damage_taken >= 1) {
                 uint32_t const col = damage_lightning ? 0xff36ffe7u : 0xffffffffu;
                 Particle::add_damage_number((float) x, (float) y - get_radius() * 0.6f,
-                                            (double) damage_taken, col);
+                                            (double) damage_taken, col, id.id);
             }
         }
         damaged.clear();

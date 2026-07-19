@@ -119,8 +119,11 @@ std::string format_pct(float pct) {
 
 std::string format_score(float score) {
     if (score <= 1000) return std::format("{:.0f}", score);
-    if (score < 1000000) return std::format("{:.1f}k", score / 1000);
-    return std::format("{:.1f}m", score / 1000000);
+    if (score < 1e6f) return std::format("{:.1f}k", score / 1e3f);
+    if (score < 1e9f) return std::format("{:.1f}m", score / 1e6f);
+    if (score < 1e12f) return std::format("{:.1f}B", score / 1e9f);   // billions (Unique mob HP)
+    if (score < 1e15f) return std::format("{:.1f}t", score / 1e12f);
+    return std::format("{:.1f}q", score / 1e15f);
 }
 
 std::string format_number(float num) {

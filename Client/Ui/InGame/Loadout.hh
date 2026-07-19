@@ -71,4 +71,8 @@ namespace Ui {
 
     void ui_store_petal(uint8_t);
     void ui_swap_petals(uint8_t, uint8_t);
+    // Blank every loadout slot's displayed petal (id + rarity) and the cached
+    // loadout, so equipped petals stop drawing this frame instead of flashing
+    // Common as the flower is torn down (used on Leave / logout).
+    void clear_loadout_display();
 }

@@ -3,9 +3,15 @@
 #include <algorithm>
 #include <cmath>
 
-static float const HP_STEP[8] = {5,5,5,5,10,45,30,5};
+// Per-tier mob HP multiplier steps. The last step (Ultra/Super -> Unique) is 81
+// so a Unique mob has 81x a Super mob's HP (the big top-tier leap), instead of 5x.
+static float const HP_STEP[8] = {5,5,5,5,10,45,30,81};
 
 float rarity_pow3(uint8_t rarity) {
+    // 3x per tier, EXCEPT the jump to Unique is 81x (3^4) above Super instead of
+    // 3x -- so Unique gear/mobs are 81x a Super's HP/damage, not merely 3x.
+    if (rarity >= RarityID::kUnique)
+        return std::pow(3.f, (float)rarity + 3.f);   // Super=3^7, Unique=3^(8+3)=3^11 -> 81x
     return std::pow(3.f, (float)rarity);
 }
 float craft_success_chance(uint8_t rarity) {

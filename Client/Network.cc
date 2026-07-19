@@ -4,6 +4,7 @@
 #include <Client/Input.hh>
 #include <Client/StaticData.hh>
 #include <Client/Ui/Extern.hh>
+#include <Client/Ui/InGame/Loadout.hh>
 #include <Client/Ui/Ui.hh>
 
 #include <Shared/Binary.hh>
@@ -170,20 +171,28 @@ void Game::spawn_in() {
         }
         return;
     }
-    // Coming back from Leave while the flower is still alive: just resume the
-    // game view (the reverse-spawn animation plays forward again).
     Game::leaving = 0;
-    if (Game::alive()) {
-        Game::on_game_screen = 1;
-        return;
-    }
+    // Leaving now despawns the flower server-side, so there's nothing to "resume"
+    // -- every spawn is a fresh one at a spawn point. If the flower is still being
+    // torn down (alive() briefly true right after Leave), do nothing and let the
+    // next click spawn once it's gone.
+    if (Game::alive()) return;
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
-    if (Game::on_game_screen == 0) {
-        writer.write<uint8_t>(Serverbound::kClientSpawn);
-        std::string name = Game::nickname;
-        writer.write<std::string>(name);
-        socket.send(writer.packet, writer.at - writer.packet);
-    } else Game::on_game_screen = 0;
+    writer.write<uint8_t>(Serverbound::kClientSpawn);
+    std::string name = Game::nickname;
+    writer.write<std::string>(name);
+    socket.send(writer.packet, writer.at - writer.packet);
+}
+
+void Game::leave_game() {
+    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
+    writer.write<uint8_t>(Serverbound::kLeave);
+    socket.send(writer.packet, writer.at - writer.packet);
+    // Blank the loadout display immediately so the equipped petals don't flash
+    // Common while the flower is torn down; then drop back to the title screen.
+    Ui::clear_loadout_display();
+    Game::leaving = 1;
+    Game::on_game_screen = 0;
 }
 
 void Game::store_petal(uint8_t pos) {

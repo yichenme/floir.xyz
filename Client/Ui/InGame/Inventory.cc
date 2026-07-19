@@ -162,10 +162,10 @@ Element *Ui::make_inventory_button() {
             if (Ui::panel_open != Panel::kInventory) {
                 Ui::panel_open = Panel::kInventory;
                 Element *pg = Ui::Panel::inventory;
-                // To the right of the button (not stacked above it), bottom-
-                // aligned with it.
-                pg->x = elt->screen_x / Ui::scale + elt->width / 2 + 10;
-                pg->y = elt->y;
+                // Above the button, sliding up from the bottom, overlaying the
+                // loadout (kept on-screen horizontally).
+                pg->x = elt->screen_x / Ui::scale - pg->width / 2;
+                pg->y = -(elt->height + 20);
                 if (pg->x < 10)
                     pg->x = 10;
                 if (pg->x + pg->width > Ui::window_width / Ui::scale - 10)
@@ -203,9 +203,19 @@ Element *Ui::make_inventory_panel() {
         .fill = 0xff5a9fdb,
         .line_width = 7,
         .round_radius = 3,
-        // Hard show/hide (no slide-out lerp): craft & inventory share the same
-        // corner, so an animated close would briefly overlap the other panel and
-        // read as "both open at once".
+        // Slide up from below on open / down on close. Additionally, while a
+        // petal is being DRAGGED and the cursor is OUTSIDE the panel, the whole
+        // panel slides down out of the way so the card can be carried down to the
+        // loadout; it slides back up the moment the drag ends (release/place).
+        .animate = [](Element *elt, Renderer &ctx){
+            float const hw = elt->width * (float) Ui::scale / 2;
+            float const hh = elt->height * (float) Ui::scale / 2;
+            bool const dragging_out = Ui::dragging_inventory_index >= 0 &&
+                (Input::mouse_x < elt->screen_x - hw || Input::mouse_x > elt->screen_x + hw ||
+                 Input::mouse_y < elt->screen_y - hh || Input::mouse_y > elt->screen_y + hh);
+            float const hide = dragging_out ? 1.0f : 0.0f;
+            ctx.translate(0, ((1 - (float) elt->animation) + hide) * 2 * elt->height);
+        },
         .should_render = [](){
             return Ui::panel_open == Panel::kInventory && Game::alive();
         },

@@ -132,7 +132,7 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             if (mob_rarity == RarityID::kSuper)       { threshold_pct = 0.01f;  max_looters = 25; }
             else if (mob_rarity == RarityID::kUnique) { threshold_pct = 0.005f; max_looters = 100; }
             float const threshold = ent.max_health * threshold_pct;
-            struct LootGroup { std::vector<uint16_t> ids; float total_damage = 0; };
+            struct LootGroup { std::vector<uint16_t> ids; float total_damage = 0; uint32_t squad_id = 0; };
             std::unordered_map<uint32_t, LootGroup> squad_groups;
             std::vector<LootGroup> groups;
             for (auto const &kv : ent.mob_damage) {
@@ -144,12 +144,23 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
                     LootGroup g; g.ids.push_back(kv.first); g.total_damage = kv.second;
                     groups.push_back(std::move(g));
                 } else {
+                    // Pool the squad's damage; the looter set is the FULL roster
+                    // (filled below), not just whoever dealt damage.
                     LootGroup &g = squad_groups[squad_id];
-                    g.ids.push_back(kv.first);
+                    g.squad_id = squad_id;
                     g.total_damage += kv.second;
                 }
             }
-            for (auto &kv : squad_groups) groups.push_back(std::move(kv.second));
+            // A squad loots TOGETHER: every current (alive) squad member gets a
+            // drop, even if they dealt no damage themselves.
+            for (auto &kv : squad_groups) {
+                LootGroup g = std::move(kv.second);
+                for (EntityID const &m : Squad::members(g.squad_id)) {
+                    if (!sim->ent_alive(m)) continue;
+                    g.ids.push_back((uint16_t) m.id);
+                }
+                if (!g.ids.empty()) groups.push_back(std::move(g));
+            }
             // Each qualifying group's total damage must clear threshold*group size.
             groups.erase(std::remove_if(groups.begin(), groups.end(), [&](LootGroup const &g) {
                 return g.total_damage < threshold * (float)g.ids.size();
@@ -201,38 +212,12 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
             if (mob_rarity >= RarityID::kSuper) {
                 std::string killer_name = "someone";
                 {
-                    // Credit the highest-damage killer (and their squad), not the
-                    // finishing blow.
+                    // Credit only the single highest-damage dealer (not a list of
+                    // every squad member).
                     EntityID kid = _top_damage_killer(sim, ent);
                     if (sim->ent_alive(kid) && sim->get_ent(kid).has_component(kName)
-                        && !sim->get_ent(kid).get_name().empty()) {
+                        && !sim->get_ent(kid).get_name().empty())
                         killer_name = sim->get_ent(kid).get_name();
-                        // Squadded kill: name every squad member, comma-separated,
-                        // instead of just the finishing blow's dealer.
-                        Entity &kfl = sim->get_ent(kid);
-                        if (sim->ent_exists(kfl.get_parent())) {
-                            Entity &kcam = sim->get_ent(kfl.get_parent());
-                            uint32_t const sid = kcam.get_squad_id();
-                            if (sid != 0) {
-                                std::vector<EntityID> const &mem = Squad::members(sid);
-                                std::vector<std::string> names;
-                                for (EntityID const &m : mem) {
-                                    if (!sim->ent_alive(m)) continue;
-                                    Entity &mcam = sim->get_ent(m);
-                                    if (!sim->ent_alive(mcam.get_player())) continue;
-                                    std::string const nm = sim->get_ent(mcam.get_player()).get_name();
-                                    if (!nm.empty()) names.push_back(nm);
-                                }
-                                if (!names.empty()) {
-                                    killer_name.clear();
-                                    for (size_t i = 0; i < names.size(); ++i) {
-                                        if (i) killer_name += ", ";
-                                        killer_name += names[i];
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
                 bool const uniq = mob_rarity >= RarityID::kUnique;
                 std::string const msg = std::string("A ") + (uniq ? "unique " : "super ")

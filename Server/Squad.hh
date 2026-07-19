@@ -15,12 +15,17 @@ class Simulation;
 namespace Squad {
     uint32_t const MAX_SIZE = 4;
 
-    // Adds `target_camera` to `inviter_camera`'s squad (creating one if the
-    // inviter has none yet), first pulling `target_camera` out of any squad
-    // it was already in. No-ops (returns false) if the inviter's squad is
-    // already at MAX_SIZE, or either camera doesn't exist. Pushes
-    // kSquadUpdate + kSquadNotice to the affected clients.
+    // Records a PENDING invite from `inviter_camera` to `target_camera` and
+    // prompts the target to /squad-accept. Does NOT join them -- joining only
+    // happens on accept(). Returns false if the squad is full or a camera is
+    // invalid.
     bool invite(Simulation *sim, EntityID inviter_camera, EntityID target_camera);
+
+    // The target accepts its pending invite and actually joins the inviter's
+    // squad (creating one if needed, pulling the target out of any prior squad).
+    // Returns false if there's no valid pending invite. Pushes kSquadUpdate +
+    // kSquadNotice to affected clients.
+    bool accept(Simulation *sim, EntityID target_camera);
 
     // Removes `camera` from its squad (dissolving it if fewer than 2 members
     // remain afterward). Pushes kSquadUpdate to affected clients, including a

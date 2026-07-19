@@ -18,7 +18,10 @@ namespace {
     // right -- the same layout as the player's own LevelBar, scaled down. The
     // bar's left edge is aligned with the player HP bar's left edge (both start
     // 26px in from x=20, i.e. screen x 46). Max 3 rows (squad cap 4 -> 3 others).
-    float const BAR_W = 150, BAR_H = 16, GAP = 8, FACE_R = 13, FACE_OFF = 26;
+    // Flower icon is the SAME size as the player's own bar (FACE_R 26); only the
+    // bar is shorter -- 75% of the player's 220-wide HP bar. Rows are spaced for
+    // the full-size flower.
+    float const BAR_W = 165, BAR_H = 20, GAP = 12, FACE_R = 26, FACE_OFF = 26;
 
     class SquadBars final : public Element {
     public:
@@ -94,7 +97,8 @@ namespace {
                             .eye_y = flower->eye_y,
                             .mouth = flower->mouth,
                             .face_flags = flower->get_face_flags(),
-                            .equip_flags = 0,
+                            // Show equipped face gear (antennae / third eye / cutter).
+                            .equip_flags = flower->get_equip_flags(),
                             .color = flower->get_color()
                         });
                     } else {

@@ -125,8 +125,11 @@ void tick_petal_behavior(Simulation *sim, Entity &petal) {
                     float const dy = moon->get_y() - petal.get_y();
                     if (dx * dx + dy * dy <
                         (moon->get_radius() + petal.get_radius() + 30) * (moon->get_radius() + petal.get_radius() + 30)) {
+                        // A firm but not violent shove: too large a burst can fling
+                        // the heavy Moon into a wall faster than the swept terrain
+                        // collision (Motion.cc) resolves a big body against a corner.
                         Vector v(dx, dy);
-                        v.set_magnitude(PLAYER_ACCELERATION * 14);
+                        v.set_magnitude(PLAYER_ACCELERATION * 6);
                         moon->velocity += v;
                         sim->request_delete(petal.id);
                         break;

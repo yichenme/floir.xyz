@@ -131,6 +131,20 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             Auth::handle_logout(client);
             break;
         }
+        case Serverbound::kLeave: {
+            // Voluntarily leave the run: delete the live flower so the player
+            // returns to the title screen and a later respawn starts fresh at a
+            // spawn point (instead of resuming in place). The flower's deletion
+            // runs the normal death path, which banks the account's peak
+            // progress and purges its loot claims.
+            if (client->alive()) {
+                Simulation *simulation = &client->game->simulation;
+                Entity &camera = simulation->get_ent(client->camera);
+                if (simulation->ent_exists(camera.get_player()))
+                    simulation->request_delete(camera.get_player());
+            }
+            break;
+        }
         case Serverbound::kClientSpawn: {
             if (!client->logged_in) break;
             if (client->alive()) break;
@@ -242,6 +256,17 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             if (message == "/squad-leave") {
                 if (client->alive())
                     Squad::leave(&client->game->simulation, client->camera);
+                break;
+            }
+            if (message == "/squad-accept") {
+                if (client->alive()) {
+                    bool const ok = Squad::accept(&client->game->simulation, client->camera);
+                    Writer w(Server::OUTGOING_PACKET);
+                    w.write<uint8_t>(Clientbound::kSystemMessage);
+                    w.write<uint8_t>(SystemMsgKind::kSysSuper);
+                    w.write<std::string>(ok ? "You joined the squad!" : "You have no pending squad invite.");
+                    client->send_packet(w.packet, w.at - w.packet);
+                }
                 break;
             }
             // Prefer the flower's in-game name; fall back to the account name.

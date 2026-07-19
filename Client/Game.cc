@@ -137,21 +137,24 @@ void Game::init() {
     game_ui_window.add_child(
         Ui::make_chat_box()
     );
-    // Craft added before Inventory so Inventory's button/panel always draw on
-    // top when the two overlap (both anchor to the same corner).
+    // Buttons sit at the bottom corners (never overlap the loadout), so their
+    // order relative to the loadout doesn't matter.
     game_ui_window.add_child(
         Ui::make_craft_button()
     );
     game_ui_window.add_child(
-        Ui::make_craft_panel()
-    );
-    game_ui_window.add_child(
         Ui::make_inventory_button()
+    );
+    for (uint8_t i = 0; i < MAX_SLOT_COUNT * 2; ++i) game_ui_window.add_child(new Ui::UiLoadoutPetal(i));
+    // Panels added AFTER the loadout petals so an open inventory/craft panel
+    // draws ON TOP of the loadout (overlays it). Craft before Inventory so
+    // Inventory wins if they ever briefly overlap during a switch.
+    game_ui_window.add_child(
+        Ui::make_craft_panel()
     );
     game_ui_window.add_child(
         Ui::make_inventory_panel()
     );
-    for (uint8_t i = 0; i < MAX_SLOT_COUNT * 2; ++i) game_ui_window.add_child(new Ui::UiLoadoutPetal(i));
     game_ui_window.add_child(
         Ui::make_leaderboard()
     );

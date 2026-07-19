@@ -15,6 +15,9 @@ namespace {
     std::unordered_map<uint32_t, std::vector<EntityID>> g_squads;
     uint32_t g_next_id = 1;
     std::vector<EntityID> const EMPTY_MEMBERS;
+    // Pending invites awaiting the target's /squad-accept: target camera id ->
+    // inviter camera. Only one pending invite per target (a new one replaces it).
+    std::unordered_map<uint32_t, EntityID> g_pending;
 
     std::string _member_name(Simulation *sim, EntityID camera) {
         if (!sim->ent_alive(camera)) return "";
@@ -96,6 +99,29 @@ void Squad::leave(Simulation *sim, EntityID camera) {
 bool Squad::invite(Simulation *sim, EntityID inviter_camera, EntityID target_camera) {
     if (!sim->ent_alive(inviter_camera) || !sim->ent_alive(target_camera)) return false;
     if (inviter_camera == target_camera) return false;
+    Entity &inviter = sim->get_ent(inviter_camera);
+    Entity &target = sim->get_ent(target_camera);
+    uint32_t const sid = inviter.get_squad_id();
+    if (sid != 0) {
+        if (target.get_squad_id() == sid) return true;   // already squadmates
+        if (Squad::members(sid).size() >= MAX_SIZE) return false;
+    }
+    // Record the invite as PENDING and prompt the target -- they must accept
+    // (type /squad-accept) before actually joining.
+    g_pending[target_camera.id] = inviter_camera;
+    std::string const iname = _member_name(sim, inviter_camera);
+    _send_notice(target_camera, (iname.empty() ? std::string("A player") : iname)
+                 + " invited you to their squad -- type /squad-accept to join");
+    return true;
+}
+
+bool Squad::accept(Simulation *sim, EntityID target_camera) {
+    if (!sim->ent_alive(target_camera)) return false;
+    auto it = g_pending.find(target_camera.id);
+    if (it == g_pending.end()) return false;
+    EntityID const inviter_camera = it->second;
+    g_pending.erase(it);
+    if (!sim->ent_alive(inviter_camera) || inviter_camera == target_camera) return false;
     Entity &inviter = sim->get_ent(inviter_camera);
     Entity &target = sim->get_ent(target_camera);
     uint32_t sid = inviter.get_squad_id();

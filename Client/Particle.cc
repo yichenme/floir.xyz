@@ -84,17 +84,19 @@ void Particle::tick_game(Renderer &ctx, double dt) {
         ctx.arc(part.x,part.y,part.radius);
         ctx.fill();
     }
-    // Floating damage numbers (world space): rise, drift, and fade.
+    // Floating damage numbers (world space): rise slowly and fade. A number
+    // only starts fading once ~1s has passed since its last hit, so ongoing
+    // damage keeps it alive and climbing in place.
     for (size_t i = damage_numbers.size(); i > 0; --i) {
         DamageNumber &d = damage_numbers[i - 1];
+        double const age = Game::timestamp - d.last_hit;
+        if (age > 1000.0) d.opacity = fclamp(d.opacity - dt / 500.0f, 0, 1);
         if (d.opacity < 0.05f) {
             d = damage_numbers[damage_numbers.size() - 1];
             damage_numbers.pop_back();
             continue;
         }
-        d.y -= 40.0f * dt / 1000.0f;
-        d.x += d.vx * dt / 1000.0f;
-        d.opacity = fclamp(d.opacity - dt / 900.0f, 0, 1);
+        d.y -= 18.0f * dt / 1000.0f;   // gentle rise
         RenderContext c(&ctx);
         ctx.set_global_alpha(d.opacity);
         ctx.translate(d.x, d.y);
@@ -103,20 +105,35 @@ void Particle::tick_game(Renderer &ctx, double dt) {
         ctx.set_fill(d.color);
         ctx.set_stroke(0xff222222);
         ctx.set_line_width(22 * 0.14f);
-        ctx.stroke_text(d.text.c_str());
-        ctx.fill_text(d.text.c_str());
+        // Raw integer, no k/m/b abbreviation.
+        std::string const text = std::to_string((long long) (d.value + 0.5));
+        ctx.stroke_text(text.c_str());
+        ctx.fill_text(text.c_str());
     }
 }
 
-void Particle::add_damage_number(float x, float y, double amount, uint32_t color) {
+void Particle::add_damage_number(float x, float y, double amount, uint32_t color, uint32_t owner_id) {
     if (amount < 1) return;
+    // Stack onto a recent number for the same target (within ~1s) instead of
+    // spawning a separate one -- reads as a single climbing number.
+    for (DamageNumber &d : damage_numbers) {
+        if (d.owner_id == owner_id && Game::timestamp - d.last_hit < 1000.0) {
+            d.value += amount;
+            d.last_hit = Game::timestamp;
+            d.opacity = 1.0f;
+            d.color = color;          // latest hit's colour (lightning wins if last)
+            d.x = x; d.y = y;         // follow the target
+            return;
+        }
+    }
     DamageNumber d;
-    d.x = x + (frand() - 0.5f) * 20.0f;
+    d.x = x;
     d.y = y;
-    d.vx = (frand() - 0.5f) * 20.0f;
     d.opacity = 1.0f;
     d.color = color;
-    d.text = format_score((float) amount);   // compact (e.g. 328k)
+    d.owner_id = owner_id;
+    d.value = amount;
+    d.last_hit = Game::timestamp;
     damage_numbers.push_back(std::move(d));
 }
 

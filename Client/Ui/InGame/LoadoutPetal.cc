@@ -25,6 +25,18 @@ void Ui::ui_store_petal(uint8_t static_pos) {
     Ui::UiLoadout::petal_slots[static_pos]->curr_pos = 2 * MAX_SLOT_COUNT;
 }
 
+void Ui::clear_loadout_display() {
+    for (uint32_t i = 0; i < 2 * MAX_SLOT_COUNT; ++i) {
+        UiLoadoutPetal *s = Ui::UiLoadout::petal_slots[i];
+        if (s != nullptr) {
+            s->petal_id = s->last_id = PetalID::kNone;
+            s->rarity = s->last_rarity = 0;
+            s->no_change_ticks = 0;
+        }
+        Game::cached_loadout[i] = PetalID::kNone;
+    }
+}
+
 void Ui::ui_swap_petals(uint8_t static_pos1, uint8_t static_pos2) {
     //found static pos, now swap
     UiLoadoutPetal *a1 = Ui::UiLoadout::petal_slots[static_pos1];

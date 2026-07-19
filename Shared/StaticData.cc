@@ -74,6 +74,10 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .count = 1,
         .rarity = RarityID::kUncommon,
         .attributes = {
+            // Gather the 3 (Mythic) / 5 (Ultra+) stingers into ONE tight cluster
+            // that orbits as a single petal, instead of spreading them around
+            // the flower (same clumping Cactus uses).
+            .clump_radius = 9,
             // Point each stinger's sharp tip toward the cluster centre (inward).
             .icon_angle = M_PI,
             // Follow-rotation instead of the default free spin, so the in-world
@@ -710,7 +714,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .health = 1000.0,
         .damage = 2.0,
         .radius = 16.0,
-        .reload = 35.0,
+        .reload = 7.0,
         .count = 1,
         .rarity = RarityID::kEpic,
         .attributes = {
@@ -737,7 +741,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .health = 328050.0,
         .damage = 328050.0,
         .radius = 28.0,
-        .reload = 2.5,
+        .reload = 30.0,
         .count = 1,
         .rarity = RarityID::kUnique,
         .attributes = {

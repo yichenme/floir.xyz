@@ -117,26 +117,30 @@ namespace {
         }
     };
 
-    // Rows grouped by petal TYPE; the row count is exactly the number of
-    // distinct petal kinds currently in the inventory (loadout doesn't
-    // count -- Game::inventory_stacks only ever reflects the account
-    // inventory, never equipped petals).
+    // A flat grid of every owned (type, rarity) stack, arranged 9 cells per row
+    // -- the same row-chunked layout as the inventory panel (just a wider row).
+    // Ordered highest-rarity-first, then by petal name, matching the inventory's
+    // display order so the two panels read consistently.
+    int const CRAFT_COLUMNS = 9;
     Element *make_recipe_grid() {
         Element *grid = new VContainer({}, 10, 8, {});
-        std::vector<PetalID::T> types;
+        struct Cell { PetalID::T type; uint8_t rarity; };
+        std::vector<Cell> cells;
         for (PetalStack const &s : Game::inventory_stacks)
-            if (std::find(types.begin(), types.end(), s.type) == types.end())
-                types.push_back(s.type);
-        std::sort(types.begin(), types.end(), [](PetalID::T a, PetalID::T b) {
-            return std::string(PETAL_DATA[a].name) < std::string(PETAL_DATA[b].name);
+            if (s.count > 0)
+                cells.push_back({ s.type, s.rarity });
+        std::sort(cells.begin(), cells.end(), [](Cell const &a, Cell const &b) {
+            if (a.rarity != b.rarity) return a.rarity > b.rarity;
+            return std::string(PETAL_DATA[a.type].name) < std::string(PETAL_DATA[b.type].name);
         });
-        for (PetalID::T type : types) {
+        for (size_t i = 0; i < cells.size();) {
             Element *row = new HContainer({}, 0, 6, { .v_justify = Style::Top });
-            for (uint8_t r = 0; r < RarityID::kNumRarities; ++r) {
-                if (owned_count(type, r) == 0) continue;
-                row->add_child(new RecipeCell(type, r));
-            }
+            for (int j = 0; j < CRAFT_COLUMNS && i < cells.size(); ++j, ++i)
+                row->add_child(new RecipeCell(cells[i].type, cells[i].rarity));
             row->refactor();
+            // Fixed row width so short final rows stay left-aligned instead of
+            // centering (40px cells, 6px gaps), same idea as the inventory grid.
+            row->width = CRAFT_COLUMNS * 40 + (CRAFT_COLUMNS - 1) * 6;
             grid->add_child(row);
         }
         return grid;
@@ -320,13 +324,16 @@ Element *Ui::make_craft_panel() {
         .should_render = [](){ return Ui::panel_open == Panel::kCraft && Game::alive(); },
         .h_justify = Style::Left,
         .v_justify = Style::Bottom,
-        // Hard show/hide: without this the panel lerps out over ~10 frames and,
-        // because inventory anchors to the same corner, the two briefly overlap
-        // and read as "both open at once".
-        .no_animation = 1
+        // Slide up from below on open / down on close, same as the inventory
+        // panel. They're mutually exclusive (panel_open enum), so sharing the
+        // bottom-left corner never shows both at once.
+        .animate = [](Element *elt, Renderer &ctx){
+            ctx.translate(0, (1 - (float) elt->animation) * 2 * elt->height);
+        }
     });
-    // To the right of the icon (icon: x=10, width=140), not stacked above it.
-    elt->x = 10 + 140 + 10;
-    elt->y = -60;
+    // Bottom-left, sliding up above the Craft button (button: x=10, y=-60,
+    // height 40) -- same corner and behaviour as the Inventory panel.
+    elt->x = 10;
+    elt->y = -110;
     return elt;
 }

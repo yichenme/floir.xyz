@@ -80,14 +80,11 @@ Element *Ui::make_leaderboard() {
     });
 
     // Leave button below the leaderboard, styled like the title-screen buttons.
-    // Clicking it drops out of the game view; the spawn transition plays in
-    // reverse back to the title screen (see Game::leaving).
+    // Clicking it despawns the flower and returns to the title screen; a later
+    // spawn starts fresh at a spawn point (see Game::leave_game).
     Element *leave = new Ui::Button(LEADERBOARD_WIDTH + 20, 42,
         new Ui::StaticText(18, "Leave"),
-        [](Element *, uint8_t e){ if (e == Ui::kClick) {
-            Game::leaving = 1;
-            Game::on_game_screen = 0;
-        } },
+        [](Element *, uint8_t e){ if (e == Ui::kClick) Game::leave_game(); },
         nullptr,
         { .fill = 0xff5a9fdb, .line_width = 5, .round_radius = 3 }
     );
