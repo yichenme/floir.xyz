@@ -475,8 +475,9 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             // spans ~32.45 units from center (not the full 55 half-canvas --
             // there's padding baked into the reference), so scale against
             // that real content radius, matching how a plain circle petal
-            // fills its slot, rather than the nominal canvas half-width.
-            ctx.scale(r / 32.45);
+            // fills its slot, rather than the nominal canvas half-width --
+            // then 250% on top per explicit request.
+            ctx.scale(r / 32.45 * 2.5);
             ctx.round_line_cap();
             ctx.set_line_width(24);
             ctx.set_stroke(0xff363685);

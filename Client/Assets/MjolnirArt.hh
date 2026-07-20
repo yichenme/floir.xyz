@@ -231,13 +231,14 @@ namespace MjolnirArt {
     // like the reference icon rather than sitting small with uneven padding.
     inline void draw(Renderer &ctx, float r) {
         RenderContext _mj(&ctx);
-        ctx.scale(r / 39.0f);
+        ctx.scale(r / 39.0f * 1.1f);   // 110% per explicit request
         // Centre on the hammer content's actual bounding-box centre (55,56) --
         // it used to be shifted up to (55,47) to match a reference where a
         // "Mjölnir" text label overlapped the bottom of the icon, but the
         // in-game petal slot never has that label, so the shift just pushed
-        // the hammer off-centre within its own tile.
-        ctx.translate(-55.0f, -56.0f);
+        // the hammer off-centre within its own tile. Shifted down a bit from
+        // that centred position (-56 -> -51) per explicit request.
+        ctx.translate(-55.0f, -51.0f);
         for (auto const &p : PATHS) {
             ctx.set_fill(p.color);
             ctx.begin_path();

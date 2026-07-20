@@ -810,25 +810,50 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             break;
         }
         case MobID::kDandelion: {
-            // Literal trace of petals-and-mobs/petals/15.svg (the Dandelion
-            // asset) scaled up to mob size -- same geometry as the Dandelion
-            // petal: a grey ring r=15 / white core r=10.7 (both centered
-            // (0,-7.1)) plus a small dark seed mark, scaled by radius/32.49
-            // (the icon's own real content radius, i.e. the seed mark's
-            // farthest corner from center).
+            // Literal trace of petals-and-mobs/mobs/36.svg -- the actual
+            // Dandelion MOB asset (a body ringed by 10 stalks each ending in
+            // a small seed), not the petal's puff-and-seed-mark design.
+            // Precise 10-fold symmetric shape measured from the real path
+            // data: body grey/white r=17.67/15.67 at center, 10 stalks from
+            // radius ~16.66 to 30.0, 10 seeds at radius 30.0 with
+            // grey/white r=7.0/5.0. Scaled by radius/37.0 so the seeds'
+            // outer edge -- the shape's farthest point -- sits at the
+            // physics radius.
             RenderContext context(&ctx);
-            ctx.scale(radius / 32.49f);
+            ctx.scale(radius / 37.0f);
+            uint32_t const N = 10;
+            float const BODY_OUTER = 17.67f, BODY_INNER = 15.67f;
+            float const SEED_DIST = 30.0f, SEED_OUTER = 7.0f, SEED_INNER = 5.0f;
+            float const STALK_START = 16.66f;
+            ctx.set_stroke(0xff333333);
+            ctx.set_line_width(4.667f);
+            ctx.round_line_cap();
+            for (uint32_t i = 0; i < N; ++i) {
+                float const a = 2 * M_PI * i / N;
+                ctx.begin_path();
+                ctx.move_to(cosf(a) * STALK_START, sinf(a) * STALK_START);
+                ctx.line_to(cosf(a) * SEED_DIST, sinf(a) * SEED_DIST);
+                ctx.stroke();
+            }
+            for (uint32_t i = 0; i < N; ++i) {
+                float const a = 2 * M_PI * i / N;
+                float const sx = cosf(a) * SEED_DIST, sy = sinf(a) * SEED_DIST;
+                ctx.set_fill(0xffcfcfcf);
+                ctx.begin_path();
+                ctx.arc(sx, sy, SEED_OUTER);
+                ctx.fill();
+                ctx.set_fill(0xffffffff);
+                ctx.begin_path();
+                ctx.arc(sx, sy, SEED_INNER);
+                ctx.fill();
+            }
             ctx.set_fill(0xffcfcfcf);
             ctx.begin_path();
-            ctx.arc(0, -7.1f, 15.0f);
+            ctx.arc(0, 0, BODY_OUTER);
             ctx.fill();
             ctx.set_fill(0xffffffff);
             ctx.begin_path();
-            ctx.arc(0, -7.1f, 10.7f);
-            ctx.fill();
-            ctx.set_fill(0xff333333);
-            ctx.begin_path();
-            ctx.ellipse(-6.15f, -16.75f, 11.15f, 14.65f);
+            ctx.arc(0, 0, BODY_INNER);
             ctx.fill();
             break;
         }
