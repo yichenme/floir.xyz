@@ -3,6 +3,8 @@
 #include <Client/Assets/MjolnirArt.hh>
 #include <Client/StaticData.hh>
 
+#include <Helpers/Macros.hh>
+
 #include <cmath>
 
 void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
@@ -18,6 +20,14 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.move_to(0,0);
             ctx.line_to(-1.6 * r, 0);
             ctx.stroke();
+        // Retired (numbering kept only for old saved accounts, never
+        // craftable/droppable/giveable) -- reuse the plain-circle render so
+        // they're explicitly covered instead of relying solely on the
+        // default fallback above.
+        case PetalID::kHeavyLegacy:
+        case PetalID::kTwin:
+        case PetalID::kTriplet:
+        case PetalID::kTringer:
         case PetalID::kUniqueBasic:
         case PetalID::kBasic:
         case PetalID::kLight:
@@ -926,8 +936,23 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.stroke();
             break;
         default:
-            assert(id < PetalID::kNumPetals);
-            assert(!"didn't cover petal render");
+            // Should never happen (every non-retired PetalID has its own
+            // case above, and retired ones fall through from kBasic just
+            // above), but a hard abort here takes down the ENTIRE client
+            // for that one player over a single bad icon -- happened twice
+            // this session (kUniqueBasic, then kHeavyLegacy/kTwin/kTriplet/
+            // kTringer were all missing their cases at one point or
+            // another). Degrade to a plain grey placeholder instead of
+            // assert-aborting the WASM module in production; DEBUG_ONLY
+            // still asserts loudly so this is caught immediately in dev.
+            DEBUG_ONLY(assert(!"didn't cover petal render");)
+            ctx.set_fill(0xff888888);
+            ctx.set_stroke(0xff666666);
+            ctx.set_line_width(3);
+            ctx.begin_path();
+            ctx.arc(0,0,r);
+            ctx.fill();
+            ctx.stroke();
             break;
     }
 }

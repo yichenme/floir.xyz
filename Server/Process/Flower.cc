@@ -44,19 +44,19 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
         struct PetalAttributes const &attrs = petal_data.attributes;
         if (attrs.equipment != EquipmentFlags::kNone)
             player.set_equip_flags(player.get_equip_flags() | (1 << attrs.equipment));
-        // FOV petals widen the view with rarity. The old harmonic decay
-        // (1/(1+rate*(rarity+1))) saturated at the BASE_FOV*0.35 floor
-        // (see camera.set_fov below) well before the top rarity -- at
-        // rate=0.75 every tier from Rare upward already clamped to the
-        // exact same FOV, so e.g. a Rare and a Unique Antennae had zero
-        // vision difference (bug report). Linear ramp instead: strictly
-        // decreasing at every tier, landing exactly on the pre-existing
-        // 0.35 floor at the TOP rarity (Unique) instead of several tiers
-        // early, so every rarity in between is now visibly distinct.
+        // FOV petals widen the view with rarity: +100% at Common, +75% more
+        // per tier up (Uncommon +175%, Rare +250%, ... Unique +700%), same
+        // 1/(1+bonus) shape as before. The floor in camera.set_fov below is
+        // set to this formula's OWN natural minimum at the top rarity
+        // (Unique, bonus=7 -> 1/8=0.125) rather than a fixed 0.35 -- an
+        // arbitrary floor higher than that minimum is exactly what caused
+        // the last bug (every tier from Rare up clamping to the same FOV,
+        // zero visible difference between e.g. Rare and Unique Antennae).
+        // Since the floor now matches the formula's true minimum, no tier
+        // saturates early: all 9 rarities stay strictly distinct.
         if (attrs.vision_factor < 1.f) {
-            float const floor_ratio = 0.35f;
-            float const t = (float)(slot.rarity + 1) / (float)RarityID::kNumRarities;
-            buffs.vision_factor = std::min(buffs.vision_factor, 1.f - (1.f - floor_ratio) * t);
+            float const bonus = 1.0f + 0.75f * (float)slot.rarity;
+            buffs.vision_factor = std::min(buffs.vision_factor, 1.f / (1.f + bonus));
         }
         buffs.extra_range = std::fmax(attrs.extra_range * (slot.rarity + 1), buffs.extra_range);   // Third Eye: +25 per rarity (base 25)
         buffs.magnet_range = std::fmax(buffs.magnet_range, attrs.magnet_range * (slot.rarity + 1));   // Magnet: +150 per rarity (base 150)
@@ -200,8 +200,11 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
         // actually queries/sends entities for. Without this, a high-rarity
         // Antennae/Observer would visually zoom out further than what got
         // queried, so mobs inside the visible-but-unqueried gap silently never
-        // rendered.
-        camera.set_fov(fclamp(BASE_FOV * buffs.vision_factor, BASE_FOV * 0.35f, BASE_FOV));
+        // rendered. 0.125 is the vision_factor formula's own natural minimum
+        // (Unique Antennae, bonus=1+0.75*8=7 -> 1/8) -- matching the floor to
+        // that exactly means it only ever engages at the top rarity, not
+        // several tiers early.
+        camera.set_fov(fclamp(BASE_FOV * buffs.vision_factor, BASE_FOV * 0.125f, BASE_FOV));
     }
 
     DEBUG_ONLY(assert(player.get_loadout_count() <= MAX_SLOT_COUNT);)
