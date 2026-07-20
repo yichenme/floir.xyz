@@ -129,6 +129,10 @@ SINGLE(Name, nametag_visible, uint8_t)
     SINGLE(ai_tick, game_tick_t, =0) \
     SINGLE(revive_ticks, game_tick_t, =0) \
     \
+    SINGLE(magnet_pull_ticks, game_tick_t, =0) \
+    SINGLE(magnet_pull_start_x, float, =0) \
+    SINGLE(magnet_pull_start_y, float, =0) \
+    \
     SINGLE(poison_inflicted, float, =0) \
     SINGLE(poison_dealer, EntityID, =NULL_ENTITY) \
     SINGLE(poison_damage, PoisonDamage, ={}) \

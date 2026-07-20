@@ -110,31 +110,45 @@ static RotationCenter const _get_petal_rotation_center(Simulation *sim, Entity c
     };
 }
 
-// Magnet: nudges nearby drops the player is actually eligible to collect
-// toward them each tick. Drops otherwise never move on their own (they're
-// excluded from the collision push in on_collide), so this is a direct
-// position nudge rather than an acceleration/velocity effect -- it never
-// needs to be "reset" when a drop leaves range or the petal is unequipped,
-// since it only ever touches a drop's position on the tick it's actually
-// pulling it.
-static float const MAGNET_PULL_SPEED = 600.0f;   // units/sec
+// Magnet: pulls nearby drops the player is actually eligible to collect
+// to their position in EXACTLY 0.1s of continuous pull, regardless of how
+// far away the drop started -- not a constant speed (a distant drop would
+// otherwise take longer). Achieving a fixed total duration needs to know
+// how long a given drop has already been mid-pull, so unlike most of this
+// file's other per-tick nudges this one needs a little persistent state per
+// drop: magnet_pull_ticks (elapsed ticks since it started, 0 = not
+// currently being pulled) and the position it started from
+// (magnet_pull_start_x/y), captured once on the first tick it's grabbed.
+// Every tick after that just linearly interpolates from that frozen start
+// point to the player's CURRENT position (so it also tracks a moving
+// player), reaching exactly the player's position the instant elapsed
+// ticks hits PULL_TICKS. A drop that leaves range or becomes ineligible
+// (owner change) has its counter reset so a later re-entry starts a fresh
+// 0.1s pull instead of resuming a stale one; a drop that leaves the
+// spatial-hash query box entirely (range shrinks, e.g. Magnet unequipped)
+// simply stops being visited and keeps a stale counter until it's captured
+// again -- harmless, since it only ever shortens a future pull slightly.
+static uint32_t const PULL_TICKS = (uint32_t) std::lround(0.1 * TPS);   // exactly 0.1s
 static void _apply_magnet_pull(Simulation *sim, Entity &player, float range) {
     if (range <= 0) return;
     if (!sim->ent_alive(player.get_parent())) return;
     uint32_t const owner_id = player.get_parent().id;
-    float const step = MAGNET_PULL_SPEED / TPS;
     float const px = player.get_x(), py = player.get_y();
     sim->spatial_hash.query(px, py, range, range, [&](Simulation *, Entity &ent) {
         if (!ent.has_component(kDrop) || ent.pending_delete) return;
         uint32_t const drop_owner = ent.get_drop_owner();
-        if (drop_owner != 0 && drop_owner != owner_id) return;
+        if (drop_owner != 0 && drop_owner != owner_id) { ent.magnet_pull_ticks = 0; return; }
         Vector d(px - ent.get_x(), py - ent.get_y());
         float const dist = d.magnitude();
-        if (dist > range || dist < 1.0f) return;
-        d.normalize();
-        float const move = std::fmin(step, dist);
-        ent.set_x(ent.get_x() + d.x * move);
-        ent.set_y(ent.get_y() + d.y * move);
+        if (dist > range || dist < 1.0f) { ent.magnet_pull_ticks = 0; return; }
+        if (ent.magnet_pull_ticks == 0) {
+            ent.magnet_pull_start_x = ent.get_x();
+            ent.magnet_pull_start_y = ent.get_y();
+        }
+        if (ent.magnet_pull_ticks < PULL_TICKS) ++ent.magnet_pull_ticks;
+        float const ratio = (float) ent.magnet_pull_ticks / (float) PULL_TICKS;
+        ent.set_x(ent.magnet_pull_start_x + (px - ent.magnet_pull_start_x) * ratio);
+        ent.set_y(ent.magnet_pull_start_y + (py - ent.magnet_pull_start_y) * ratio);
     });
 }
 
