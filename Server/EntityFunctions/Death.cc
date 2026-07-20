@@ -46,23 +46,51 @@ static void _alloc_drops(Simulation *sim, std::vector<DropSpec> &drops, float x,
     }
 }
 
+// Grant `reward` XP to one flower and bank its camera's peak level. count_kill
+// bumps mobs_killed (only the actual killer gets that, not squad-mates).
+static void _grant_score(Simulation *sim, Entity &flower, uint32_t reward, bool count_kill) {
+    if (!flower.has_component(kScore)) return;
+    flower.set_score(flower.get_score() + reward);
+    if (count_kill) flower.set_mobs_killed(flower.get_mobs_killed() + 1);
+    // Continuously bank the peak level on the camera so it persists across
+    // deaths and can only ever grow (XP is never lost on respawn).
+    if (sim->ent_exists(flower.get_parent())) {
+        Entity &cam = sim->get_ent(flower.get_parent());
+        if (cam.has_component(kCamera)) {
+            uint32_t lvl = score_to_level(flower.get_score());
+            if (lvl > cam.get_respawn_level()) cam.set_respawn_level(lvl);
+        }
+    }
+}
+
 static void _add_score(Simulation *sim, EntityID const killer_id, Entity const &target) {
     if (!sim->ent_exists(killer_id)) return;
     Entity &killer = sim->get_ent(killer_id);
-    if (killer.has_component(kScore)) {
-        killer.set_score(killer.get_score() + target.score_reward);
-        if (target.has_component(kMob))
-            killer.set_mobs_killed(killer.get_mobs_killed() + 1);
-        // Continuously bank the peak level on the camera so it persists across
-        // deaths and can only ever grow (XP is never lost on respawn).
-        if (sim->ent_exists(killer.get_parent())) {
-            Entity &cam = sim->get_ent(killer.get_parent());
-            if (cam.has_component(kCamera)) {
-                uint32_t lvl = score_to_level(killer.get_score());
-                if (lvl > cam.get_respawn_level()) cam.set_respawn_level(lvl);
-            }
-        }
+    if (!killer.has_component(kScore)) return;
+
+    // Squads share XP: every kill grants its FULL reward to each living squad
+    // member's flower (so a squad levels together), not just the killer. The
+    // killer alone gets the mobs_killed credit. Unsquadded players (squad_id
+    // 0) fall through to the single-award path -- identical to before.
+    uint32_t squad_id = 0;
+    if (sim->ent_exists(killer.get_parent())) {
+        Entity const &kcam = sim->get_ent(killer.get_parent());
+        if (kcam.has_component(kCamera)) squad_id = kcam.get_squad_id();
     }
+    bool const is_mob_kill = target.has_component(kMob);
+    if (squad_id != 0) {
+        for (EntityID const member_cam_id : Squad::members(squad_id)) {
+            if (!sim->ent_exists(member_cam_id)) continue;
+            Entity &mcam = sim->get_ent(member_cam_id);
+            if (!mcam.has_component(kCamera)) continue;
+            EntityID const flower_id = mcam.get_player();
+            if (!sim->ent_alive(flower_id)) continue;
+            Entity &mflower = sim->get_ent(flower_id);
+            _grant_score(sim, mflower, target.score_reward, is_mob_kill && mflower.id == killer.id);
+        }
+        return;
+    }
+    _grant_score(sim, killer, target.score_reward, is_mob_kill);
 }
 
 // The flower (base_entity) that dealt the MOST damage to `ent` -- used for

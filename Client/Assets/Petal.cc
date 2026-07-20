@@ -459,8 +459,16 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             MjolnirArt::draw(ctx, r);
             break;
         case PetalID::kMagnet:
-            ctx.scale(r / 60);
-            ctx.translate(0, 14);
+            // Horseshoe magnet traced from the reference svg. Its path
+            // content spans x[-33.2..19.9], y[-26.3..24.8] -- centre
+            // (-6.645, -0.76), max ~30 from centre plus the ~12 stroke
+            // half-width. The prior r/60 + translate(0,14) rendered it tiny
+            // and shoved up off-centre ("corrupted"). Centre the content in
+            // the slot (translate by -centre) and scale so it fills to ~1.85r
+            // (the size it was at before the corruption), verified centred and
+            // non-clipping against the 60-unit card.
+            ctx.scale(r / 17.5f);
+            ctx.translate(6.645f, 0.76f);
             ctx.round_line_cap();
             ctx.set_line_width(24);
             ctx.set_stroke(0xff363685);

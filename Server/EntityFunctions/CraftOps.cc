@@ -18,11 +18,18 @@
 
 namespace CraftOps {
 
+// `amount` is the number of craft ATTEMPTS the client asked for (1 for a
+// single click, or the owned count for a "craft all" double-click / shift-
+// click -- the loop just caps itself by availability). Each attempt requires
+// 5 of (type, rarity): it consumes those 5, rolls the flat chance, and on
+// success produces 1 petal of rarity+1. Regardless of success or failure, an
+// EXTRA random 1-4 petals are then destroyed (capped at what's left), so
+// every attempt burns 5 + (1..4) of the stack.
 void try_craft(Client *client, PetalID::T type, uint8_t rarity, uint32_t amount) {
     if (client == nullptr || client->username.empty()) return;
     if (type == PetalID::kNone || type >= PetalID::kNumPetals) return;
     if (rarity >= RarityID::kSuper) return;   // Super isn't craftable
-    if (amount < 5) return;
+    if (amount < 1) return;
 
     std::vector<PetalStack> inv;
     AccountDB::read_inventory(client->username, inv);
@@ -30,33 +37,23 @@ void try_craft(Client *client, PetalID::T type, uint8_t rarity, uint32_t amount)
     for (size_t i = 0; i < inv.size(); ++i) {
         if (inv[i].type == type && inv[i].rarity == rarity) { idx = (int32_t)i; break; }
     }
-    if (idx < 0 || inv[(size_t)idx].count < amount) return;   // can't select more than owned
+    if (idx < 0 || inv[(size_t)idx].count < 5) return;   // need at least one attempt's worth
 
-    // Pity counter: carries across attempts WITHIN this one batched request
-    // too (not just across separate craft clicks) -- a big feed of e.g. 500
-    // petals plays out as up to 100 attempts against a chance that keeps
-    // climbing as it fails, same as the reference project's batch loop.
-    uint32_t attempt = inv[(size_t)idx].craft_attempt;
-    uint32_t remaining = amount;
+    float const chance = craft_success_chance(rarity);
+    uint64_t count = inv[(size_t)idx].count;
+    uint32_t attempts_left = amount;
     uint32_t crafted = 0;
     bool any_success = false;
-    while (remaining >= 5) {
-        float const chance = craft_success_chance(rarity, attempt);
-        if (frand() < chance) {
-            remaining -= 5;
-            ++crafted;
-            any_success = true;
-            attempt = 0;   // pity resets on any success
-        } else {
-            uint32_t loss = 1 + (uint32_t)(frand() * 4.f);
-            if (loss > remaining) loss = remaining;   // defensive; can't trigger (remaining>=5 > loss<=4)
-            remaining -= loss;
-            ++attempt;
-        }
+    while (attempts_left > 0 && count >= 5) {
+        count -= 5;                       // the 5 fed into this attempt
+        if (frand() < chance) { ++crafted; any_success = true; }
+        uint32_t extra = 1 + (uint32_t)(frand() * 4.f);   // 1..4 always lost on top
+        if (extra > count) extra = (uint32_t)count;       // capped at what remains
+        count -= extra;
+        --attempts_left;
     }
-    uint32_t const consumed = amount - remaining;
-    inv[(size_t)idx].count -= consumed;
-    inv[(size_t)idx].craft_attempt = attempt;
+    uint32_t const remaining = (uint32_t)count;
+    inv[(size_t)idx].count = count;
     if (inv[(size_t)idx].count == 0) inv.erase(inv.begin() + idx);
     uint8_t const out_rarity = rarity + 1;
     if (crafted > 0) InventoryOps::add_stack(inv, type, out_rarity, crafted);
