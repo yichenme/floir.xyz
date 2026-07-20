@@ -2,6 +2,7 @@
 
 #include <Shared/Entity.hh>
 #include <Shared/Simulation.hh>
+#include <Shared/StaticData.hh>
 #include <Shared/StaticDefinitions.hh>
 
 void enter_player_dead_state(Simulation *sim, Entity &flower) {
@@ -36,4 +37,12 @@ void enter_player_dead_state(Simulation *sim, Entity &flower) {
     flower.dandy_ticks = 0;
     // kDeadEyes drives the corpse face; kDefending unsmiles the mouth (client).
     flower.set_face_flags((1 << FaceFlags::kDeadEyes) | (1 << FaceFlags::kDefending));
+    // tick_player_behavior skips the buff recompute (incl. camera.set_fov)
+    // entirely while dead, so an equipped Antennae/Observer's widened FOV
+    // would otherwise stay frozen at its last pre-death value and keep
+    // "working" on the corpse. Reset it to the unbuffed base here.
+    if (sim->ent_alive(flower.get_parent())) {
+        Entity &camera = sim->get_ent(flower.get_parent());
+        camera.set_fov(BASE_FOV);
+    }
 }

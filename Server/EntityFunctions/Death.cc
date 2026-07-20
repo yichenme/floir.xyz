@@ -103,11 +103,12 @@ void entity_on_death(Simulation *sim, Entity const &ent) {
     }
     if (ent.has_component(kFlower) && sim->ent_alive(ent.get_parent())) {
         Entity &camera = sim->get_ent(ent.get_parent());
-        // Bug 2: a player who dies forfeits their loot claims until they respawn
-        // and re-engage -- purge this camera's damage from every live mob so a
-        // dead non-respawner can't be credited when a mob later dies.
-        uint32_t const dead_cam = camera.id.id;
-        sim->for_each<kMob>([dead_cam](Simulation *, Entity &m){ m.mob_damage.erase(dead_cam); });
+        // Loot-claim damage is NOT purged here on death -- a Yggdrasil revive
+        // flips the corpse back to alive on this same flower entity (see
+        // Collision.cc's try_yggdrasil_revive) without ever calling
+        // player_spawn, so its damage claims must survive. The purge instead
+        // happens in player_spawn (Spawn.cc), which only runs on an actual
+        // new-flower respawn.
         EntityID killer_id = sim->ent_exists(ent.last_damaged_by) ?
             sim->get_ent(ent.last_damaged_by).base_entity : NULL_ENTITY;
         if (sim->ent_alive(killer_id)) {

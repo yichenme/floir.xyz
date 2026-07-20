@@ -300,6 +300,12 @@ Entity &alloc_cpu_camera(Simulation *sim, EntityID const team) {
 }
 
 void player_spawn(Simulation *sim, Entity &camera, Entity &player) {
+    // A real respawn (new flower entity) forfeits loot claims from the
+    // previous life -- purge this camera's damage from every live mob here,
+    // NOT on death. A Yggdrasil revive never reaches this function (it flips
+    // the corpse flower back to alive in-place), so it keeps its claims.
+    uint32_t const cam_id = camera.id.id;
+    sim->for_each<kMob>([cam_id](Simulation *, Entity &m){ m.mob_damage.erase(cam_id); });
     camera.set_player(player.id);
     player.set_parent(camera.id);
     player.set_color(camera.get_color());

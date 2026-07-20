@@ -29,9 +29,11 @@ float mob_armor_mult(uint8_t r) {
 // Per-tier mob HP step (cumulative product), NOT a flat 3x -- each transition
 // has its own multiplier: Common->Uncommon 3.75, Uncommon->Rare 3.6,
 // Rare->Epic 4, Epic->Legendary 6, Legendary->Mythic 9.75, Mythic->Ultra
-// 810/13 (~62.31), Ultra->Super 200/9 (~22.22), Super->Unique 15.
+// 810/13 (~62.31), Ultra->Super 200/9 (~22.22), Super->Unique 150 (10x
+// buffed from the original 15, per explicit request -- only the Unique tier
+// changes, every tier at Super and below is untouched).
 static float const HP_STEP[8] = {
-    3.75f, 3.6f, 4.f, 6.f, 9.75f, 810.f / 13.f, 200.f / 9.f, 15.f
+    3.75f, 3.6f, 4.f, 6.f, 9.75f, 810.f / 13.f, 200.f / 9.f, 150.f
 };
 float mob_hp_mult(uint8_t r) {
     float m = 1.f;

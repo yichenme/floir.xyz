@@ -25,7 +25,12 @@ static TextInput *chat_input_box = nullptr;
 // native DOM overlay that always paints above the canvas, so it can't be hidden
 // by z-order -- gating should_render is what removes the DOM <input> (via
 // TextInput::on_render_skip -> DOM::element_hide).
-static bool chat_visible() { return Game::alive() && Ui::panel_open == Panel::kNone; }
+//
+// Usable both alive and as a dead corpse (before respawning) -- only actually
+// leaving the run (back to the title screen) should hide it.
+static bool chat_visible() {
+    return (Game::alive() || Game::player_is_dead_corpse()) && Ui::panel_open == Panel::kNone;
+}
 
 namespace {
     // Boxless, left-aligned message log sitting above the input. Newest message
@@ -97,7 +102,7 @@ bool Ui::chat_try_send() {
     // The chat DOM input swallows canvas focus, so we can't rely on Ui::focused.
     // In-game, Enter with text in the chat box sends it (and consumes the Enter
     // so it isn't also treated as a spawn key).
-    if (chat_input_box == nullptr || !Game::alive()) return false;
+    if (chat_input_box == nullptr || !(Game::alive() || Game::player_is_dead_corpse())) return false;
     if (!Input::keys_pressed_this_tick.contains('\r')) return false;
     if (Game::chat_input.empty()) return false;
     Game::send_chat(Game::chat_input);
@@ -106,7 +111,7 @@ bool Ui::chat_try_send() {
 }
 
 void Ui::chat_send_current() {
-    if (chat_input_box == nullptr || !Game::alive()) return;
+    if (chat_input_box == nullptr || !(Game::alive() || Game::player_is_dead_corpse())) return;
     if (Game::chat_input.empty()) return;
     Game::send_chat(Game::chat_input);
     chat_input_box->clear();

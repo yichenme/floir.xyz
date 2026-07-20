@@ -68,5 +68,11 @@ Element *Ui::make_stat_screen() {
     elt->animation.set(0);
     elt->style.h_justify = Style::Left;
     elt->style.v_justify = Style::Bottom;
+    // Chat is now usable while dead (a corpse can chat before respawning), so
+    // this panel and the chat box (Chat.cc's make_chat_box, ~200px tall +
+    // its own -10 offset -> top edge sits 210px above the bottom) can now be
+    // visible at the same time. Both are bottom-left anchored, so stack this
+    // one above the chat box instead of letting them overlap.
+    elt->y = -220;
     return elt;
 }
