@@ -167,7 +167,11 @@ namespace EntityFlags {
         // Skips physical push in collision (still deals/takes damage) so the
         // body overlays creatures instead of shoving them -- used by Stick's
         // summoned Sandstorms.
-        kNoPush
+        kNoPush,
+        // A Yggdrasil petal that has latched onto a dead flower and is
+        // counting down its revive_ticks -- see try_yggdrasil_revive in
+        // Collision.cc.
+        kIsReviving
     };
 };
 

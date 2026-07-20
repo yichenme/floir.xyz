@@ -38,6 +38,27 @@ void tick_petal_behavior(Simulation *sim, Entity &petal) {
                 petal.acceleration.unit_normal(petal.heading_angle).set_magnitude(2.0 * PLAYER_ACCELERATION);
                 break;
             }
+            case PetalID::kYggdrasil: {
+                // Latched onto a corpse by try_yggdrasil_revive (Collision.cc),
+                // which re-snaps this petal's position onto its target and
+                // ticks revive_ticks every tick they're still colliding. If
+                // the corpse it latched onto is gone (e.g. the player left
+                // instead of respawning) before that finishes, there's
+                // nothing left to revive and no future collision will ever
+                // re-trigger that logic -- self-destruct instead of leaving
+                // an inert petal stuck in the world forever. This also
+                // naturally resets the owner's reload (a deleted petal's
+                // slot restarts its reload timer from 0), same as a
+                // revive attempt that gets killed by mob damage.
+                if (BitMath::at(petal.flags, EntityFlags::kIsReviving)) {
+                    bool const target_ok = sim->ent_alive(petal.target)
+                        && sim->get_ent(petal.target).has_component(kFlower)
+                        && sim->get_ent(petal.target).get_dead();
+                    if (!target_ok) sim->request_delete(petal.id);
+                }
+                petal.acceleration.set(0, 0);
+                break;
+            }
             case PetalID::kMoon: {
                 /*
                 Vector delta(player.get_x() - petal.get_x(), player.get_y() - petal.get_y());

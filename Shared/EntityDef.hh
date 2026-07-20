@@ -127,6 +127,7 @@ SINGLE(Name, nametag_visible, uint8_t)
     SINGLE(despawn_tick, game_tick_t, =0) \
     SINGLE(secondary_reload, game_tick_t, =0) \
     SINGLE(ai_tick, game_tick_t, =0) \
+    SINGLE(revive_ticks, game_tick_t, =0) \
     \
     SINGLE(poison_inflicted, float, =0) \
     SINGLE(poison_dealer, EntityID, =NULL_ENTITY) \

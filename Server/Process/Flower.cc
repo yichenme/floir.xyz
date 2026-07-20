@@ -44,10 +44,11 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
         struct PetalAttributes const &attrs = petal_data.attributes;
         if (attrs.equipment != EquipmentFlags::kNone)
             player.set_equip_flags(player.get_equip_flags() | (1 << attrs.equipment));
-        // FOV petals widen the view with rarity: Observer +75% per tier,
-        // Antennae +50% per tier (view radius scales; vision_factor = 1/scale).
+        // FOV petals widen the view with rarity: both Observer and Antennae
+        // are +75% per tier (Common = +75%, Uncommon = +150%, etc.; view
+        // radius scales, vision_factor = 1/scale).
         if (attrs.vision_factor < 1.f) {
-            float const rate = (slot_petal_id == PetalID::kObserver) ? 0.75f : 0.5f;
+            float const rate = 0.75f;
             buffs.vision_factor = std::min(buffs.vision_factor, 1.f / (1.f + rate * (slot.rarity + 1)));
         }
         buffs.extra_range = std::fmax(attrs.extra_range * (slot.rarity + 1), buffs.extra_range);   // Third Eye: +25 per rarity (base 25)

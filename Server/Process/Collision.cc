@@ -95,17 +95,41 @@ static void _kill_from_collision(Simulation *sim, Entity &ent) {
 }
 
 // A loaded Yggdrasil petal that touches ANY dead flower (allies or enemies,
-// per spec) sticks onto the corpse and brings it back at full HP. Runs before
+// per spec) latches onto the corpse instead of instantly reviving it: it
+// sticks to the corpse's position (stops orbiting its owner, kIsDetached) and
+// counts up revive_ticks every tick contact holds. Runs before
 // _should_interact because that gate refuses petal-vs-flower contact -- the
-// revive is a deliberate exception. Deleting the petal restarts the owner's
-// Yggdrasil reload naturally (Flower.cc reloads the slot once its petal entity
-// is gone).
+// revive is a deliberate exception. While latched the petal keeps its normal
+// kHealth and is NOT exempted from the mob-damage step elsewhere in
+// on_collide (that step only skips a *dead* entity, and this petal isn't
+// one) -- so a mob attacking it during the 1s window can kill it before the
+// revive completes. A killed/deleted petal restarts the owner's Yggdrasil
+// reload naturally (Flower.cc reloads the slot once its petal entity is
+// gone), same as tick_petal_behavior's cleanup if the corpse disappears
+// mid-latch.
 static bool try_yggdrasil_revive(Simulation *sim, Entity &petal, Entity &dead) {
     if (petal.pending_delete) return false;
     if (!petal.has_component(kPetal) || petal.get_petal_id() != PetalID::kYggdrasil) return false;
     if (!dead.has_component(kFlower) || dead.has_component(kMob) || !dead.get_dead()) return false;
-    Vector d(petal.get_x() - dead.get_x(), petal.get_y() - dead.get_y());
-    if (d.magnitude() > petal.get_radius() + dead.get_radius()) return false;
+    bool const already_latched = BitMath::at(petal.flags, EntityFlags::kIsReviving) && petal.target == dead.id;
+    if (!already_latched) {
+        Vector d(petal.get_x() - dead.get_x(), petal.get_y() - dead.get_y());
+        if (d.magnitude() > petal.get_radius() + dead.get_radius()) return false;
+        BitMath::set(petal.flags, EntityFlags::kIsDetached);
+        BitMath::set(petal.flags, EntityFlags::kIsReviving);
+        BitMath::set(petal.flags, EntityFlags::kNoPush);
+        petal.target = dead.id;
+        petal.revive_ticks = 0;
+        petal.velocity.set(0, 0);
+        petal.acceleration.set(0, 0);
+    }
+    // Stick on top of the corpse every tick the latch holds.
+    petal.set_x(dead.get_x());
+    petal.set_y(dead.get_y());
+    if (petal.revive_ticks < TPS) {
+        ++petal.revive_ticks;
+        return true;
+    }
     dead.set_dead(0);
     dead.health = dead.max_health;
     dead.set_health_ratio(1);
