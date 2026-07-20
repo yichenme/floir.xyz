@@ -7,6 +7,7 @@ include_directories(..)
 
 set(SRCS
     Assets/Flower.cc
+    Assets/MjolnirArt.cc
     Assets/Mob.cc
     Assets/Petal.cc
     Assets/Web.cc

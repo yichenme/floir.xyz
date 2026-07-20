@@ -18,11 +18,8 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.move_to(0,0);
             ctx.line_to(-1.6 * r, 0);
             ctx.stroke();
-        case PetalID::kUniqueBasic:
         case PetalID::kBasic:
         case PetalID::kLight:
-        case PetalID::kTwin:
-        case PetalID::kTriplet:
             ctx.set_fill(0xffffffff);
             ctx.set_stroke(0xffcfcfcf);
             ctx.set_line_width(3);
@@ -31,17 +28,7 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.fill();
             ctx.stroke();
             break;
-        case PetalID::kHeavyLegacy:
-            ctx.set_fill(0xffbbbbbb);
-            ctx.set_stroke(0xff8d8d8d);
-            ctx.set_line_width(3);
-            ctx.begin_path();
-            ctx.arc(0,0,r);
-            ctx.fill();
-            ctx.stroke();
-            break;
         case PetalID::kStinger: {
-        case PetalID::kTringer:
             ctx.set_fill(0xff333333);
             ctx.set_stroke(0xff292929);
             ctx.set_line_width(3);
@@ -133,10 +120,6 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.stroke();
             break;
         case PetalID::kPollen:
-            // Two concentric filled discs (darker gold ring + lighter yellow
-            // core), matching petals-and-mobs/petals/14.svg exactly -- ratio
-            // of inner to outer radius taken from that svg's own two circles
-            // (r=7.857 inner / r=12.143 outer).
             ctx.set_fill(0xffcfbb50);
             ctx.begin_path();
             ctx.arc(0, 0, r);
@@ -462,29 +445,10 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             break;
         }
         case PetalID::kMjolnir:
-            // The hammer of thunder (translated from Mjölnir.svg).
             MjolnirArt::draw(ctx, r);
             break;
         case PetalID::kMagnet:
-            // A horseshoe magnet: a red arm and a blue arm curving down to
-            // meet at a point, each drawn as a thick outer stroke plus a
-            // thinner, lighter inner stroke for a rounded highlight. Traced
-            // directly from the reference petals-and-mobs/petals/29.svg
-            // (florr.io's actual Magnet icon), coordinates relative to that
-            // svg's 110x110 viewBox center. The icon's own drawn content only
-            // spans ~32.45 units from center (not the full 55 half-canvas --
-            // there's padding baked into the reference), so scale against
-            // that real content radius, matching how a plain circle petal
-            // fills its slot, rather than the nominal canvas half-width --
-            // then 250% on top per explicit request, then scaled down 25%
-            // (250% * 0.75 = 187.5%) per a later follow-up request.
-            ctx.scale(r / 32.45 * 1.875);
-            // The traced content spans y[-25.94..10.89] -- more above center
-            // than below -- so at 250% it was clipping off the top inside the
-            // circular slot. The content's own vertical midpoint (7.53) only
-            // balanced it top-to-bottom but the top was still clipping at
-            // this scale, so shift down further to keep the whole magnet
-            // inside the slot.
+            ctx.scale(r / 60);
             ctx.translate(0, 14);
             ctx.round_line_cap();
             ctx.set_line_width(24);
