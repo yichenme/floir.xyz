@@ -11,30 +11,13 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
         case PetalID::kNone:
             break;
         case PetalID::kDandelion:
-            // Fluffy puff (light-grey ring + white core) with a small dark
-            // seed mark at the upper-left, traced from the real path data in
-            // petals-and-mobs/petals/15.svg: a grey circle r=15 and white
-            // circle r=10.7, both centered (0,-7.1) relative to the svg's own
-            // canvas center, plus the seed mark's bbox centered (-6.15,-16.75)
-            // half-extent (11.15,14.65). Scaled against the icon's own real
-            // content radius (~32.49, the seed mark's farthest corner from
-            // center) rather than the raw 110x110 viewBox half-width -- using
-            // the raw canvas half-width rendered it at roughly a quarter
-            // size, since this reference icon has a lot of built-in padding.
-            ctx.scale(r / 32.49);
-            ctx.set_fill(0xffcfcfcf);
+            ctx.set_stroke(0xff222222);
+            ctx.round_line_cap();
+            ctx.set_line_width(7);
             ctx.begin_path();
-            ctx.arc(0, -7.1, 15.0);
-            ctx.fill();
-            ctx.set_fill(0xffffffff);
-            ctx.begin_path();
-            ctx.arc(0, -7.1, 10.7);
-            ctx.fill();
-            ctx.set_fill(0xff333333);
-            ctx.begin_path();
-            ctx.ellipse(-6.15, -16.75, 11.15, 14.65);
-            ctx.fill();
-            break;
+            ctx.move_to(0,0);
+            ctx.line_to(-1.6 * r, 0);
+            ctx.stroke();
         case PetalID::kUniqueBasic:
         case PetalID::kBasic:
         case PetalID::kLight:

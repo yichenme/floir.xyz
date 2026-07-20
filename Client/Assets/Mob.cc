@@ -810,52 +810,26 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             break;
         }
         case MobID::kDandelion: {
-            // Centre circle = the body; the ten spoke-lines with round fluff tips
-            // are the seed missiles (mirrors dandelion.svg). Slowly rotates.
-            // Matches dandelion.svg / the reference: a big WHITE core ringed by a
-            // light-grey outline, ten dark charcoal stalks, each ending in a small
-            // WHITE seed with the same grey ring. Static like a rock (no spin).
-            {
-                uint32_t const N = 10;
-                uint32_t const RING = 0xffcccccc;   // light-grey outline
-                float const RB = radius * 0.9f;      // body radius
-                float const FR = radius * 0.34f;     // seed (fluff) radius
-                float const FD = radius * 1.72f;     // seed centre distance
-                // Dark stalks first (drawn under the body + seeds so the joins are
-                // clean). Run from under the body edge out to under each seed.
-                ctx.set_stroke(0xff333333);
-                ctx.set_line_width(radius * 0.15f);
-                ctx.round_line_cap();
-                for (uint32_t i = 0; i < N; ++i) {
-                    float const a = 2 * M_PI * i / N;
-                    ctx.begin_path();
-                    ctx.move_to(cosf(a) * radius * 0.7f, sinf(a) * radius * 0.7f);
-                    ctx.line_to(cosf(a) * FD, sinf(a) * FD);
-                    ctx.stroke();
-                }
-                // Seeds: grey disc + smaller white disc = white circle w/ grey ring.
-                for (uint32_t i = 0; i < N; ++i) {
-                    float const a = 2 * M_PI * i / N;
-                    float const fx = cosf(a) * FD, fy = sinf(a) * FD;
-                    ctx.set_fill(RING);
-                    ctx.begin_path();
-                    ctx.arc(fx, fy, FR);
-                    ctx.fill();
-                    ctx.set_fill(0xffffffff);
-                    ctx.begin_path();
-                    ctx.arc(fx, fy, FR * 0.7f);
-                    ctx.fill();
-                }
-                // Body core: same white-with-grey-ring, on top of the stalk inner ends.
-                ctx.set_fill(RING);
-                ctx.begin_path();
-                ctx.arc(0, 0, RB);
-                ctx.fill();
-                ctx.set_fill(0xffffffff);
-                ctx.begin_path();
-                ctx.arc(0, 0, RB * 0.84f);
-                ctx.fill();
-            }
+            // Literal trace of petals-and-mobs/petals/15.svg (the Dandelion
+            // asset) scaled up to mob size -- same geometry as the Dandelion
+            // petal: a grey ring r=15 / white core r=10.7 (both centered
+            // (0,-7.1)) plus a small dark seed mark, scaled by radius/32.49
+            // (the icon's own real content radius, i.e. the seed mark's
+            // farthest corner from center).
+            RenderContext context(&ctx);
+            ctx.scale(radius / 32.49f);
+            ctx.set_fill(0xffcfcfcf);
+            ctx.begin_path();
+            ctx.arc(0, -7.1f, 15.0f);
+            ctx.fill();
+            ctx.set_fill(0xffffffff);
+            ctx.begin_path();
+            ctx.arc(0, -7.1f, 10.7f);
+            ctx.fill();
+            ctx.set_fill(0xff333333);
+            ctx.begin_path();
+            ctx.ellipse(-6.15f, -16.75f, 11.15f, 14.65f);
+            ctx.fill();
             break;
         }
         case MobID::kPollen: {
