@@ -44,12 +44,19 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
         struct PetalAttributes const &attrs = petal_data.attributes;
         if (attrs.equipment != EquipmentFlags::kNone)
             player.set_equip_flags(player.get_equip_flags() | (1 << attrs.equipment));
-        // FOV petals widen the view with rarity: both Observer and Antennae
-        // are +75% per tier (Common = +75%, Uncommon = +150%, etc.; view
-        // radius scales, vision_factor = 1/scale).
+        // FOV petals widen the view with rarity. The old harmonic decay
+        // (1/(1+rate*(rarity+1))) saturated at the BASE_FOV*0.35 floor
+        // (see camera.set_fov below) well before the top rarity -- at
+        // rate=0.75 every tier from Rare upward already clamped to the
+        // exact same FOV, so e.g. a Rare and a Unique Antennae had zero
+        // vision difference (bug report). Linear ramp instead: strictly
+        // decreasing at every tier, landing exactly on the pre-existing
+        // 0.35 floor at the TOP rarity (Unique) instead of several tiers
+        // early, so every rarity in between is now visibly distinct.
         if (attrs.vision_factor < 1.f) {
-            float const rate = 0.75f;
-            buffs.vision_factor = std::min(buffs.vision_factor, 1.f / (1.f + rate * (slot.rarity + 1)));
+            float const floor_ratio = 0.35f;
+            float const t = (float)(slot.rarity + 1) / (float)RarityID::kNumRarities;
+            buffs.vision_factor = std::min(buffs.vision_factor, 1.f - (1.f - floor_ratio) * t);
         }
         buffs.extra_range = std::fmax(attrs.extra_range * (slot.rarity + 1), buffs.extra_range);   // Third Eye: +25 per rarity (base 25)
         buffs.magnet_range = std::fmax(buffs.magnet_range, attrs.magnet_range * (slot.rarity + 1));   // Magnet: +150 per rarity (base 150)
@@ -128,7 +135,7 @@ static RotationCenter const _get_petal_rotation_center(Simulation *sim, Entity c
 // spatial-hash query box entirely (range shrinks, e.g. Magnet unequipped)
 // simply stops being visited and keeps a stale counter until it's captured
 // again -- harmless, since it only ever shortens a future pull slightly.
-static uint32_t const PULL_TICKS = (uint32_t) std::lround(0.1 * TPS);   // exactly 0.1s
+static uint32_t const PULL_TICKS = (uint32_t) std::lround(0.25 * TPS);   // exactly 0.25s
 static void _apply_magnet_pull(Simulation *sim, Entity &player, float range) {
     if (range <= 0) return;
     if (!sim->ent_alive(player.get_parent())) return;
