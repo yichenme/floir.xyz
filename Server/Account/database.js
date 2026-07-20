@@ -76,7 +76,13 @@ global.loadDatabase = () => {
 let dbDirty = false;
 let flushTimer = null;
 let isWriting = false;
-const FLUSH_INTERVAL_MS = 3000;
+// The flush's JSON.stringify of the whole DB is synchronous and blocks the
+// tick loop (~38ms at 3MB / 750 accounts, and growing). At the old 3s
+// interval that was a visible stutter every 3 seconds; 15s makes it 5x
+// rarer. Graceful shutdown (flushDatabaseNow, wired to SIGTERM/SIGINT) still
+// saves everything on deploys/restarts, so only an ungraceful crash can lose
+// up to ~15s of progress.
+const FLUSH_INTERVAL_MS = 15000;
 
 const scheduleFlush = () => {
     if (flushTimer !== null) return;   // already scheduled (fixed interval, no reset)
