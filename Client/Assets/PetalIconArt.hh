@@ -13,7 +13,9 @@ namespace MagnetIconArt {
     inline void draw(Renderer &ctx, float r) {
         RenderContext _c(&ctx);
         ctx.scale(r / 32.0f);
-        ctx.translate(6.645f, 0.76f);
+        // Centre (6.645, 0.76) + a small downward nudge (+5) to sit a bit
+        // lower in the card, matching the hammer's downward shift.
+        ctx.translate(6.645f, 5.76f);
         ctx.round_line_cap();
         ctx.round_line_join();
         ctx.set_line_width(24);
@@ -49,7 +51,9 @@ namespace MjolnirIconArt {
     inline void draw(Renderer &ctx, float r) {
         RenderContext _c(&ctx);
         ctx.scale(r / 34.0f);
-        ctx.translate(0, -8.0f);
+        // Nudged down (+5) from the prior -8 so it sits a bit lower, matching
+        // the magnet's downward shift.
+        ctx.translate(0, -3.0f);
         ctx.round_line_join();
 
         // Handle
