@@ -123,8 +123,11 @@ namespace {
     // Parses the flat `[{"type":N,"rarity":N[,"count":N]}, ...]` shape emitted
     // by database.js. Not a general JSON parser: relies on the JS side never
     // producing nested braces/strings for this data.
-    std::vector<std::array<long, 3>> parse_petal_json(std::string const &json) {
-        std::vector<std::array<long, 3>> out;
+    // 4th field is only meaningful for inventory stacks (craft pity counter);
+    // loadout parsing just ignores it. Missing on old saved data -> extract_field
+    // defaults to 0, which is exactly "no pity yet" -- fine as a migration default.
+    std::vector<std::array<long, 4>> parse_petal_json(std::string const &json) {
+        std::vector<std::array<long, 4>> out;
         size_t i = 0;
         while (i < json.size()) {
             size_t const obj_start = json.find('{', i);
@@ -132,7 +135,7 @@ namespace {
             size_t const obj_end = json.find('}', obj_start);
             if (obj_end == std::string::npos) break;
             std::string const obj = json.substr(obj_start, obj_end - obj_start + 1);
-            out.push_back({extract_field(obj, "type"), extract_field(obj, "rarity"), extract_field(obj, "count")});
+            out.push_back({extract_field(obj, "type"), extract_field(obj, "rarity"), extract_field(obj, "count"), extract_field(obj, "attempt")});
             i = obj_end + 1;
         }
         return out;
@@ -153,7 +156,8 @@ namespace {
         for (size_t i = 0; i < stacks.size(); ++i) {
             if (i) json += ',';
             json += "{\"type\":" + std::to_string(stacks[i].type) + ",\"rarity\":" + std::to_string(stacks[i].rarity) +
-                     ",\"count\":" + std::to_string(stacks[i].count) + "}";
+                     ",\"count\":" + std::to_string(stacks[i].count) +
+                     ",\"attempt\":" + std::to_string(stacks[i].craft_attempt) + "}";
         }
         json += ']';
         return json;
@@ -234,7 +238,7 @@ int AccountDB::read_loadout(std::string const &user, PetalItem *out) {
     ejs_ensure_ready();
     char *json_ptr = ejs_get_loadout(user.c_str());
     if (!json_ptr) return 0;
-    std::vector<std::array<long, 3>> const parsed = parse_petal_json(take_owned(json_ptr));
+    std::vector<std::array<long, 4>> const parsed = parse_petal_json(take_owned(json_ptr));
     for (size_t i = 0; i < 2 * MAX_SLOT_COUNT; ++i) {
         if (i < parsed.size()) {
             out[i].type = static_cast<PetalID::T>(parsed[i][0]);
@@ -256,7 +260,7 @@ int AccountDB::read_inventory(std::string const &user, std::vector<PetalStack> &
     ejs_ensure_ready();
     char *json_ptr = ejs_get_inventory(user.c_str());
     if (!json_ptr) return 0;
-    std::vector<std::array<long, 3>> const parsed = parse_petal_json(take_owned(json_ptr));
+    std::vector<std::array<long, 4>> const parsed = parse_petal_json(take_owned(json_ptr));
     out.clear();
     out.reserve(parsed.size());
     for (auto const &item : parsed) {
@@ -264,6 +268,7 @@ int AccountDB::read_inventory(std::string const &user, std::vector<PetalStack> &
         stack.type = static_cast<PetalID::T>(item[0]);
         stack.rarity = static_cast<uint8_t>(item[1]);
         stack.count = static_cast<uint64_t>(item[2]);
+        stack.craft_attempt = static_cast<uint32_t>(item[3]);
         out.push_back(stack);
     }
     return 1;
@@ -299,8 +304,9 @@ int AccountDB::read_kills(std::string const &user, std::vector<KillEntry> &out) 
     ejs_ensure_ready();
     char *json_ptr = ejs_get_kills(user.c_str());
     if (!json_ptr) return 0;
-    // Reuses the inventory triple parser: "type" carries the mob id here.
-    std::vector<std::array<long, 3>> const parsed = parse_petal_json(take_owned(json_ptr));
+    // Reuses the inventory parser: "type" carries the mob id here; the 4th
+    // field (craft attempt) is meaningless for kills and just ignored.
+    std::vector<std::array<long, 4>> const parsed = parse_petal_json(take_owned(json_ptr));
     out.clear();
     out.reserve(parsed.size());
     for (auto const &item : parsed)

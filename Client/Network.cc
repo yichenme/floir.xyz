@@ -57,6 +57,7 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
                 stack.type = static_cast<PetalID::T>(reader.read<uint8_t>());
                 stack.rarity = reader.read<uint8_t>();
                 stack.count = reader.read<uint64_t>();
+                stack.craft_attempt = reader.read<uint32_t>();
                 inventory_stacks.push_back(stack);
             }
             // Display order: highest rarity first, then by petal type, so the

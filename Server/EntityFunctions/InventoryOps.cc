@@ -187,6 +187,7 @@ void sync_inventory_update(Client *client) {
         writer.write<uint8_t>(stack.type);
         writer.write<uint8_t>(stack.rarity);
         writer.write<uint64_t>(stack.count);
+        writer.write<uint32_t>(stack.craft_attempt);
     }
     client->send_packet(writer.packet, writer.at - writer.packet);
 }

@@ -41,6 +41,17 @@ namespace {
         return 0;
     }
 
+    // Pity counter for a stack: rises with each failed 5-petal attempt at
+    // that (type,rarity), resets on any success -- see Shared/RarityScale.cc
+    // craft_success_chance. Reading it straight from the synced inventory
+    // stacks (rather than tracking it separately client-side) means it can
+    // never drift from what the server actually used for the last roll.
+    uint32_t attempt_for(PetalID::T type, uint8_t rarity) {
+        for (PetalStack const &s : Game::inventory_stacks)
+            if (s.type == type && s.rarity == rarity) return s.craft_attempt;
+        return 0;
+    }
+
     bool craftable(uint8_t rarity, uint64_t count) {
         return rarity < RarityID::kSuper && count >= 5;
     }
@@ -223,7 +234,11 @@ namespace {
                     g_anim_started = Game::timestamp;
                 }
             } else if (g_anim == kAnimReveal) {
-                if (Game::timestamp - g_anim_started > REVEAL_MS) {
+                // A successful reveal doesn't auto-dismiss -- the crafted
+                // petal has to be manually clicked to claim it (see
+                // on_event below). A failed reveal still auto-clears after
+                // REVEAL_MS since there's nothing to claim.
+                if (!Game::last_craft_result.any_success && Game::timestamp - g_anim_started > REVEAL_MS) {
                     g_anim = kAnimIdle;
                     sync_selection_after_craft();
                 }
@@ -299,12 +314,33 @@ namespace {
                 }
             }
         }
+        // Click-to-claim: the crafted petal was already granted server-side
+        // the instant the result came back (sync_inventory_update ran as
+        // part of try_craft), so this click doesn't move any petals -- it
+        // only dismisses the reveal and re-arms the pentagon for the next
+        // attempt, mirroring the reference project's manual-collect step.
+        void on_event(uint8_t event) override {
+            if (event != kClick) return;
+            if (g_anim != kAnimReveal || !Game::last_craft_result.any_success) return;
+            g_anim = kAnimIdle;
+            sync_selection_after_craft();
+        }
     };
+
+    // Set once by make_craft_panel; CraftChance recolors it every frame to
+    // match the OUTPUT rarity (g_sel_rarity+1) you're about to craft into,
+    // same idea as the reference project's rarity-tinted craft button.
+    Element *g_craft_btn = nullptr;
 
     class CraftChance final : public Element {
     public:
-        CraftChance() : Element(160, 16, {}) {}
+        CraftChance() : Element(160, 36, {}) {}
         void on_render(Renderer &ctx) override {
+            if (g_craft_btn != nullptr) {
+                uint8_t const out_rarity = g_sel_type == PetalID::kNone
+                    ? RarityID::kCommon : (uint8_t)(g_sel_rarity + 1);
+                g_craft_btn->style.fill = RARITY_COLORS[out_rarity];
+            }
             if (g_anim == kAnimReveal) {
                 bool const success = Game::last_craft_result.any_success;
                 uint32_t const survived = std::min<uint32_t>(4, (uint32_t) Game::last_craft_result.remaining);
@@ -312,13 +348,24 @@ namespace {
                     ? "Crafted!"
                     : "Failed -- " + std::to_string(survived) + " petal" + (survived == 1 ? "" : "s") + " left";
                 ctx.draw_text(text.c_str(), { .fill = success ? 0xff75dd34u : 0xffcc3333u, .size = 14 });
+                if (success) {
+                    RenderContext c(&ctx);
+                    ctx.translate(0, 18);
+                    ctx.draw_text("Click to claim", { .fill = 0xffdddddd, .size = 11 });
+                }
                 return;
             }
-            float const chance = g_sel_type == PetalID::kNone
-                ? 0
-                : craft_success_chance(g_sel_rarity) * 100.0f;
+            if (g_sel_type == PetalID::kNone) {
+                ctx.draw_text("Select a stack", { .fill = 0xffcccccc, .size = 14 });
+                return;
+            }
+            uint32_t const attempt = attempt_for(g_sel_type, g_sel_rarity);
+            float const chance = craft_success_chance(g_sel_rarity, attempt) * 100.0f;
             std::string const text = format_pct(chance) + " success";
             ctx.draw_text(text.c_str(), { .fill = 0xffffffff, .size = 14 });
+            RenderContext c(&ctx);
+            ctx.translate(0, 18);
+            ctx.draw_text(("Attempt " + std::to_string(attempt + 1)).c_str(), { .fill = 0xffaaaaaa, .size = 11 });
         }
     };
 }
@@ -344,6 +391,7 @@ Element *Ui::make_craft_panel() {
         }, nullptr,
         { .fill = 0xff5a9fdb, .line_width = 4, .round_radius = 4 }
     );
+    g_craft_btn = craft_btn;
     Element *craft_actions = new VContainer({
         craft_btn,
         new CraftChance()

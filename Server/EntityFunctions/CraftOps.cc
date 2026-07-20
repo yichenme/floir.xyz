@@ -32,23 +32,31 @@ void try_craft(Client *client, PetalID::T type, uint8_t rarity, uint32_t amount)
     }
     if (idx < 0 || inv[(size_t)idx].count < amount) return;   // can't select more than owned
 
-    float const chance = craft_success_chance(rarity);
+    // Pity counter: carries across attempts WITHIN this one batched request
+    // too (not just across separate craft clicks) -- a big feed of e.g. 500
+    // petals plays out as up to 100 attempts against a chance that keeps
+    // climbing as it fails, same as the reference project's batch loop.
+    uint32_t attempt = inv[(size_t)idx].craft_attempt;
     uint32_t remaining = amount;
     uint32_t crafted = 0;
     bool any_success = false;
     while (remaining >= 5) {
+        float const chance = craft_success_chance(rarity, attempt);
         if (frand() < chance) {
             remaining -= 5;
             ++crafted;
             any_success = true;
+            attempt = 0;   // pity resets on any success
         } else {
             uint32_t loss = 1 + (uint32_t)(frand() * 4.f);
             if (loss > remaining) loss = remaining;   // defensive; can't trigger (remaining>=5 > loss<=4)
             remaining -= loss;
+            ++attempt;
         }
     }
     uint32_t const consumed = amount - remaining;
     inv[(size_t)idx].count -= consumed;
+    inv[(size_t)idx].craft_attempt = attempt;
     if (inv[(size_t)idx].count == 0) inv.erase(inv.begin() + idx);
     uint8_t const out_rarity = rarity + 1;
     if (crafted > 0) InventoryOps::add_stack(inv, type, out_rarity, crafted);

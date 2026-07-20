@@ -15,9 +15,33 @@ float rarity_pow3(uint8_t rarity) {
 float mob_rarity_mult(uint8_t rarity) {
     return rarity_pow3(rarity);
 }
-float craft_success_chance(uint8_t rarity) {
+// Pity-scaling craft chance, one row per craftable input rarity
+// (Common..Ultra -- Super and above aren't craftable). Each row: a base %
+// at attempt=0, a %-per-attempt slope (soft pity), and past attempt >
+// tail_threshold a quadratic kicker /tail_divisor on top (hard pity, so a
+// long fail streak eventually guarantees a near-certain craft). Ported
+// directly from the reference project's calculateCraftChance (its rows for
+// rarity 0-6 map 1:1 onto floir's Common..Ultra, since both use exactly 5
+// petals/attempt and the same craftable-tier count here).
+float craft_success_chance(uint8_t rarity, uint32_t attempt) {
+    struct Row { float base, slope, tail_divisor; uint32_t tail_threshold; };
+    static Row const ROWS[RarityID::kSuper] = {
+        {30.0f, 9.0f,       2.0f,  6},    // Common -> Uncommon
+        {15.0f, 1.5f,       2.0f, 12},    // Uncommon -> Rare
+        {8.0f,  1.0f/1.4f,  5.0f, 18},    // Rare -> Epic
+        {5.0f,  1.0f/5.6f,  5.0f, 35},    // Epic -> Legendary
+        {3.0f,  1.0f/22.5f, 5.0f, 60},    // Legendary -> Mythic
+        {2.0f,  1.0f/33.0f, 5.0f, 70},    // Mythic -> Ultra
+        {1.0f,  1.0f/43.0f, 5.0f, 95},    // Ultra -> Super
+    };
     if (rarity >= RarityID::kSuper) return 0.f;
-    return 0.64f * std::pow(0.5f, (float)rarity);
+    Row const &row = ROWS[rarity];
+    float chance_pct = row.base + (float)attempt * row.slope;
+    if (attempt > row.tail_threshold) {
+        float const over = (float)(attempt - row.tail_threshold);
+        chance_pct += over * over / row.tail_divisor;
+    }
+    return std::fmin(chance_pct, 100.0f) / 100.0f;
 }
 float petal_hp_mult(uint8_t r) { return rarity_pow3(r); }
 float petal_damage_mult(uint8_t r) { return rarity_pow3(r); }

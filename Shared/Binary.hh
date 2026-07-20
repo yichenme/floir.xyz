@@ -7,7 +7,7 @@
 #include <vector>
 
 // kAuthResponse: uint8 success, string session_key_or_error
-// kInventoryUpdate: uint32 n, then n × (uint8 type, uint8 rarity, uint64 count)
+// kInventoryUpdate: uint32 n, then n × (uint8 type, uint8 rarity, uint64 count, uint32 craft_attempt)
 // kKillsUpdate: uint32 n, then n × (uint8 mob, uint8 rarity, uint64 count)
 // kChatMessage: string sender, string message
 // kSystemMessage: uint8 kind (SystemMsgKind), string message -- shown in chat as
