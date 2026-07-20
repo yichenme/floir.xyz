@@ -16,7 +16,7 @@ inline uint32_t const ENTITY_CAP = 8192;
 // number of mobs (every mob runs AI + motion + collision every tick), so this
 // is the main knob for how many players the server can carry. Keep it well
 // under ENTITY_CAP -- players, petals, drops and summons also draw from the cap.
-inline uint32_t const MOB_TARGET = 3072;
+inline uint32_t const MOB_TARGET = 2048;
 
 class Simulation {
     std::array<uint8_t, div_round_up(ENTITY_CAP, 8)> entity_tracker;

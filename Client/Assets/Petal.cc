@@ -476,8 +476,9 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             // there's padding baked into the reference), so scale against
             // that real content radius, matching how a plain circle petal
             // fills its slot, rather than the nominal canvas half-width --
-            // then 250% on top per explicit request.
-            ctx.scale(r / 32.45 * 2.5);
+            // then 250% on top per explicit request, then scaled down 25%
+            // (250% * 0.75 = 187.5%) per a later follow-up request.
+            ctx.scale(r / 32.45 * 1.875);
             // The traced content spans y[-25.94..10.89] -- more above center
             // than below -- so at 250% it was clipping off the top inside the
             // circular slot. The content's own vertical midpoint (7.53) only
