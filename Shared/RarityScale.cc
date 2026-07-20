@@ -53,10 +53,14 @@ float mob_hp_mult(uint8_t r) {
     return m;
 }
 float mob_size_mult(uint8_t r) {
-    // 1.4x per rarity tier, compounding (1.0x at Common, ~14.8x at Unique). No
-    // cap: the adaptive-stride terrain collision (Shared/Tilemap.hh push_circle)
-    // bounds per-mob cost, so large high-rarity mobs stay performant.
-    return std::pow(1.4f, (float)r);
+    // 1.4x per rarity tier, compounding (1.0x at Common). Ultra and above
+    // are then scaled to 75% (25% smaller): a balance tweak, and a perf win
+    // -- terrain/entity collision cost scales with radius^2, so a
+    // 25%-smaller Ultra+ collides ~44% cheaper, and Ultra+ are the priciest
+    // mobs on the tick.
+    float s = std::pow(1.4f, (float)r);
+    if (r >= RarityID::kUltra) s *= 0.75f;
+    return s;
 }
 
 // Rarity of a dropped item given the MOB's rarity, or DROP_NOTHING for no drop.

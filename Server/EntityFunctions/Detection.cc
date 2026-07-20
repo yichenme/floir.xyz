@@ -4,7 +4,12 @@
 #include <Shared/Entity.hh>
 
 EntityID find_nearest_enemy(Simulation *simulation, Entity const &entity, float radius, bool mobs_only) {
-    if ((entity.id.id - entity.lifetime) % (TPS / 5) != 0) return NULL_ENTITY;
+    // Aggro-scan throttle: this spatial-hash query is the dominant AI tick
+    // cost (run per targetless mob), so stagger it by entity id and only
+    // actually scan once every TPS/2 ticks (0.5s) instead of TPS/5 (0.2s) --
+    // ~2.5x fewer queries. A targetless mob just notices a nearby enemy up to
+    // 0.5s later; once it has a target it stops scanning entirely.
+    if ((entity.id.id - entity.lifetime) % (TPS / 2) != 0) return NULL_ENTITY;
     if (entity.immunity_ticks > 0) return NULL_ENTITY;
     EntityID ret;
     float min_dist = radius;
