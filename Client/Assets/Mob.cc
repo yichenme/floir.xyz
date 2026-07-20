@@ -351,54 +351,33 @@ void draw_static_mob(MobID::T mob_id, Renderer &ctx, MobRenderAttributes attr) {
             break;
         case MobID::kCactus: {
             SET_BASE_COLOR(0xff32a852)
-            // Literal trace of petals-and-mobs/mobs/2.svg's exact path data
-            // (10 spikes + a 10-lobe body outline, unmodified), scaled
-            // uniformly by radius/40 -- the spike tips are the shape's
-            // farthest points at radius 40 in the source, so this keeps them
-            // exactly at the physics radius (hitbox = visual extent). A
-            // single uniform scale (no separate per-size vertex-count/ratio
-            // formulas) means spikes are always the asset's real proportion
-            // of the body at every mob size, not just at one reference size.
-            RenderContext context(&ctx);
-            ctx.scale(radius / 40.0f);
-            static float const SPIKES[10][3][2] = {
-                {{-28.284f,-28.284f}, {-25.174f,-22.388f}, {-22.388f,-25.174f}},
-                {{-0.361f,-36.397f}, {-1.311f,-29.799f}, {2.581f,-30.415f}},
-                {{18.160f,-35.640f}, {13.513f,-30.860f}, {17.023f,-29.071f}},
-                {{34.503f,-11.591f}, {27.934f,-10.455f}, {29.723f,-6.944f}},
-                {{33.590f,17.473f}, {27.608f,14.531f}, {26.992f,18.423f}},
-                {{28.284f,28.284f}, {25.174f,22.388f}, {22.388f,25.174f}},
-                {{6.257f,39.507f}, {7.207f,32.909f}, {3.315f,33.525f}},
-                {{-18.160f,35.640f}, {-13.513f,30.860f}, {-17.023f,29.071f}},
-                {{-35.640f,18.160f}, {-29.071f,17.024f}, {-30.860f,13.513f}},
-                {{-34.727f,-10.904f}, {-28.745f,-7.962f}, {-28.129f,-11.854f}},
-            };
-            ctx.set_fill(0xff222222);
-            ctx.begin_path();
-            for (auto const &tri : SPIKES) {
-                ctx.move_to(tri[0][0], tri[0][1]);
-                ctx.line_to(tri[1][0], tri[1][1]);
-                ctx.line_to(tri[2][0], tri[2][1]);
-                ctx.line_to(tri[0][0], tri[0][1]);
+            uint32_t vertices = radius / 10 + 5;
+            {
+                RenderContext context(&ctx);
+                ctx.set_fill(0xff222222);
+                ctx.begin_path();
+                for (uint32_t i = 0; i < vertices; ++i) {
+                    ctx.move_to(10+radius,0);
+                    ctx.line_to(0.5+radius,3);
+                    ctx.line_to(0.5+radius,-3);
+                    ctx.line_to(10+radius,0);
+                    ctx.rotate(M_PI * 2 / vertices);
+                }
+                ctx.fill();
             }
-            ctx.fill();
             ctx.set_fill(base_color);
             ctx.set_stroke(Renderer::HSV(base_color, 0.8));
             ctx.set_line_width(7);
             ctx.round_line_cap();
             ctx.round_line_join();
             ctx.begin_path();
-            ctx.move_to(-23.570f,-23.570f);
-            ctx.qcurve_to(-12.953f,-25.422f, -5.215f,-32.923f);
-            ctx.qcurve_to(4.463f,-28.180f, 15.133f,-29.700f);
-            ctx.qcurve_to(20.175f,-20.175f, 29.700f,-15.133f);
-            ctx.qcurve_to(28.180f,-4.463f, 32.923f,5.214f);
-            ctx.qcurve_to(25.422f,12.954f, 23.570f,23.570f);
-            ctx.qcurve_to(12.953f,25.422f, 5.214f,32.923f);
-            ctx.qcurve_to(-4.463f,28.180f, -15.133f,29.700f);
-            ctx.qcurve_to(-20.175f,20.175f, -29.700f,15.133f);
-            ctx.qcurve_to(-28.180f,4.463f, -32.923f,-5.214f);
-            ctx.qcurve_to(-25.422f,-12.954f, -23.570f,-23.570f);
+            ctx.move_to(radius,0);
+            for (uint32_t i = 0; i < vertices; ++i) {
+                float base_angle = M_PI * 2 * i / vertices;
+                ctx.qcurve_to(
+                    radius*0.8*cosf(base_angle+M_PI/vertices),radius*0.8*sinf(base_angle+M_PI/vertices),
+                    radius*cosf(base_angle+2*M_PI/vertices),radius*sinf(base_angle+2*M_PI/vertices));
+            }
             ctx.fill();
             ctx.stroke();
             break;

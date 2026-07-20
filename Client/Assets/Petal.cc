@@ -478,6 +478,13 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             // fills its slot, rather than the nominal canvas half-width --
             // then 250% on top per explicit request.
             ctx.scale(r / 32.45 * 2.5);
+            // The traced content spans y[-25.94..10.89] -- more above center
+            // than below -- so at 250% it was clipping off the top inside the
+            // circular slot. The content's own vertical midpoint (7.53) only
+            // balanced it top-to-bottom but the top was still clipping at
+            // this scale, so shift down further to keep the whole magnet
+            // inside the slot.
+            ctx.translate(0, 14);
             ctx.round_line_cap();
             ctx.set_line_width(24);
             ctx.set_stroke(0xff363685);
