@@ -244,7 +244,31 @@ WebSocketServer::WebSocketServer() {
             console.log("Server running at http://localhost:"+$0);
         });
         
-        const wss = new WSS.Server({ "server": server });
+        // perMessage compression on the 20Hz binary state stream. Each client
+        // gets ONE large kClientUpdate packet per tick (Game.cc), so this is one
+        // deflate op per client per tick -- and Node `ws` runs zlib ASYNC on the
+        // libuv threadpool (off the game-tick event loop / core), so the heavy
+        // compression lands on otherwise-idle cores, not the single tick thread.
+        // Cuts outbound bandwidth ~40-60% (the 60Mbps-cap saturation / lag fix).
+        // Tuning for a single-core-bound, many-connection server:
+        //   * level 3 -- fast, most of the ratio for far less CPU than level 6+.
+        //   * server/clientNoContextTakeover -- no per-connection sliding window
+        //     kept between messages: bounds memory across 100+ clients and lets
+        //     each packet compress independently on any threadpool thread.
+        //   * threshold 256 -- don't waste CPU compressing tiny packets.
+        // ALL KEYS ARE QUOTED STRINGS: this runs through Closure (--closure=1),
+        // which would rename plain-identifier option keys and silently disable
+        // the whole config (same class of bug as the adminApi parsed[...] reads).
+        const wss = new WSS.Server({
+            "server": server,
+            "perMessageDeflate": {
+                "zlibDeflateOptions": { "level": 3, "memLevel": 7 },
+                "serverNoContextTakeover": true,
+                "clientNoContextTakeover": true,
+                "threshold": 256,
+                "concurrencyLimit": 20
+            }
+        });
         Module.ws_connections = {};
         let curr_id = 0;
         wss.on("connection", function(ws, req) {
