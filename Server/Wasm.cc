@@ -247,15 +247,24 @@ WebSocketServer::WebSocketServer() {
         // perMessage compression on the 20Hz binary state stream. Each client
         // gets ONE large kClientUpdate packet per tick (Game.cc), so this is one
         // deflate op per client per tick -- and Node `ws` runs zlib ASYNC on the
-        // libuv threadpool (off the game-tick event loop / core), so the heavy
-        // compression lands on otherwise-idle cores, not the single tick thread.
-        // Cuts outbound bandwidth ~40-60% (the 60Mbps-cap saturation / lag fix).
-        // Tuning for a single-core-bound, many-connection server:
+        // libuv threadpool, so the heavy compression runs off the single game-tick
+        // core. That offload only actually parallelizes because run-server.js sizes
+        // UV_THREADPOOL_SIZE to the box's idle cores (the default of 4 throttled it
+        // and re-serialized compression + DB fs writes -- the lag we were chasing).
+        // Tuning for this 32-vCPU / 60Mbps, many-connection server:
         //   * level 3 -- fast, most of the ratio for far less CPU than level 6+.
-        //   * server/clientNoContextTakeover -- no per-connection sliding window
-        //     kept between messages: bounds memory across 100+ clients and lets
-        //     each packet compress independently on any threadpool thread.
+        //   * serverNoContextTakeover FALSE -- KEEP the per-connection deflate
+        //     sliding window between messages. The 20Hz stream is a delta of a
+        //     slowly-changing world, so consecutive packets to a client are highly
+        //     self-similar; retaining the window compresses them FAR better than
+        //     from-scratch (the earlier true = we paid full CPU for a poor ratio,
+        //     so the uplink stayed saturated). Costs ~one deflate context (~0.3MB)
+        //     per connection -- trivial against 32GB, and bandwidth is the cap here.
+        //   * clientNoContextTakeover TRUE -- client->server frames are tiny inputs;
+        //     no benefit to a persistent inflate context server-side, so drop it.
         //   * threshold 256 -- don't waste CPU compressing tiny packets.
+        //   * concurrencyLimit 20 -- caps in-flight zlib below the 24-thread pool,
+        //     reserving a few threads for the DB flush's fs.writeFile + dns.
         // ALL KEYS ARE QUOTED STRINGS: this runs through Closure (--closure=1),
         // which would rename plain-identifier option keys and silently disable
         // the whole config (same class of bug as the adminApi parsed[...] reads).
@@ -263,7 +272,7 @@ WebSocketServer::WebSocketServer() {
             "server": server,
             "perMessageDeflate": {
                 "zlibDeflateOptions": { "level": 3, "memLevel": 7 },
-                "serverNoContextTakeover": true,
+                "serverNoContextTakeover": false,
                 "clientNoContextTakeover": true,
                 "threshold": 256,
                 "concurrencyLimit": 20
@@ -327,10 +336,30 @@ WebSocket::WebSocket(int id) : ws_id(id) {
     client.ws = this;
 }
 
+// A client's socket is dropped once its unflushed send buffer passes this many
+// bytes. The kClientUpdate stream is a GLOBAL per-tick delta (Entity::write<false>;
+// post_tick clears every entity's dirty bits after ALL clients are served), so a
+// client that misses even one frame desyncs until each field next changes -- we
+// therefore cannot drop or skip individual frames. The only safe relief for a
+// socket that can't keep up is to disconnect it: it reconnects and gets a fresh
+// full-create resync. Without this, a stuck client's buffer grows unbounded
+// (server RAM). 4MB is many seconds of one client's stream -- far above any
+// healthy client's per-tick residual, so only genuinely-stuck sockets are cut.
+static int const WS_BACKPRESSURE_LIMIT = 4 * 1024 * 1024;
+
 void WebSocket::send(uint8_t const *packet, size_t size) {
     EM_ASM({
         if (!Module.ws_connections || !Module.ws_connections[$0]) return;
         const ws = Module.ws_connections[$0];
+        // Skip sockets that aren't OPEN (1): between terminate()/close and the
+        // async 'close' handler the entry still exists but send() would throw.
+        if (ws.readyState !== 1) return;
+        // Backpressure guard (see WS_BACKPRESSURE_LIMIT): a hopelessly-behind
+        // socket is force-closed rather than fed another frame it can't drain.
+        // terminate() is a `ws`-library method (not the standard WebSocket API),
+        // so it's bracket-quoted -- a plain .terminate under Closure --closure=1
+        // could be renamed and silently disable the guard (see the note above).
+        if (ws.bufferedAmount > $3) { ws["terminate"](); return; }
         // ws.send() can defer the actual write (e.g. backpressure, per-message
         // compression), so callers that write multiple packets back-to-back
         // into the same native OUTGOING_PACKET buffer before the socket
@@ -338,7 +367,7 @@ void WebSocket::send(uint8_t const *packet, size_t size) {
         // a view into the shared heap and would alias later writes; slice()
         // copies out a standalone Uint8Array.
         ws.send(HEAPU8.slice($1,$1+$2));
-    }, ws_id, packet, size);
+    }, ws_id, packet, size, WS_BACKPRESSURE_LIMIT);
 }
 
 void WebSocket::end(int code, std::string const &message) {
