@@ -23,6 +23,13 @@ float craft_success_chance(uint8_t rarity) {
     if (rarity >= RarityID::kSuper) return 0.f;
     return 0.64f * std::pow(0.5f, (float)rarity);
 }
+float extra_vision_bonus(uint8_t rarity) {
+    static float const B[RarityID::kNumRarities] = {
+        0.10f, 0.20f, 0.35f, 0.50f, 0.75f, 1.00f, 1.75f, 2.50f, 6.00f
+    };
+    uint8_t const r = rarity < RarityID::kNumRarities ? rarity : (uint8_t)(RarityID::kNumRarities - 1);
+    return B[r];
+}
 float petal_hp_mult(uint8_t r) { return rarity_pow3(r); }
 float petal_damage_mult(uint8_t r) { return rarity_pow3(r); }
 float mob_body_damage_mult(uint8_t r) { return mob_rarity_mult(r); }

@@ -21,3 +21,9 @@ uint8_t roll_drop_rarity(uint8_t mob_rarity);
 // (not craftable). Shared so the server's actual roll and the client's
 // displayed "?% success chance" can't drift apart.
 float craft_success_chance(uint8_t rarity);
+
+// Antennae extra-vision bonus per rarity (the view radius scales by 1+bonus,
+// so vision_factor = 1/(1+bonus)): Common +10%, +20, +35, +50, +75, +100,
+// +175, +250, Unique +600%. Shared so the server FOV and the client's
+// "Extra Vision" tooltip can't drift apart.
+float extra_vision_bonus(uint8_t rarity);

@@ -159,10 +159,11 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.vision_factor < 1) {
-        float const rate = (id == PetalID::kObserver) ? 0.75f : 0.5f;
+        // Matches the server's actual FOV widening exactly (both call
+        // extra_vision_bonus): Common +10% .. Unique +600%.
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Extra Vision:", { .fill = 0xffcde23b }),
-            new Ui::StaticText(12, format_pct(100 * (1 + rate * (rarity + 1))))
+            new Ui::StaticText(12, "+" + format_pct(100 * extra_vision_bonus(rarity)))
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (attrs.extra_range > 0) {

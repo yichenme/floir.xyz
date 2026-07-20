@@ -52,13 +52,8 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
         // minimum (Unique -> 1/7) so no tier saturates early -- an arbitrary
         // floor higher than the true minimum is what caused the earlier
         // "no vision difference between rarities" bug.
-        if (attrs.vision_factor < 1.f) {
-            static float const VISION_BONUS[RarityID::kNumRarities] = {
-                0.10f, 0.20f, 0.35f, 0.50f, 0.75f, 1.00f, 1.75f, 2.50f, 6.00f
-            };
-            uint8_t const r = slot.rarity < RarityID::kNumRarities ? slot.rarity : (uint8_t)(RarityID::kNumRarities - 1);
-            buffs.vision_factor = std::min(buffs.vision_factor, 1.f / (1.f + VISION_BONUS[r]));
-        }
+        if (attrs.vision_factor < 1.f)
+            buffs.vision_factor = std::min(buffs.vision_factor, 1.f / (1.f + extra_vision_bonus(slot.rarity)));
         buffs.extra_range = std::fmax(attrs.extra_range * (slot.rarity + 1), buffs.extra_range);   // Third Eye: +25 per rarity (base 25)
         buffs.magnet_range = std::fmax(buffs.magnet_range, attrs.magnet_range * (slot.rarity + 1));   // Magnet: +150 per rarity (base 150)
         buffs.extra_damage = std::fmax(buffs.extra_damage, attrs.extra_body_damage * rarity_pow3(slot.rarity));

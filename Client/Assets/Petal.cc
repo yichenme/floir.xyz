@@ -1,6 +1,7 @@
 #include <Client/Assets/Assets.hh>
 
 #include <Client/Assets/MjolnirArt.hh>
+#include <Client/Assets/PetalIconArt.hh>
 #include <Client/StaticData.hh>
 
 #include <Helpers/Macros.hh>
@@ -1028,8 +1029,16 @@ void draw_loadout_background(Renderer &ctx, uint8_t id, float reload, float heal
     {
         RenderContext r(&ctx);
         ctx.scale(0.833);
-        if (PETAL_DATA[id].radius > 20) ctx.scale(20 / PETAL_DATA[id].radius);
-        draw_static_petal(id, ctx, rar);
+        // Card icons for Magnet / Mjolnir match the florr reference SVGs;
+        // in-world petals keep draw_static_petal_single (MjolnirArt, etc.).
+        if (id == PetalID::kMjolnir) {
+            MjolnirIconArt::draw(ctx, 20);
+        } else if (id == PetalID::kMagnet) {
+            MagnetIconArt::draw(ctx, 20);
+        } else {
+            if (PETAL_DATA[id].radius > 20) ctx.scale(20 / PETAL_DATA[id].radius);
+            draw_static_petal(id, ctx, rar);
+        }
     }
     float text_width = 12 * Renderer::get_ascii_text_size(PETAL_DATA[id].name);
     if (text_width < 50) text_width = 12;

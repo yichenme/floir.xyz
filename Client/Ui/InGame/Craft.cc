@@ -63,18 +63,21 @@ namespace {
     // ---- Left grid: one row per owned type, 9 rarity columns ----
     float const CELL = 30.0f, CELL_GAP = 4.0f;
 
+    // Same rounding proportion as the loadout slots (width/20).
+    float const CELL_ROUND = CELL / 20.0f;
+
     class RaritySlot final : public Element {
     public:
         PetalID::T type;
         uint8_t rarity;
-        RaritySlot(PetalID::T t, uint8_t r) : Element(CELL, CELL, { .round_radius = 4 }), type(t), rarity(r) {}
+        RaritySlot(PetalID::T t, uint8_t r) : Element(CELL, CELL, { .round_radius = CELL_ROUND }), type(t), rarity(r) {}
         void on_render(Renderer &ctx) override {
             uint64_t const count = owned_count(type, rarity);
             bool const selected = g_sel_type == type && g_sel_rarity == rarity && count > 0;
             // Slot background (dark blue), brighter ring if selected.
             ctx.set_fill(selected ? 0xff2f6fa0 : 0xff1c3a52);
             ctx.begin_path();
-            ctx.round_rect(-CELL / 2, -CELL / 2, CELL, CELL, 4);
+            ctx.round_rect(-CELL / 2, -CELL / 2, CELL, CELL, CELL_ROUND);
             ctx.fill();
             if (count == 0) return;   // empty rarity for this type: just the box
             bool const can = craftable(rarity, count);
@@ -92,11 +95,24 @@ namespace {
                 ctx.draw_text(t.c_str(), { .fill = 0xffffffff, .size = 10 });
             }
         }
+        // Click the petal to craft it directly: single click = one attempt,
+        // shift-click or double-click = craft the whole stack. Non-craftable
+        // cells (Super/Unique, or fewer than 5) just get selected so the right
+        // panel can show why.
         void on_event(uint8_t event) override {
             if (event != kClick) return;
-            if (owned_count(type, rarity) == 0) return;
+            uint64_t const count = owned_count(type, rarity);
+            if (count == 0) return;
             g_sel_type = type;
             g_sel_rarity = rarity;
+            if (!craftable(rarity, count)) return;
+            static double last_click = 0;
+            static PetalID::T last_type = PetalID::kNone;
+            static uint8_t last_rar = 0;
+            bool const shift = Input::keys_held.contains('\x10');
+            bool const dbl = (Game::timestamp - last_click) < 350.0 && last_type == type && last_rar == rarity;
+            last_click = Game::timestamp; last_type = type; last_rar = rarity;
+            do_craft((shift || dbl) ? (uint32_t)count : 1);
         }
     };
 
@@ -237,7 +253,10 @@ Element *Ui::make_craft_panel() {
         craft_btn
     }, 6, 10, { .v_justify = Style::Middle });
 
-    Element *row = new HContainer({ grid, right }, 4, 16, { .v_justify = Style::Top });
+    // h_justify Left on the row (and the text below) so the petal grid --
+    // first child of the row -- hugs the panel's left edge instead of being
+    // centred by the wider paragraph text.
+    Element *row = new HContainer({ grid, right }, 4, 16, { .h_justify = Style::Left, .v_justify = Style::Top });
 
     class CraftPanel final : public VContainer {
     public:
@@ -245,10 +264,10 @@ Element *Ui::make_craft_panel() {
     };
 
     Element *elt = new CraftPanel(std::vector<Element *>{
-        new Ui::StaticText(22, "Craft"),
+        new Ui::StaticText(22, "Craft", { .fill = 0xffffffff, .h_justify = Style::Left }),
         row,
-        new Ui::StaticParagraph(520, 12, "Combine 5 same petals for a chance at +1 rarity. Every craft also loses 1-4 extra.", {}),
-        new Ui::StaticParagraph(520, 12, "Click = 1 craft. Shift-click or double-click = craft all.", {})
+        new Ui::StaticParagraph(500, 12, "Click a petal to craft it: 5 become a chance at +1 rarity; every craft also loses 1-4 extra.", { .h_justify = Style::Left }),
+        new Ui::StaticParagraph(500, 12, "Single click = 1 craft. Shift-click or double-click = craft the whole stack.", { .h_justify = Style::Left })
     }, 14, 8, {
         .fill = 0xff5a9fdb,
         .line_width = 7,
