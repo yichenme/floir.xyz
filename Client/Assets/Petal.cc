@@ -18,6 +18,7 @@ void draw_static_petal_single(PetalID::T id, Renderer &ctx) {
             ctx.move_to(0,0);
             ctx.line_to(-1.6 * r, 0);
             ctx.stroke();
+        case PetalID::kUniqueBasic:
         case PetalID::kBasic:
         case PetalID::kLight:
             ctx.set_fill(0xffffffff);
