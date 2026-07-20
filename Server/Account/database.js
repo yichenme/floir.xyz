@@ -8,7 +8,6 @@
 const fs = require('fs');
 const crypto = require('crypto');
 const path = require('path');
-const { Worker } = require('worker_threads');
 
 const DB_PATH = path.join(__dirname, '..', 'database.json');
 
@@ -48,103 +47,88 @@ global.loadDatabase = () => {
         }
         // One-time cleanup per process: strip retired petals from all accounts.
         global.purgeRetiredPetals();
-        spawnPersistWorker();
     }
 };
 
-// Off-thread persistence. The account DB is one ~3.2MB JSON file, and
-// JSON.stringify of it (~35ms) on the game thread was the residual periodic
-// tick-loop freeze. We push the stringify + disk write onto a worker thread
-// (Server/Account/dbWorker.js) so a frequent 1s flush interval never touches
-// the tick loop. The worker keeps its own copy of the DB; every mutation
-// forwards just the ONE changed account to it (a few KB, sub-ms to clone), so
-// the whole DB is never serialized to cross the thread boundary. See dbWorker.js
-// for why shipping the full DB each flush would defeat the purpose.
+// Coalesced, ASYNC persistence. The whole account DB is one JSON file; writing
+// it on every account mutation (and O(N) times per 15s persist pass) previously
+// froze the tick loop for hundreds of ms. Now every mutation just marks the DB
+// dirty and a single flush is scheduled at most once per FLUSH_INTERVAL_MS.
 //
-// global.db stays the authoritative in-memory copy on the main thread: all
-// reads use it, and the synchronous shutdown flush (flushDatabaseNow) writes it
-// directly, so a graceful pm2 restart still saves everything even if the worker
-// is a few ms behind. Only an ungraceful crash can lose up to ~1s of progress.
-const FLUSH_INTERVAL_MS = 1000;
+// The flush writes ASYNCHRONOUSLY (fs.writeFile) so the disk I/O -- the slow
+// part, especially on a slow disk -- doesn't block the event loop / tick loop
+// under load. Only the JSON.stringify itself is synchronous (CPU-bound, brief),
+// and it's taken as a snapshot BEFORE the await so concurrent mutations during
+// the write are safe and never lost. Design notes:
+//   * Fixed-interval coalescing (schedule once, do NOT reset the timer on every
+//     save) -- a debounce-reset would starve the flush on a busy server and
+//     lose a lot of data on a crash. This guarantees a flush every ~3s.
+//   * dbDirty is cleared BEFORE the snapshot, so a mutation that lands during
+//     the async write re-marks it dirty and gets picked up by the next flush
+//     (rather than being cleared away after the await).
+//   * isWriting only prevents OVERLAPPING writes; it never causes a mutation to
+//     skip marking the DB dirty.
+//   * A temp-file + atomic rename avoids a truncated/corrupt DB if the process
+//     dies mid-write.
+//   * flushDatabaseNow stays SYNCHRONOUS: the shutdown handler (Wasm.cc) calls
+//     it and then process.exit(0) without awaiting, so it must finish the write
+//     before returning -- an async version would let the process exit mid-write.
+let dbDirty = false;
+let flushTimer = null;
+let isWriting = false;
+// The flush's JSON.stringify of the whole DB is synchronous and blocks the
+// tick loop (~38ms at 3MB / 750 accounts, and growing). At the old 3s
+// interval that was a visible stutter every 3 seconds; 15s makes it 5x
+// rarer. Graceful shutdown (flushDatabaseNow, wired to SIGTERM/SIGINT) still
+// saves everything on deploys/restarts, so only an ungraceful crash can lose
+// up to ~15s of progress.
+const FLUSH_INTERVAL_MS = 15000;
 
-let persistWorker = null;
-let workerOk = false;
-
-// Main-thread fallback flush -- used ONLY if the worker can't be spawned or
-// dies. Same coalesced async design the server used before the worker existed,
-// just at the 1s interval. Keeps data safe (at the cost of the old ~35ms tick
-// stall) rather than silently stopping persistence.
-let fbDirty = false, fbTimer = null, fbWriting = false;
-const fbSchedule = () => {
-    if (fbTimer !== null) return;
-    fbTimer = setTimeout(() => { fbTimer = null; fbFlush(); }, FLUSH_INTERVAL_MS);
+const scheduleFlush = () => {
+    if (flushTimer !== null) return;   // already scheduled (fixed interval, no reset)
+    flushTimer = setTimeout(() => { flushTimer = null; flushDatabase(); }, FLUSH_INTERVAL_MS);
 };
-const fbFlush = async () => {
-    if (fbWriting || !fbDirty) return;
-    fbWriting = true; fbDirty = false;
+
+const flushDatabase = async () => {
+    if (isWriting || !dbDirty) return;
+    isWriting = true;
+    // Clear dirty + snapshot the DB synchronously, before any await, so writes
+    // that happen DURING the async write re-mark dbDirty and aren't lost.
+    dbDirty = false;
     let snapshot;
-    try { snapshot = JSON.stringify(global.db); }
-    catch (e) { fbDirty = true; fbWriting = false; return; }
+    try {
+        snapshot = JSON.stringify(global.db);
+    } catch (e) {
+        dbDirty = true; isWriting = false; return;
+    }
     const tmp = DB_PATH + '.tmp';
     try {
         await fs.promises.writeFile(tmp, snapshot);
-        await fs.promises.rename(tmp, DB_PATH);
-    } catch (e) { fbDirty = true; }
-    finally { fbWriting = false; }
-    if (fbDirty) fbSchedule();
-};
-
-const spawnPersistWorker = () => {
-    if (persistWorker) return;
-    try {
-        persistWorker = new Worker(path.join(__dirname, 'dbWorker.js'), {
-            workerData: { dbPath: DB_PATH, intervalMs: FLUSH_INTERVAL_MS, initialDb: global.db },
-        });
-        persistWorker.on('error', onWorkerGone);
-        persistWorker.on('exit', (code) => { if (code !== 0) onWorkerGone(); });
-        persistWorker.unref();   // don't keep the process alive for the worker
-        workerOk = true;
+        await fs.promises.rename(tmp, DB_PATH);   // atomic swap
     } catch (e) {
-        onWorkerGone();
+        dbDirty = true;   // write failed -- keep it dirty so the next flush retries
+    } finally {
+        isWriting = false;
     }
+    // If the DB changed while we were writing, make sure another flush is queued.
+    if (dbDirty) scheduleFlush();
 };
 
-// Worker failed/died: fall back to main-thread persistence so saves never stop.
-const onWorkerGone = () => {
-    workerOk = false;
-    persistWorker = null;
-    fbDirty = true;
-    fbSchedule();
-};
-
-// Forward a single changed account to the worker (cheap per-account clone). No
-// user (bulk change, e.g. purge) -> resend the whole DB, which only happens at
-// startup. Falls back to the main-thread flush if the worker is down.
-global.saveDatabase = (user) => {
-    if (workerOk && persistWorker) {
-        try {
-            if (user === undefined) persistWorker.postMessage({ type: 'init', db: global.db });
-            else if (Object.prototype.hasOwnProperty.call(global.db, user))
-                persistWorker.postMessage({ type: 'set', user, acct: global.db[user] });
-            else persistWorker.postMessage({ type: 'del', user });
-            return;
-        } catch (e) { onWorkerGone(); }
-    }
-    fbDirty = true;
-    fbSchedule();
+global.saveDatabase = () => {
+    dbDirty = true;
+    scheduleFlush();
 };
 
 // SYNCHRONOUS immediate flush -- called by the SIGTERM/SIGINT graceful-shutdown
 // handler (Server/Wasm.cc) right before process.exit(0). It must block until the
 // write completes (the process is exiting; there's no chance to await), so it
-// writes the authoritative main-thread global.db synchronously. process.exit
-// then tears down the worker, so this is the definitive final save; a deploy's
-// pm2 restart never drops the last second.
+// always writes the CURRENT state synchronously, superseding any in-flight async
+// write. A deploy's pm2 restart therefore never drops the last few seconds.
 global.flushDatabaseNow = () => {
-    if (fbTimer !== null) { clearTimeout(fbTimer); fbTimer = null; }
+    if (flushTimer !== null) { clearTimeout(flushTimer); flushTimer = null; }
     try {
         fs.writeFileSync(DB_PATH, JSON.stringify(global.db));
-        fbDirty = false;
+        dbDirty = false;
     } catch (e) { /* best effort on shutdown */ }
 };
 
@@ -170,7 +154,7 @@ global.dbRegister = (user, passwordHash, loadoutJson, inventoryJson) => {
         loadout: JSON.parse(loadoutJson),
         inventory: JSON.parse(inventoryJson),
     };
-    global.saveDatabase(user);
+    global.saveDatabase();
     return sessionKey;
 };
 
@@ -179,7 +163,7 @@ global.dbLogin = (user, passwordHash) => {
     const acct = global.db[user];
     if (!acct || acct.password_hash !== passwordHash) return null;
     acct.session_key = global.makeSessionKey();
-    global.saveDatabase(user);
+    global.saveDatabase();
     return acct.session_key;
 };
 
@@ -200,7 +184,7 @@ global.dbSetLoadout = (user, loadoutJson) => {
     const acct = global.db[user];
     if (!acct) return false;
     acct.loadout = JSON.parse(loadoutJson);
-    global.saveDatabase(user);
+    global.saveDatabase();
     return true;
 };
 
@@ -215,7 +199,7 @@ global.dbSetInventory = (user, inventoryJson) => {
     const acct = global.db[user];
     if (!acct) return false;
     acct.inventory = JSON.parse(inventoryJson);
-    global.saveDatabase(user);
+    global.saveDatabase();
     return true;
 };
 
@@ -229,10 +213,6 @@ global.dbAddKill = (user, mob, rarity) => {
     acct.kills = acct.kills || {};
     const key = (mob | 0) * KILL_NUM_RARITIES + (rarity | 0);
     acct.kills[key] = (acct.kills[key] | 0) + 1;
-    // Forward the kill tally to the persistence worker. Before the worker
-    // existed this relied on the next whole-DB snapshot picking kills up
-    // passively; now the worker writes its own copy, so it must be told.
-    global.saveDatabase(user);
     return true;
 };
 
@@ -262,7 +242,7 @@ global.dbSetProgress = (user, level, xp) => {
     if (!acct) return false;
     acct.level = level;
     acct.xp = xp;
-    global.saveDatabase(user);
+    global.saveDatabase();
     return true;
 };
 
@@ -300,7 +280,7 @@ global.adminApi = (bodyStr) => {
         const ex = acct.inventory.find((s) => s.type === type && s.rarity === rarity);
         if (ex) ex.count = (ex.count | 0) + count;
         else acct.inventory.push({ type, rarity, count });
-        global.saveDatabase(req.target);
+        global.saveDatabase();
         return JSON.stringify({ ok: true, message: 'gave ' + count + ' to ' + req.target });
     }
     return JSON.stringify({ ok: false, error: 'unknown action' });
