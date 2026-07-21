@@ -358,6 +358,10 @@ void Renderer::draw_map(int c0, int c1, int r0, int r1) {
     Ui::MapRenderer::draw(id, c0, c1, r0, r1);
 }
 
+void Renderer::draw_map_layer(int layer, int c0, int c1, int r0, int r1) {
+    Ui::MapRenderer::draw_layer(id, layer, c0, c1, r0, r1);
+}
+
 void Renderer::draw_grass_bg(float ox, float oy, float tile, float w, float h) {
     // Fill the whole target with a repeating grass tile, offset by (ox,oy) so the
     // caller can scroll it for an endless-field animation. Falls back to solid

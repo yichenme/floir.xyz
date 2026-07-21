@@ -13,6 +13,7 @@
 #include <Shared/Tilemap.hh>
 
 #include <cmath>
+#include <vector>
 
 uint8_t inherited_spawn_rarity(Entity const &parent) {
     if (BitMath::at(parent.flags, EntityFlags::kSpawnedFromZone))
@@ -143,7 +144,8 @@ Entity &alloc_mob(
         if (mob_id == MobID::kAntHole) {
             std::vector<MobID::T> const spawns = {
                 MobID::kBabyAnt, MobID::kBabyAnt, MobID::kBabyAnt,
-                MobID::kWorkerAnt, MobID::kWorkerAnt, MobID::kSoldierAnt
+                MobID::kWorkerAnt, MobID::kWorkerAnt, MobID::kSoldierAnt,
+                MobID::kQueenAnt
             };
             for (MobID::T mob_id : spawns) {
                 Vector rand = Vector::rand(ent.get_radius() * 2);
@@ -155,19 +157,68 @@ Entity &alloc_mob(
         return ent;
     }
     else {
-        Entity &head = __alloc_mob(sim, mob_id, x, y, team, rarity, on_spawn);
-        //head.add_component(kSegmented);
+        // Validate the WHOLE chain (using the mob's max possible body radius --
+        // conservative but simple, since each segment's actual rolled radius
+        // isn't known until __alloc_mob creates it) against walls/water/castle/
+        // tunnels before creating any entities. Post-hoc push_circle per segment
+        // (the old approach) could still leave a body visibly overlapping
+        // terrain it was buried in; retry from a fresh nearby head point instead.
+        float const seg_radius = data.radius.upper;
+        auto blocked = [](float px, float py, float rad) {
+            return Tilemap::solid_circle(px, py, rad) || Tilemap::tunnel_circle(px, py, rad);
+        };
+        std::vector<float> chain_x, chain_y, angles;
+        float hx = x, hy = y;
+        for (uint32_t attempt = 0; attempt < 8; ++attempt) {
+            chain_x.clear();
+            chain_y.clear();
+            angles.clear();
+            float cx = hx, cy = hy;
+            float cangle = frand() * 2 * M_PI;
+            bool ok = !blocked(cx, cy, seg_radius);
+            if (ok) {
+                chain_x.push_back(cx);
+                chain_y.push_back(cy);
+                angles.push_back(cangle);
+                for (uint32_t i = 1; i < data.attributes.segments; ++i) {
+                    float nangle = cangle + frand() * 0.1f - 0.05f;
+                    float nx = cx - 2 * seg_radius * cosf(nangle);
+                    float ny = cy - 2 * seg_radius * sinf(nangle);
+                    if (blocked(nx, ny, seg_radius)) { ok = false; break; }
+                    chain_x.push_back(nx);
+                    chain_y.push_back(ny);
+                    angles.push_back(nangle);
+                    cx = nx; cy = ny; cangle = nangle;
+                }
+            }
+            if (ok && chain_x.size() == data.attributes.segments) break;
+            hx = x + (frand() - 0.5f) * 500;
+            hy = y + (frand() - 0.5f) * 500;
+        }
+        // Still short after every retry (rare, dense terrain): fill out the
+        // remaining segments anyway so the mob spawns at all -- push_circle
+        // per-segment below still un-embeds each one from its actual terrain.
+        while (chain_x.size() < data.attributes.segments) {
+            float cx = chain_x.empty() ? x : chain_x.back();
+            float cy = chain_y.empty() ? y : chain_y.back();
+            float cangle = angles.empty() ? frand() * 2 * M_PI : angles.back();
+            float nangle = cangle + frand() * 0.1f - 0.05f;
+            chain_x.push_back(cx - 2 * seg_radius * cosf(nangle));
+            chain_y.push_back(cy - 2 * seg_radius * sinf(nangle));
+            angles.push_back(nangle);
+        }
+
+        Entity &head = __alloc_mob(sim, mob_id, chain_x[0], chain_y[0], team, rarity, on_spawn);
+        head.set_angle(angles[0]);
         Entity *curr = &head;
         for (uint32_t i = 1; i < data.attributes.segments; ++i) {
-            Entity &seg = __alloc_mob(sim, mob_id, x, y, team, rarity, on_spawn);
+            Entity &seg = __alloc_mob(sim, mob_id, chain_x[i], chain_y[i], team, rarity, on_spawn);
             seg.add_component(kSegmented);
             seg.seg_head = curr->id;
-            seg.set_angle(curr->get_angle() + frand() * 0.1 - 0.05);
-            seg.set_x(curr->get_x() - (curr->get_radius() + seg.get_radius()) * cosf(seg.get_angle()));
-            seg.set_y(curr->get_y() - (curr->get_radius() + seg.get_radius()) * sinf(seg.get_angle()));
-            // Only the head's spawn point was terrain-validated (in __alloc_mob);
-            // each segment's final chained position must be pushed out of solid
-            // terrain too, or long bodies spawn buried in walls.
+            seg.set_angle(angles[i]);
+            // The chain above validated against the conservative max radius;
+            // still push each segment to hug its own (smaller, actual rolled)
+            // radius exactly.
             float sx = seg.get_x(), sy = seg.get_y();
             Tilemap::push_circle(sx, sy, seg.get_radius());
             seg.set_x(sx);
@@ -317,9 +368,10 @@ void player_spawn(Simulation *sim, Entity &camera, Entity &player) {
     camera.set_player(player.id);
     player.set_parent(camera.id);
     player.set_color(camera.get_color());
-    // Everyone spawns by the NW rounded water, on walkable ground clear of
-    // walls. Jitter around the shoreline point and reject blocked cells.
-    constexpr float SPAWN_CX = 2750, SPAWN_CY = 7750, SPAWN_JITTER = 1500;
+    // Everyone spawns at the garden's marked first-join point (the unpainted
+    // ellipse near the NW corner), on walkable ground clear of walls. Jitter
+    // around the point and reject blocked cells.
+    constexpr float SPAWN_CX = 6175.8f, SPAWN_CY = 2820.3f, SPAWN_JITTER = 1000;
     float spawn_x = SPAWN_CX;
     float spawn_y = SPAWN_CY;
     for (uint32_t i = 0; i < 40; ++i) {

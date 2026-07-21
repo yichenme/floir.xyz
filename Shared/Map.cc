@@ -55,10 +55,23 @@ void Map::spawn_random_mob(Simulation *sim, float x, float y) {
         sum -= s.chance;
         if (sum <= 0) {
             // Reject only if the mob's SMALLEST body would grossly overlap a
-            // wall/water (was radius.upper, which reserved a large clear band and
-            // produced an "air wall" gap). __alloc_mob's push_circle un-embeds
-            // the final rarity-scaled body, so mobs now settle right against walls.
-            if (Tilemap::solid_circle(x, y, MOB_DATA[s.id].radius.lower)) return;
+            // wall/water/tunnel (was radius.upper, which reserved a large clear
+            // band and produced an "air wall" gap). __alloc_mob's push_circle
+            // un-embeds the final rarity-scaled body, so mobs now settle right
+            // against walls. If the rolled point is blocked, switch to a few
+            // nearby jittered spots (still within this zone patch) before
+            // giving up on this spawn tick.
+            float sx = x, sy = y;
+            bool blocked = Tilemap::solid_circle(sx, sy, MOB_DATA[s.id].radius.lower)
+                || Tilemap::tunnel_circle(sx, sy, MOB_DATA[s.id].radius.lower);
+            for (uint32_t attempt = 0; blocked && attempt < 6; ++attempt) {
+                sx = x + (frand() - 0.5f) * 300;
+                sy = y + (frand() - 0.5f) * 300;
+                blocked = Tilemap::solid_circle(sx, sy, MOB_DATA[s.id].radius.lower)
+                    || Tilemap::tunnel_circle(sx, sy, MOB_DATA[s.id].radius.lower);
+            }
+            if (blocked) return;
+            x = sx; y = sy;
             uint8_t rarity = roll_spawn_rarity((uint8_t)zone.difficulty);
             Entity &ent = alloc_mob(sim, s.id, x, y, NULL_ENTITY, rarity, [&](Entity &mob){
                 mob.zone = zone_id;
@@ -78,8 +91,11 @@ bool Map::find_spawn_location(Simulation *sim, float d, Vector &vref) {
         // Only reject a candidate whose centre is (nearly) inside a wall -- a
         // small clearance, not a full flower-radius band, so mobs can spawn
         // adjacent to terrain instead of leaving a wide gap. The per-mob body
-        // check in spawn_random_mob handles the actual size.
+        // check in spawn_random_mob handles the actual size. Tunnels are
+        // rejected outright (not just clearance-checked): mobs shouldn't spawn
+        // inside one at all.
         if (Tilemap::solid_circle(vref.x, vref.y, 8)) continue;
+        if (Tilemap::tunnel_circle(vref.x, vref.y, 8)) continue;
         bool valid = true;
         sim->for_each<kFlower>([&](Simulation *, Entity &ent) {
             if (ent.has_component(kMob)) return;

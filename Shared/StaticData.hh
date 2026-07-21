@@ -30,13 +30,13 @@ extern std::array<struct MobData, MobID::kNumMobs> const MOB_DATA;
 float summon_base_health(uint8_t mob_id);
 float summon_base_damage(uint8_t mob_id);
 
-// Biomes on the 25000x25500 arena, in override order (get_zone_from_pos picks
-// the last match). Each biome is cut into 7 difficulty bands (Common..Ultra,
-// see RarityID) along one axis; Garden bands are emitted first, then Jungle,
-// then Desert, so later biomes win ties on overlapping edges.
+// Garden map (27500x27500 arena): 20 hand-painted spawn zones from the Tiled
+// 刷怪区域 layer, approximated as AABBs (get_zone_from_pos picks the last
+// match). Ordered ascending by rarity so rarer, typically-smaller zones win
+// ties against the larger, more-common AABBs they overlap.
 inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
     {
-        .left = 0, .top = 0, .right = 12500.f * 1 / 7, .bottom = 14000,
+        .left = 3875.0f, .top = 2359.4f, .right = 8609.4f, .bottom = 4140.6f,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 126000 },
@@ -47,13 +47,14 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kBabyAnt, 106000 },
             { MobID::kSpider, 96000 },
             { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 0, .color = 0xff58c05c, .name = "Garden · Common"
+        .difficulty = 0, .color = 0xff7eef6d, .name = "Garden · Common (Zone 12)"
     },
     {
-        .left = 12500.f * 1 / 7, .top = 0, .right = 12500.f * 2 / 7, .bottom = 14000,
+        .left = 6843.8f, .top = 4250.0f, .right = 8554.7f, .bottom = 7031.2f,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 126000 },
@@ -64,282 +65,336 @@ inline std::array const MAP_DATA = std::to_array<struct ZoneDefinition>({
             { MobID::kBabyAnt, 106000 },
             { MobID::kSpider, 96000 },
             { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 1, .color = 0xff50ae53, .name = "Garden · Uncommon"
+        .difficulty = 0, .color = 0xff7eef6d, .name = "Garden · Common (Zone 13)"
     },
     {
-        .left = 12500.f * 2 / 7, .top = 0, .right = 12500.f * 3 / 7, .bottom = 14000,
+        .left = 3421.9f, .top = 4382.8f, .right = 5031.2f, .bottom = 6234.4f,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 126000 },
             { MobID::kLadybug, 126000 },
             { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
             { MobID::kBabyAnt, 106000 },
             { MobID::kSpider, 96000 },
             { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 2, .color = 0xff489d4b, .name = "Garden · Rare"
+        .difficulty = 0, .color = 0xff7eef6d, .name = "Garden · Common (Zone 14)"
     },
     {
-        .left = 12500.f * 3 / 7, .top = 0, .right = 12500.f * 4 / 7, .bottom = 14000,
+        .left = 2875.0f, .top = 6382.8f, .right = 6632.8f, .bottom = 8109.4f,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 126000 },
             { MobID::kLadybug, 126000 },
             { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
             { MobID::kBabyAnt, 106000 },
             { MobID::kSpider, 96000 },
             { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 3, .color = 0xff408c43, .name = "Garden · Epic"
+        .difficulty = 1, .color = 0xffffe65d, .name = "Garden · Uncommon (Zone 15)"
     },
     {
-        .left = 12500.f * 4 / 7, .top = 0, .right = 12500.f * 5 / 7, .bottom = 14000,
+        .left = 1885.4f, .top = 8265.6f, .right = 4708.3f, .bottom = 12562.5f,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 126000 },
             { MobID::kLadybug, 126000 },
             { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
             { MobID::kBabyAnt, 106000 },
             { MobID::kSpider, 96000 },
             { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 4, .color = 0xff387a3a, .name = "Garden · Legendary"
+        .difficulty = 1, .color = 0xffffe65d, .name = "Garden · Uncommon (Zone 16)"
     },
     {
-        .left = 12500.f * 5 / 7, .top = 0, .right = 12500.f * 6 / 7, .bottom = 14000,
+        .left = 2984.4f, .top = 9390.6f, .right = 8062.5f, .bottom = 15437.5f,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 126000 },
             { MobID::kLadybug, 126000 },
             { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
             { MobID::kBabyAnt, 106000 },
             { MobID::kSpider, 96000 },
             { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 5, .color = 0xff306932, .name = "Garden · Mythic"
+        .difficulty = 2, .color = 0xff4d52e3, .name = "Garden · Rare (Zone 18)"
     },
     {
-        .left = 12500.f * 6 / 7, .top = 0, .right = 12500, .bottom = 14000,
+        .left = 8203.1f, .top = 2859.4f, .right = 18781.2f, .bottom = 10109.4f,
         .density = 1, .drop_multiplier = 0.3,
         .spawns = {
             { MobID::kRock, 126000 },
             { MobID::kLadybug, 126000 },
             { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
             { MobID::kBabyAnt, 106000 },
             { MobID::kSpider, 96000 },
             { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 6, .color = 0xff28582a, .name = "Garden · Ultra"
+        .difficulty = 3, .color = 0xff861fde, .name = "Garden · Epic (Zone 19)"
     },
     {
-        .left = 12500, .top = 0, .right = 25000, .bottom = 25500.f * 1 / 7,
-        .density = 1, .drop_multiplier = 0.1,
+        .left = 8164.1f, .top = 10351.6f, .right = 15203.1f, .bottom = 12632.8f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kHornet, 127500 },
-            { MobID::kBeetle, 127500 },
-            { MobID::kDarkLadybug, 127500 },
-            { MobID::kRock, 87500 },
-            { MobID::kEvilCentipede, 30000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 0, .color = 0xff3a8f4a, .name = "Jungle · Common"
+        .difficulty = 3, .color = 0xff861fde, .name = "Garden · Epic (Zone 23)"
     },
     {
-        .left = 12500, .top = 25500.f * 1 / 7, .right = 25000, .bottom = 25500.f * 2 / 7,
-        .density = 1, .drop_multiplier = 0.1,
+        .left = 18963.1f, .top = 2438.4f, .right = 25568.2f, .bottom = 8238.6f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kHornet, 127500 },
-            { MobID::kBeetle, 127500 },
-            { MobID::kDarkLadybug, 127500 },
-            { MobID::kRock, 87500 },
-            { MobID::kEvilCentipede, 30000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 1, .color = 0xff348243, .name = "Jungle · Uncommon"
+        .difficulty = 4, .color = 0xffde1f1f, .name = "Garden · Legendary (Zone 20)"
     },
     {
-        .left = 12500, .top = 25500.f * 2 / 7, .right = 25000, .bottom = 25500.f * 3 / 7,
-        .density = 1, .drop_multiplier = 0.1,
+        .left = 15296.9f, .top = 11804.7f, .right = 21135.4f, .bottom = 15552.1f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kHornet, 127500 },
-            { MobID::kBeetle, 127500 },
-            { MobID::kDarkLadybug, 127500 },
-            { MobID::kRock, 87500 },
-            { MobID::kEvilCentipede, 30000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 2, .color = 0xff2f753c, .name = "Jungle · Rare"
+        .difficulty = 4, .color = 0xffde1f1f, .name = "Garden · Legendary (Zone 24)"
     },
     {
-        .left = 12500, .top = 25500.f * 3 / 7, .right = 25000, .bottom = 25500.f * 4 / 7,
-        .density = 1, .drop_multiplier = 0.1,
+        .left = 16927.1f, .top = 5492.4f, .right = 23982.0f, .bottom = 10582.4f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kHornet, 127500 },
-            { MobID::kBeetle, 127500 },
-            { MobID::kDarkLadybug, 127500 },
-            { MobID::kRock, 87500 },
-            { MobID::kEvilCentipede, 30000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 3, .color = 0xff2a6836, .name = "Jungle · Epic"
+        .difficulty = 5, .color = 0xff1fdbde, .name = "Garden · Mythic (Zone 21)"
     },
     {
-        .left = 12500, .top = 25500.f * 4 / 7, .right = 25000, .bottom = 25500.f * 5 / 7,
-        .density = 1, .drop_multiplier = 0.1,
+        .left = 14343.7f, .top = 12864.6f, .right = 25666.7f, .bottom = 20166.7f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kHornet, 127500 },
-            { MobID::kBeetle, 127500 },
-            { MobID::kDarkLadybug, 127500 },
-            { MobID::kRock, 87500 },
-            { MobID::kEvilCentipede, 30000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 4, .color = 0xff255b2f, .name = "Jungle · Legendary"
+        .difficulty = 5, .color = 0xff1fdbde, .name = "Garden · Mythic (Zone 25)"
     },
     {
-        .left = 12500, .top = 25500.f * 5 / 7, .right = 25000, .bottom = 25500.f * 6 / 7,
-        .density = 1, .drop_multiplier = 0.1,
+        .left = 6835.9f, .top = 13898.4f, .right = 16585.9f, .bottom = 18101.6f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kHornet, 127500 },
-            { MobID::kBeetle, 127500 },
-            { MobID::kDarkLadybug, 127500 },
-            { MobID::kRock, 87500 },
-            { MobID::kEvilCentipede, 30000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 5, .color = 0xff1f4e28, .name = "Jungle · Mythic"
+        .difficulty = 5, .color = 0xff1fdbde, .name = "Garden · Mythic (Zone 30)"
     },
     {
-        .left = 12500, .top = 25500.f * 6 / 7, .right = 25000, .bottom = 25500,
-        .density = 1, .drop_multiplier = 0.1,
+        .left = 1867.2f, .top = 17835.9f, .right = 7750.0f, .bottom = 25593.8f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kHornet, 127500 },
-            { MobID::kBeetle, 127500 },
-            { MobID::kDarkLadybug, 127500 },
-            { MobID::kRock, 87500 },
-            { MobID::kEvilCentipede, 30000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
             { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 6, .color = 0xff1a4122, .name = "Jungle · Ultra"
+        .difficulty = 5, .color = 0xff1fdbde, .name = "Garden · Mythic (Zone 31)"
     },
     {
-        .left = 0, .top = 14000, .right = 14000, .bottom = 14000 + 11500.f * 1 / 7,
-        .density = 1, .drop_multiplier = 0.15,
+        .left = 17729.2f, .top = 19302.1f, .right = 23260.4f, .bottom = 25562.5f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kCactus, 125000 },
-            { MobID::kBeetle, 105000 },
-            { MobID::kSandstorm, 95000 },
-            { MobID::kScorpion, 95000 },
-            { MobID::kDesertCentipede, 20000 },
-            { MobID::kShinyLadybug, 1000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 0, .color = 0xffe6c98a, .name = "Desert · Common"
+        .difficulty = 6, .color = 0xffde1f65, .name = "Garden · Ultra (Zone 26)"
     },
     {
-        .left = 0, .top = 14000 + 11500.f * 1 / 7, .right = 14000, .bottom = 14000 + 11500.f * 2 / 7,
-        .density = 1, .drop_multiplier = 0.15,
+        .left = 23197.9f, .top = 20354.2f, .right = 25604.2f, .bottom = 25604.2f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kCactus, 125000 },
-            { MobID::kBeetle, 105000 },
-            { MobID::kSandstorm, 95000 },
-            { MobID::kScorpion, 95000 },
-            { MobID::kDesertCentipede, 20000 },
-            { MobID::kShinyLadybug, 1000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 1, .color = 0xffd1b67d, .name = "Desert · Uncommon"
+        .difficulty = 6, .color = 0xffde1f65, .name = "Garden · Ultra (Zone 27)"
     },
     {
-        .left = 0, .top = 14000 + 11500.f * 2 / 7, .right = 14000, .bottom = 14000 + 11500.f * 3 / 7,
-        .density = 1, .drop_multiplier = 0.15,
+        .left = 13291.7f, .top = 18177.1f, .right = 18093.8f, .bottom = 25052.1f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kCactus, 125000 },
-            { MobID::kBeetle, 105000 },
-            { MobID::kSandstorm, 95000 },
-            { MobID::kScorpion, 95000 },
-            { MobID::kDesertCentipede, 20000 },
-            { MobID::kShinyLadybug, 1000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 2, .color = 0xffbca471, .name = "Desert · Rare"
+        .difficulty = 6, .color = 0xffde1f65, .name = "Garden · Ultra (Zone 28)"
     },
     {
-        .left = 0, .top = 14000 + 11500.f * 3 / 7, .right = 14000, .bottom = 14000 + 11500.f * 4 / 7,
-        .density = 1, .drop_multiplier = 0.15,
+        .left = 17739.6f, .top = 21583.3f, .right = 18989.6f, .bottom = 23104.2f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kCactus, 125000 },
-            { MobID::kBeetle, 105000 },
-            { MobID::kSandstorm, 95000 },
-            { MobID::kScorpion, 95000 },
-            { MobID::kDesertCentipede, 20000 },
-            { MobID::kShinyLadybug, 1000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 3, .color = 0xffa79264, .name = "Desert · Epic"
+        .difficulty = 6, .color = 0xffde1f65, .name = "Garden · Ultra (Zone 29)"
     },
     {
-        .left = 0, .top = 14000 + 11500.f * 4 / 7, .right = 14000, .bottom = 14000 + 11500.f * 5 / 7,
-        .density = 1, .drop_multiplier = 0.15,
+        .left = 7820.3f, .top = 18804.7f, .right = 11656.2f, .bottom = 25632.8f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kCactus, 125000 },
-            { MobID::kBeetle, 105000 },
-            { MobID::kSandstorm, 95000 },
-            { MobID::kScorpion, 95000 },
-            { MobID::kDesertCentipede, 20000 },
-            { MobID::kShinyLadybug, 1000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 4, .color = 0xff938058, .name = "Desert · Legendary"
+        .difficulty = 6, .color = 0xffde1f65, .name = "Garden · Ultra (Zone 32)"
     },
     {
-        .left = 0, .top = 14000 + 11500.f * 5 / 7, .right = 14000, .bottom = 14000 + 11500.f * 6 / 7,
-        .density = 1, .drop_multiplier = 0.15,
+        .left = 5375.0f, .top = 19312.5f, .right = 8687.5f, .bottom = 23093.8f,
+        .density = 1, .drop_multiplier = 0.3,
         .spawns = {
-            { MobID::kCactus, 125000 },
-            { MobID::kBeetle, 105000 },
-            { MobID::kSandstorm, 95000 },
-            { MobID::kScorpion, 95000 },
-            { MobID::kDesertCentipede, 20000 },
-            { MobID::kShinyLadybug, 1000 },
+            { MobID::kRock, 126000 },
+            { MobID::kLadybug, 126000 },
+            { MobID::kBee, 126000 },
+            { MobID::kBumbleBee, 90000 },
+            { MobID::kDandelion, 70000 },
+            { MobID::kBabyAnt, 106000 },
+            { MobID::kSpider, 96000 },
+            { MobID::kCentipede, 30000 },
+            { MobID::kHornet, 60000 },
+            { MobID::kAntHole, 8000 },
             { MobID::kSquare, 1 }
         },
-        .difficulty = 5, .color = 0xff7e6e4b, .name = "Desert · Mythic"
+        .difficulty = 6, .color = 0xffde1f65, .name = "Garden · Ultra (Zone 35)"
     },
-    {
-        .left = 0, .top = 14000 + 11500.f * 6 / 7, .right = 14000, .bottom = 25500,
-        .density = 1, .drop_multiplier = 0.15,
-        .spawns = {
-            { MobID::kCactus, 125000 },
-            { MobID::kBeetle, 105000 },
-            { MobID::kSandstorm, 95000 },
-            { MobID::kScorpion, 95000 },
-            { MobID::kDesertCentipede, 20000 },
-            { MobID::kShinyLadybug, 1000 },
-            { MobID::kSquare, 1 }
-        },
-        .difficulty = 6, .color = 0xff695c3f, .name = "Desert · Ultra"
-    }
 });
 
 std::array const ANTHOLE_SPAWNS = std::to_array<StaticArray<MobID::T, 3>>({

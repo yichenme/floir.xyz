@@ -4,6 +4,9 @@
 #include <Client/Game.hh>
 #include <Client/Input.hh>
 
+#include <Helpers/Bits.hh>
+#include <Shared/StaticDefinitions.hh>
+
 #include <cmath>
 
 using namespace Ui;
@@ -243,10 +246,12 @@ void UiLoadoutPetal::on_render(Renderer &ctx) {
     // the constructor) instead of read live, so a rapid second swap fired
     // before the first's server confirmation can't pair this slot's frozen
     // (optimistic) petal type with a stale live rarity from a different swap.
+    bool const hidden = Game::alive() &&
+        BitMath::at(Game::simulation.get_ent(Game::player_id).get_face_flags(), FaceFlags::kHidden);
     if (static_pos < Game::loadout_count && PETAL_DATA[last_id].count != 0)
-        draw_loadout_background(ctx, last_id, (float) reload, (float) health, last_rarity);
+        draw_loadout_background(ctx, last_id, (float) reload, (float) health, last_rarity, hidden);
     else
-        draw_loadout_background(ctx, last_id, 1, 1, last_rarity);
+        draw_loadout_background(ctx, last_id, 1, 1, last_rarity, hidden);
 }
 
 void UiLoadoutPetal::on_render_skip(Renderer &ctx) {

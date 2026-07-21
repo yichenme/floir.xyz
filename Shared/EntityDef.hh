@@ -123,6 +123,7 @@ SINGLE(Name, nametag_visible, uint8_t)
     \
     SINGLE(slow_ticks, game_tick_t, =0) \
     SINGLE(slow_inflict, game_tick_t, =0) \
+    SINGLE(hidden, uint8_t, =0) \
     SINGLE(immunity_ticks, game_tick_t, =0) \
     SINGLE(dandy_ticks, game_tick_t, =0) \
     SINGLE(poison_ticks, game_tick_t, =0) \

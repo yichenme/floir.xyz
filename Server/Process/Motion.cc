@@ -69,12 +69,21 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
         int steps = std::max(1, (int)std::ceil(dist / step));
         float sdx = (tx - prev_x) / steps, sdy = (ty - prev_y) / steps;
         float cx = prev_x, cy = prev_y;
+        // Mobs (not players/drops) also treat tunnels as impassable -- they
+        // can't walk into/through one to "cross", just bump and slide along
+        // it like a wall. Players are exempt: entering is exactly what makes
+        // them hidden.
+        bool const mob_tunnel_block = ent.has_component(kMob);
         // Advance from the RESOLVED position each step and re-resolve, so a fast
-        // burst (bubble, knockback) can't tunnel through / into a wall.
+        // burst (bubble, knockback) can't tunnel through / into a wall -- or,
+        // for mobs, hop clean across a narrow tunnel strip in one move without
+        // ever landing on a sampled point inside it.
         for (int s = 0; s < steps; ++s) {
             cx += sdx;
             cy += sdy;
             Tilemap::push_circle(cx, cy, r);
+            if (mob_tunnel_block)
+                Tilemap::tunnel_push_circle(cx, cy, r);
         }
         // push_circle samples large bodies coarsely (an adaptive stride caps its
         // cost -- see Tilemap), so a big high-rarity mob can end a step still
@@ -85,6 +94,13 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
         // fully-resolved small mobs/players pay nothing extra.
         if (Tilemap::_near_solid_cells(cx, cy, r) && Tilemap::solid_circle(cx, cy, r)
             && !Tilemap::solid_circle(prev_x, prev_y, r)) {
+            cx = prev_x;
+            cy = prev_y;
+        }
+        // Same rejection fallback as above, but for the tunnel wall mask: a mob
+        // whose resolved spot still reads as tunnel (adaptive-stride miss, or
+        // simply started outside one) is shoved back rather than let through.
+        if (mob_tunnel_block && Tilemap::tunnel_wall_circle(cx, cy, r) && !Tilemap::tunnel_wall_circle(prev_x, prev_y, r)) {
             cx = prev_x;
             cy = prev_y;
         }

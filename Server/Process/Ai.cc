@@ -22,6 +22,8 @@ static bool _target_valid(Simulation *sim, EntityID const &id) {
     if (!sim->ent_alive(id)) return false;
     Entity const &e = sim->get_ent(id);
     if (e.has_component(kFlower) && !e.has_component(kMob) && e.get_dead()) return false;
+    // Ducking into a tunnel drops aggro immediately, not just blocking new locks.
+    if (e.has_component(kFlower) && !e.has_component(kMob) && e.hidden) return false;
     return true;
 }
 

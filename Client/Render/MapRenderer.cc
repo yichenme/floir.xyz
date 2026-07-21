@@ -19,7 +19,7 @@ void MapRenderer::load() {
             }
             const layers = d["layers"];
             const NL = layers.length;
-            const GW = 50;
+            const GW = 55;
             const layerGrid = [];
             for (let i = 0; i < NL; i++) layerGrid.push(new Map());
             const placements = d["placements"];
@@ -48,7 +48,7 @@ void MapRenderer::draw(int ctx_id, int c0, int c1, int r0, int r1) {
         const cell = Module.mapCell;
         const ts = Module.mapTileSize;
         const s = cell / ts;
-        const GW = 50;
+        const GW = 55;
         const tiles = Module.mapTiles;
         const layers = Module.mapLayers;
         const layerNames = Module.mapLayerNames;
@@ -168,4 +168,47 @@ void MapRenderer::draw(int ctx_id, int c0, int c1, int r0, int r1) {
             ctx.restore();
         }
     }, ctx_id, c0, c1, r0, r1);
+}
+
+void MapRenderer::draw_layer(int ctx_id, int layer, int c0, int c1, int r0, int r1) {
+    EM_ASM({
+        if (!Module.mapReady) return;
+        const ctx = Module.ctxs[$0];
+        const cell = Module.mapCell;
+        const ts = Module.mapTileSize;
+        const GW = 55;
+        const tiles = Module.mapTiles;
+        const grid = Module.mapLayers[$1];
+        const c0 = $2;
+        const c1 = $3;
+        const r0 = $4;
+        const r1 = $5;
+        function tileTransform(targetCtx, flip) {
+            const H = (flip & 0x80000000) !== 0;
+            const V = (flip & 0x40000000) !== 0;
+            const D = (flip & 0x20000000) !== 0;
+            if (V) targetCtx.transform(1, 0, 0, -1, 0, ts);
+            if (H) targetCtx.transform(-1, 0, 0, 1, ts, 0);
+            if (D) targetCtx.transform(0, 1, 1, 0, 0, 0);
+        }
+        for (let r = r0; r < r1; r++) {
+            for (let c = c0; c < c1; c++) {
+                const p = grid.get(r * GW + c);
+                if (!p) continue;
+                const shapes = tiles[p["gid"]];
+                if (!shapes) continue;
+                ctx.save();
+                const pad = 2;
+                ctx.translate(c * cell - pad, r * cell - pad);
+                ctx.scale((cell + 2 * pad) / ts, (cell + 2 * pad) / ts);
+                tileTransform(ctx, p["flip"]);
+                for (const sh of shapes) {
+                    if (sh.op !== undefined && sh.op < 1) continue;
+                    if (sh.fill) { ctx.fillStyle = sh.fill; ctx.fill(sh.path); }
+                    if (sh.stroke) { ctx.strokeStyle = sh.stroke; ctx.lineWidth = sh.sw; ctx.lineJoin = 'round'; ctx.stroke(sh.path); }
+                }
+                ctx.restore();
+            }
+        }
+    }, ctx_id, layer, c0, c1, r0, r1);
 }

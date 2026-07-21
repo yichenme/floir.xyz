@@ -6,10 +6,12 @@
 #include <Client/Ui/Extern.hh>
 #include <Client/Render/RenderEntity.hh>
 
+#include <Helpers/Bits.hh>
 #include <Helpers/Vector.hh>
 
 #include <Shared/Map.hh>
 #include <Shared/StaticData.hh>
+#include <Shared/StaticDefinitions.hh>
 #include <Shared/Tilemap.hh>
 #include <Client/StaticData.hh>
 
@@ -161,6 +163,14 @@ void Game::render_game() {
             if (!(ent.get_parent() == Game::player_id) && !(ent.get_team() == NULL_ENTITY))
                 return;
         }
+        // Hidden in a tunnel: the owning flower is tucked out of sight, so its
+        // orbiting petals should disappear with it, not keep floating visibly
+        // on their own.
+        if (sim->ent_alive(ent.get_parent())) {
+            Entity const &owner = sim->get_ent(ent.get_parent());
+            if (owner.has_component(kFlower) && BitMath::at(owner.get_face_flags(), FaceFlags::kHidden))
+                return;
+        }
         RenderContext context(&renderer);
         renderer.translate(ent.get_x(), ent.get_y());
         renderer.rotate(ent.get_angle());
@@ -196,6 +206,35 @@ void Game::render_game() {
         renderer.translate(ent.get_x(), ent.get_y());
         _apply_damage_filter(renderer, ent);
         render_flower(renderer, ent);
+        // Hidden in a tunnel: repaint the tunnel (暗道) layer's tiles over just
+        // the flower's own body circle, right after it renders, so it reads as
+        // tucked under the tunnel -- petals orbiting further out stay visible
+        // on top instead of getting covered too. There's no per-entity render
+        // layer in this renderer, so this local redraw is cheaper than
+        // restructuring the whole draw_map pass into per-layer calls just for
+        // this one status effect.
+        if (BitMath::at(ent.get_face_flags(), FaceFlags::kHidden)) {
+            RenderContext tunnel_context(&renderer);
+            // render_flower left the transform translated to the entity's
+            // local origin; draw_map_layer expects world-space cell coords
+            // (like the top-level draw_map call), so undo that translate back
+            // to pure camera space before drawing tiles by world position.
+            renderer.translate(-ent.get_x(), -ent.get_y());
+            // +4 beyond the body radius: the flower's own outline stroke (3px
+            // wide, centered on that radius) straddles the boundary, so a bare
+            // radius clip left half of it -- default yellow -- peeking out past
+            // the tunnel art.
+            float const rad = ent.get_radius() + 4;
+            int32_t const c0 = std::max(0, (int32_t) std::floor((ent.get_x() - rad) / Tilemap::CELL_SIZE));
+            int32_t const c1 = std::min<int32_t>(Tilemap::GRID_W, (int32_t) std::ceil((ent.get_x() + rad) / Tilemap::CELL_SIZE));
+            int32_t const r0 = std::max(0, (int32_t) std::floor((ent.get_y() - rad) / Tilemap::CELL_SIZE));
+            int32_t const r1 = std::min<int32_t>(Tilemap::GRID_H, (int32_t) std::ceil((ent.get_y() + rad) / Tilemap::CELL_SIZE));
+            renderer.begin_path();
+            renderer.arc(ent.get_x(), ent.get_y(), rad);
+            renderer.clip();
+            // Tunnel is always the last layer in gen_map.py's LAYER_ORDER.
+            renderer.draw_map_layer(4, c0, c1, r0, r1);
+        }
     });
     simulation.for_each<kName>([](Simulation *sim, Entity const &ent){
         RenderContext context(&renderer);

@@ -55,8 +55,11 @@ static void _update_client(Simulation *sim, Client *client) {
     // comment there for why (a high-rarity Antennae/Observer used to zoom the
     // client out further than what got queried, so mobs in the gap silently
     // never rendered).
+    // Query rect padded 20% beyond the visible screen (florr-style) instead of
+    // a flat pixel margin, so the pad scales with zoom -- an entity crossing
+    // into view is already synced a beat early regardless of FOV.
     sim->spatial_hash.query(camera.get_camera_x(), camera.get_camera_y(),
-    960 / camera.get_fov() + 50, 540 / camera.get_fov() + 50,
+    960 / camera.get_fov() * 1.2f, 540 / camera.get_fov() * 1.2f,
     [&](Simulation *, Entity &ent){
         add_view(ent.id);
     });

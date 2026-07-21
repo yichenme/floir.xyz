@@ -189,6 +189,13 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
     else
         player.poison_damage = {0, 0};
     
+    // Tunnel (暗道): standing on one hides the player -- petals freeze (no
+    // reload progress) and mobs can't acquire/keep aggro (Detection.cc,
+    // Ai.cc), matching a florr-style "in the bushes" mechanic. Uses the fine
+    // per-pixel tunnel mask (the bush art's real footprint), not just grid-cell
+    // membership, so the body must actually touch the model.
+    player.hidden = Tilemap::tunnel_circle(player.get_x(), player.get_y(), player.get_radius()) ? 1 : 0;
+
     float rot_pos = 0;
     uint32_t rotation_count = _get_petal_rotation_count(sim, player);
     RotationCenter const rotation_center = _get_petal_rotation_center(sim, player);
@@ -243,7 +250,7 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
                 if (!slot.already_spawned) reload_time += TPS;
                 float this_reload = reload_time == 0 ? 1 : (float) petal_slot.reload / reload_time;
                 min_reload = std::min(min_reload, this_reload);
-                if (petal_slot.reload >= reload_time) {
+                if (petal_slot.reload >= reload_time && !player.hidden) {
                     petal_slot.ent_id = alloc_petal(sim, slot_petal_id, player, player.get_loadout_rarities(i)).id;
                     sim->get_ent(petal_slot.ent_id).damage *= buffs.damage_factor;
                     sim->get_ent(petal_slot.ent_id).set_x(rotation_center.x);
@@ -251,7 +258,7 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
                     petal_slot.reload = 0;
                     slot.already_spawned = 1;
                 } 
-                else
+                else if (!player.hidden)
                     ++petal_slot.reload;
             }
             if (sim->ent_alive(petal_slot.ent_id)) {
@@ -380,6 +387,8 @@ void tick_player_behavior(Simulation *sim, Entity &player) {
         player.set_face_flags(player.get_face_flags() | (1 << FaceFlags::kPoisoned));
     if (player.dandy_ticks > 0)
         player.set_face_flags(player.get_face_flags() | (1 << FaceFlags::kDandelioned));
+    if (player.hidden)
+        player.set_face_flags(player.get_face_flags() | (1 << FaceFlags::kHidden));
     if (buffs.yinyang_count != MAX_SLOT_COUNT) {
         switch (buffs.yinyang_count % 3) {
             case 0:

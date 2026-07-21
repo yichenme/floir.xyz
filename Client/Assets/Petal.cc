@@ -922,7 +922,11 @@ void draw_static_petal(PetalID::T id, Renderer &ctx, uint8_t rarity) {
     }
 }
 
-void draw_loadout_background(Renderer &ctx, uint8_t id, float reload, float health, uint8_t rarity) {
+void draw_loadout_background(Renderer &ctx, uint8_t id, float reload, float health, uint8_t rarity, bool hidden) {
+    // Frozen in a tunnel: reuse the exact same reload-wheel-at-zero look a
+    // freshly-swapped, not-yet-spawned petal already shows (not a separate,
+    // flatter gray) -- so "hidden" reads as the familiar "not ready" state.
+    if (hidden) reload = 0;
     uint8_t const rar = rarity == 255 ? PETAL_DATA[id].rarity : rarity;
     RenderContext c(&ctx);
     ctx.set_fill(Renderer::HSV(RARITY_COLORS[rar], 0.8));

@@ -14,9 +14,22 @@
 #include <Shared/Config.hh>
 #include <Shared/Entity.hh>
 
+#include <emscripten.h>
+
 #include <format>
 
 using namespace Ui;
+
+// Each map runs as its own server process (see Shared/Tilemap.hh -- it's
+// compiled-in constants, not a runtime-loaded asset, so one process can only
+// ever serve one map). Switching maps means loading the page from that
+// process's own port, which naturally reconnects the socket (Socket::connect
+// always dials location.host, not a compiled-in URL).
+static void _goto_map_port(uint16_t port) {
+    EM_ASM({
+        window.location.href = location.protocol + '//' + location.hostname + ':' + $0;
+    }, port);
+}
 
 Element *Ui::make_title_input_box() {
     Ui::Element *title = new Ui::VContainer({
@@ -43,7 +56,21 @@ Element *Ui::make_title_input_box() {
                         { .fill = 0xff1dd129, .line_width = 5, .round_radius = 3 }
                     )
                 }, 0, 10,{}),
-                new Ui::StaticText(14, "(or press ENTER to spawn)")
+                new Ui::StaticText(14, "(or press ENTER to spawn)"),
+                new Ui::HContainer({
+                    new Ui::Button(150, 40,
+                        new Ui::StaticText(20, "Garden"),
+                        [](Element *elt, uint8_t e){ if (e == Ui::kClick && SERVER_PORT != 3000) _goto_map_port(3000); },
+                        [](){ return SERVER_PORT == 3000; },
+                        { .fill = 0xff3fa34d, .line_width = 5, .round_radius = 5 }
+                    ),
+                    new Ui::Button(150, 40,
+                        new Ui::StaticText(20, "Ant Hell"),
+                        [](Element *elt, uint8_t e){ if (e == Ui::kClick && SERVER_PORT != 3001) _goto_map_port(3001); },
+                        [](){ return SERVER_PORT == 3001; },
+                        { .fill = 0xff3fa34d, .line_width = 5, .round_radius = 5 }
+                    )
+                }, 0, 10, {})
             }, 10, 5, { .animate = [](Element *elt, Renderer &ctx) {
                 ctx.translate(0, (elt->animation - 1) * ctx.height);
             } }),

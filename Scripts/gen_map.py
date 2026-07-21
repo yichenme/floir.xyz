@@ -100,15 +100,49 @@ def _tile_shapes(svg_name):
 
 # Draw order must match the .tmj (bottom -> top). Object 'img' sprites (sewer/
 # pyramid/factory landmarks) are drawn on top of the tiles, after this list.
-LAYER_ORDER = ['bg', 'transitions', 'bush', 'cliff', 'water', 'dirt', 'castle']
+# Garden schema: ground -> water -> wall -> castle -> tunnel (tunnel overlays
+# the ground last so it visually reads as a passage cut into the terrain).
+# Per-map schemas: each source map names its tile layers differently in Tiled,
+# so the active one is picked by which ground-layer name is actually present
+# in the loaded .tmj (see _pick_schema below). GROUND_LAYER/TUNNEL_LAYER are
+# separate from LAYER_ORDER/BLOCK_LAYERS/LAYER_BLOCK_ID because they're looked
+# up directly by name at a few call sites (void detection, tunnel masking)
+# rather than iterated like the others.
+SCHEMAS = {
+    '地面': {   # Garden: ground/water/wall/castle/tunnel
+        'layer_order': ['地面', 'water', 'wall', 'castle', '暗道'],
+        'block_layers': ('castle', 'wall', 'water'),
+        'layer_block_id': {'water': 3, 'wall': 7, 'castle': 6},
+        'ground_layer': '地面',
+        'tunnel_layer': '暗道',
+    },
+    '图块层 1': {   # Ant Hell: floor (walkable) / walls (blocking), no water/castle/tunnel
+        'layer_order': ['图块层 1', '图块层 2'],
+        'block_layers': ('图块层 2',),
+        'layer_block_id': {'图块层 2': 7},
+        'ground_layer': '图块层 1',
+        'tunnel_layer': None,
+    },
+}
+LAYER_ORDER = SCHEMAS['地面']['layer_order']      # module-level default; main() overrides per-tmj
+LAYER_BLOCK_ID = {'water': 3, 'wall': 7, 'castle': 6}
+BLOCK_LAYERS = ('castle', 'wall', 'water')
+GROUND_LAYER = '地面'
+TUNNEL_LAYER = '暗道'
 FLIP_H, FLIP_V, FLIP_D = 0x80000000, 0x40000000, 0x20000000
 
 
 def main():
+    global LAYER_ORDER, LAYER_BLOCK_ID, BLOCK_LAYERS, GROUND_LAYER, TUNNEL_LAYER
     d = json.load(open(TMJ))
     W, H = d['width'], d['height']
+    TILE_PX = d.get('tilewidth', 512)
 
     def decode(l):
+        # Tiled can export tile-layer data either as a plain int list (default
+        # CSV/JS export, e.g. garden.tmj) or as base64 (+ optional gzip).
+        if isinstance(l['data'], list):
+            return list(l['data'])
         raw = base64.b64decode(l['data'])
         if l.get('compression') == 'gzip':
             raw = gzip.decompress(raw)
@@ -117,6 +151,14 @@ def main():
     layers = {l['name']: decode(l) for l in d['layers'] if l.get('type') == 'tilelayer'}
     objgroups = {l['name']: l.get('objects', [])
                  for l in d['layers'] if l.get('type') == 'objectgroup'}
+    schema = next((s for key, s in SCHEMAS.items() if key in layers), None)
+    if schema is None:
+        raise ValueError(f'unrecognized tile layer schema; layers present: {sorted(layers)}')
+    LAYER_ORDER = schema['layer_order']
+    LAYER_BLOCK_ID = schema['layer_block_id']
+    BLOCK_LAYERS = schema['block_layers']
+    GROUND_LAYER = schema['ground_layer']
+    TUNNEL_LAYER = schema['tunnel_layer']
     terrain = compute_terrain(layers, W, H)
     # Client render asset: per-tile Path2D shapes + culled placements + landmark
     # objects. The client draws these as vector each frame (florr.io style).
@@ -137,7 +179,7 @@ def main():
                 map_placements.append({'l': li, 'c': c, 'r': r, 'gid': gid,
                                        'flip': g & (FLIP_H | FLIP_V | FLIP_D)})
     map_objects = []
-    W2 = 500.0 / 512.0                       # tmj px -> world
+    W2 = 500.0 / TILE_PX                     # tmj px -> world
     for o in objgroups.get('img', []):
         g = o.get('gid')
         if not g:
@@ -160,15 +202,18 @@ def main():
     print(f'map-data.json: {len(map_tiles)} tiles, {len(map_placements)} placements, '
           f'{len(map_objects)} objects')
 
-    write_tilemap_header(layers, objgroups, W, H, terrain)
+    write_tilemap_header(layers, objgroups, W, H, terrain, TILE_PX)
 
 
 # --- Collision/minimap terrain grid ---------------------------------------
 # Coarse per-cell terrain (minimap colours) plus a fine sub-cell collision mask
 # rasterized from each blocking tile's actual fill shape, so the body collides
 # with the visible asset outline rather than the whole grid cell.
-LAYER_BLOCK_ID = {'water': 3, 'bush': 4, 'cliff': 5, 'dirt': 1, 'castle': 6}
-BLOCK_LAYERS = ('castle', 'dirt', 'cliff', 'bush', 'water')
+# Garden's 'wall' layer reuses kStone (7), an id no prior map used, as its own
+# unified blocking terrain -- distinct from castle so the two can be told apart
+# on the minimap/collision terrain lookup even though both fully block.
+LAYER_BLOCK_ID = {'water': 3, 'wall': 7, 'castle': 6}
+BLOCK_LAYERS = ('castle', 'wall', 'water')
 MASK_RES = 250  # per-cell collision-mask resolution -> 2 world units/pixel
 WORLD_U_PER_PX = 500 / MASK_RES   # world units spanned by one collision-mask pixel
 FLIP_H_B, FLIP_V_B, FLIP_D_B = 0x80000000, 0x40000000, 0x20000000
@@ -540,13 +585,53 @@ def compute_terrain(layers, W, H):
                     t = LAYER_BLOCK_ID[name]
                     break
             else:
-                if not present('bg', i):
+                if not present(GROUND_LAYER, i):
                     t = 15
             terrain.append(t)
     return terrain
 
 
-def write_tilemap_header(layers, objgroups, W, H, terrain):
+def _slice_mask(gm, W, H, SUB, GW):
+    # Slice a GW x GH fine bitmap into per-cell empty(0)/full(1)/detail(2+i)
+    # classification + deduped SUB x SUB sub-masks. Shared by the collision
+    # mask and the tunnel mask -- same compression, different source bitmap.
+    cell_mask = [0] * (W * H)
+    detail = []
+    detail_idx = {}
+    for r in range(H):
+        for c in range(W):
+            bits = bytearray((SUB * SUB + 7) // 8)
+            cnt = 0
+            for sy in range(SUB):
+                base = (r * SUB + sy) * GW + c * SUB
+                for sx in range(SUB):
+                    if gm[base + sx]:
+                        k = sy * SUB + sx
+                        bits[k >> 3] |= 1 << (k & 7)
+                        cnt += 1
+            if cnt == 0:
+                cell_mask[r * W + c] = 0
+            elif cnt == SUB * SUB:
+                cell_mask[r * W + c] = 1
+            else:
+                key = bytes(bits)
+                di = detail_idx.get(key)
+                if di is None:
+                    di = len(detail)
+                    detail_idx[key] = di
+                    detail.append(bits)
+                cell_mask[r * W + c] = 2 + di
+    submask = bytearray((len(detail) * SUB * SUB + 7) // 8)
+    for di, bits in enumerate(detail):
+        dbase = di * SUB * SUB
+        for k in range(SUB * SUB):
+            if (bits[k >> 3] >> (k & 7)) & 1:
+                gbit = dbase + k
+                submask[gbit >> 3] |= 1 << (gbit & 7)
+    return cell_mask, submask, len(detail)
+
+
+def write_tilemap_header(layers, objgroups, W, H, terrain, tile_px=512):
     def present(name, i):
         return (layers.get(name, [0] * (W * H))[i] & 0x1FFFFFFF) != 0
 
@@ -561,7 +646,7 @@ def write_tilemap_header(layers, objgroups, W, H, terrain):
     gimg = Image.new('1', (GW, GH), 0)
     gdraw = ImageDraw.Draw(gimg)
     T2M = SUB / 256.0                    # tile-space (0..256) -> mask px within a cell
-    PX2M = SUB / 512.0                   # tmj px (512/cell) -> mask px
+    PX2M = SUB / tile_px                 # tmj px (tile_px/cell) -> mask px
 
     def _flip_pt(x, y, g):               # tile-space flip; matches _flip_poly order
         if g & FLIP_D_B: x, y = y, x
@@ -672,40 +757,41 @@ def write_tilemap_header(layers, objgroups, W, H, terrain):
         print('map-overview.png export skipped:', e)
 
     # ---- slice into per-cell sub-masks; classify empty/full/detailed + dedup ----
-    CELL_MASK = [0] * (W * H)
-    detail = []
-    detail_idx = {}
-    for r in range(H):
-        for c in range(W):
-            bits = bytearray((SUB * SUB + 7) // 8)
-            cnt = 0
-            for sy in range(SUB):
-                base = (r * SUB + sy) * GW + c * SUB
-                for sx in range(SUB):
-                    if gm[base + sx]:
-                        k = sy * SUB + sx
-                        bits[k >> 3] |= 1 << (k & 7)
-                        cnt += 1
-            if cnt == 0:
-                CELL_MASK[r * W + c] = 0
-            elif cnt == SUB * SUB:
-                CELL_MASK[r * W + c] = 1
-            else:
-                key = bytes(bits)
-                di = detail_idx.get(key)
-                if di is None:
-                    di = len(detail)
-                    detail_idx[key] = di
-                    detail.append(bits)
-                CELL_MASK[r * W + c] = 2 + di
+    CELL_MASK, submask, num_detail = _slice_mask(gm, W, H, SUB, GW)
 
-    submask = bytearray((len(detail) * SUB * SUB + 7) // 8)
-    for di, bits in enumerate(detail):
-        dbase = di * SUB * SUB
-        for k in range(SUB * SUB):
-            if (bits[k >> 3] >> (k & 7)) & 1:
-                gbit = dbase + k
-                submask[gbit >> 3] |= 1 << (gbit & 7)
+    # ---- tunnel (暗道) fine mask: the tile's ACTUAL opaque footprint (not the
+    # whole grid cell), so "hidden" requires the player's body to genuinely
+    # touch the bush/tunnel art, matching how collision hugs a wall's outline.
+    gtimg = Image.new('1', (GW, GH), 0)
+    gtdraw = ImageDraw.Draw(gtimg)
+    tun_lay = layers.get(TUNNEL_LAYER) if TUNNEL_LAYER else None
+    if tun_lay:
+        for r in range(H):
+            for c in range(W):
+                g = tun_lay[r * W + c]
+                gid = g & 0x1FFFFFFF
+                if not gid:
+                    continue
+                svg_name = GID_TO_SVG.get(gid)
+                if not svg_name or not os.path.exists(os.path.join(TILES, svg_name)):
+                    continue
+                mask = _flip_mask(_tile_mask(svg_name), g)
+                ox, oy = c * SUB, r * SUB
+                for sy in range(SUB):
+                    row = mask[sy]
+                    base = (oy + sy) * GW + ox
+                    for sx in range(SUB):
+                        if row[sx]:
+                            gtimg.putpixel((ox + sx, oy + sy), 1)
+    gm_tunnel = bytearray(1 if v else 0 for v in gtimg.getdata())
+    TUNNEL_CELL_MASK, tunnel_submask, tunnel_num_detail = _slice_mask(gm_tunnel, W, H, SUB, GW)
+
+    # Coarse per-cell tunnel flag (whole cell, no gaps between the bush art's
+    # individual leaf shapes) -- used only to keep MOBS out entirely. The fine
+    # mask above is for the player's "hidden" trigger (must touch the actual
+    # art); mobs need a solid wall or they slip through the visual gaps in the
+    # foliage pattern between leaf shapes on adjacent tiles.
+    TUNNEL_CELL = [1 if (TUNNEL_LAYER and present(TUNNEL_LAYER, i)) else 0 for i in range(W * H)]
 
     # ---- emit Tilemap.hh ----
     lines = [
@@ -736,8 +822,116 @@ def write_tilemap_header(layers, objgroups, W, H, terrain):
     ]
     for r in range(H):
         lines.append('        ' + ','.join(str(v) for v in terrain[r * W:(r + 1) * W]) + ',')
+    lines += ['    };', '']
+    lines += [
+        '    // Tunnel (暗道) fine mask: same empty/full/detail + SUB x SUB sub-mask',
+        '    // compression as CELL_MASK/SUBMASK below, but rasterised from the tile\'s',
+        '    // ACTUAL opaque art (not the whole grid cell) -- drives the "hidden"',
+        '    // status (frozen reload, no mob aggro, rendered under terrain), which',
+        '    // should only trigger when a body genuinely touches the bush/tunnel art.',
+        f'    inline constexpr uint32_t TUNNEL_NUM_DETAIL = {tunnel_num_detail};',
+        '    inline constexpr uint16_t TUNNEL_CELL_MASK[GRID_W * GRID_H] = {',
+    ]
+    for r in range(H):
+        lines.append('        ' + ','.join(str(v) for v in TUNNEL_CELL_MASK[r * W:(r + 1) * W]) + ',')
     lines += ['    };', '',
-        f'    inline constexpr uint32_t NUM_DETAIL = {len(detail)};',
+        f'    inline constexpr uint8_t TUNNEL_SUBMASK[{len(tunnel_submask)}] = {{',
+    ]
+    for k in range(0, len(tunnel_submask), 32):
+        lines.append('        ' + ','.join(str(v) for v in tunnel_submask[k:k + 32]) + ',')
+    lines += ['    };', '',
+        '    // Out of bounds = NOT tunnel (unlike collision, where OOB = solid).',
+        '    inline bool _tunnel_usolid(int ux, int uy) {',
+        '        if (ux<0||uy<0||ux>=(int)CU_W||uy>=(int)CU_H) return false;',
+        '        uint16_t m=TUNNEL_CELL_MASK[(ux/(int)SUB)+(uy/(int)SUB)*GRID_W];',
+        '        if(!m) return false; if(m==1) return true;',
+        '        uint32_t bit=(uint32_t)(m-2)*(SUB*SUB)+(uint32_t)(uy%(int)SUB)*SUB+(uint32_t)(ux%(int)SUB);',
+        '        return (TUNNEL_SUBMASK[bit>>3]>>(bit&7))&1u;',
+        '    }', '',
+        '    // Does a body of this radius genuinely touch the tunnel/bush art (not',
+        '    // just share its grid cell)? Player-scale bodies only, so an unstrided',
+        '    // scan (unlike solid_circle\'s adaptive stride for large mobs) is fine.',
+        '    inline bool tunnel_circle(float x, float y, float rad) {',
+        '        int x0=(int)std::floor((x-rad)/COLL_UNIT), x1=(int)std::floor((x+rad)/COLL_UNIT);',
+        '        int y0=(int)std::floor((y-rad)/COLL_UNIT), y1=(int)std::floor((y+rad)/COLL_UNIT);',
+        '        float r2=rad*rad;',
+        '        for (int uy=y0; uy<=y1; ++uy) for (int ux=x0; ux<=x1; ++ux) {',
+        '            if (!_tunnel_usolid(ux,uy)) continue;',
+        '            float ax=ux*COLL_UNIT, ay=uy*COLL_UNIT;',
+        '            float px=x<ax?ax:(x>ax+COLL_UNIT?ax+COLL_UNIT:x);',
+        '            float py=y<ay?ay:(y>ay+COLL_UNIT?ay+COLL_UNIT:y);',
+        '            float dx=x-px,dy=y-py; if (dx*dx+dy*dy<r2) return true;',
+        '        }',
+        '        return false;',
+        '    }', '',
+        '    // Coarse per-cell tunnel flag (whole cell, not the fine art footprint',
+        '    // above) -- MOBS treat this as a solid wall so they can\'t walk into or',
+        '    // through a tunnel to "cross" between zones. The fine mask is right for',
+        '    // the player\'s "hidden" trigger (touch the actual art), but the bush',
+        '    // art\'s individual leaf shapes have gaps between them a mob-sized body',
+        '    // could otherwise slip through, so mob-blocking needs the whole cell.',
+        '    inline constexpr uint8_t TUNNEL_CELL[GRID_W * GRID_H] = {',
+    ]
+    for r in range(H):
+        lines.append('        ' + ','.join(str(v) for v in TUNNEL_CELL[r * W:(r + 1) * W]) + ',')
+    lines += ['    };', '',
+        '    inline bool _tunnel_wall_usolid(int ux, int uy) {',
+        '        if (ux<0||uy<0||ux>=(int)CU_W||uy>=(int)CU_H) return false;',
+        '        return TUNNEL_CELL[(ux/(int)SUB)+(uy/(int)SUB)*GRID_W] != 0;',
+        '    }', '',
+        '    inline bool _near_tunnel_cells(float x, float y, float rad) {',
+        '        int c0=(int)std::floor((x-rad)/CELL_SIZE), c1=(int)std::floor((x+rad)/CELL_SIZE);',
+        '        int r0=(int)std::floor((y-rad)/CELL_SIZE), r1=(int)std::floor((y+rad)/CELL_SIZE);',
+        '        for (int r=r0; r<=r1; ++r) for (int c=c0; c<=c1; ++c) {',
+        '            if (c<0||r<0||c>=(int)GRID_W||r>=(int)GRID_H) continue;',
+        '            if (TUNNEL_CELL[c + r*(int)GRID_W] != 0) return true;',
+        '        }',
+        '        return false;',
+        '    }', '',
+        '    inline bool tunnel_wall_circle(float x, float y, float rad) {',
+        '        int x0=(int)std::floor((x-rad)/COLL_UNIT), x1=(int)std::floor((x+rad)/COLL_UNIT);',
+        '        int y0=(int)std::floor((y-rad)/COLL_UNIT), y1=(int)std::floor((y+rad)/COLL_UNIT);',
+        '        float r2=rad*rad;',
+        '        for (int uy=y0; uy<=y1; ++uy) for (int ux=x0; ux<=x1; ++ux) {',
+        '            if (!_tunnel_wall_usolid(ux,uy)) continue;',
+        '            float ax=ux*COLL_UNIT, ay=uy*COLL_UNIT;',
+        '            float px=x<ax?ax:(x>ax+COLL_UNIT?ax+COLL_UNIT:x);',
+        '            float py=y<ay?ay:(y>ay+COLL_UNIT?ay+COLL_UNIT:y);',
+        '            float dx=x-px,dy=y-py; if (dx*dx+dy*dy<r2) return true;',
+        '        }',
+        '        return false;',
+        '    }', '',
+        '    inline void tunnel_push_circle(float &x, float &y, float rad) {',
+        '        const float U=COLL_UNIT;',
+        '        if (!_near_tunnel_cells(x, y, rad)) return;',
+        '        for (int pass=0; pass<6; ++pass) {',
+        '            int cx0=(int)std::floor((x-rad)/U)-1, cx1=(int)std::floor((x+rad)/U)+1;',
+        '            int cy0=(int)std::floor((y-rad)/U)-1, cy1=(int)std::floor((y+rad)/U)+1;',
+        '            float best=0.f, bx=x, by=y; bool found=false;',
+        '            for (int uy=cy0; uy<=cy1; ++uy) for (int ux=cx0; ux<=cx1; ++ux) {',
+        '                if (!_tunnel_wall_usolid(ux,uy)) continue;',
+        '                float ax0=ux*U, ay0=uy*U, ax1=ax0+U, ay1=ay0+U;',
+        '                auto face=[&](float nx,float ny,float p0x,float p0y,float p1x,float p1y){',
+        '                    float ex=p1x-p0x, ey=p1y-p0y, l2=ex*ex+ey*ey;',
+        '                    float t=l2>0?((x-p0x)*ex+(y-p0y)*ey)/l2:0.f; if(t<0)t=0; else if(t>1)t=1;',
+        '                    float qx=p0x+t*ex, qy=p0y+t*ey;',
+        '                    float vx=x-qx, vy=y-qy, d=std::sqrt(vx*vx+vy*vy);',
+        '                    float dx,dy,pen;',
+        '                    if (d>1e-4f){ dx=vx/d; dy=vy/d; pen=rad-d; }',
+        '                    else { dx=nx; dy=ny; pen=rad; }',
+        '                    if (pen<=0.f) return;',
+        '                    if (pen>best){ best=pen; bx=qx+dx*rad; by=qy+dy*rad; found=true; }',
+        '                };',
+        '                if (!_tunnel_wall_usolid(ux-1,uy)) face(-1,0, ax0,ay0, ax0,ay1);',
+        '                if (!_tunnel_wall_usolid(ux+1,uy)) face( 1,0, ax1,ay0, ax1,ay1);',
+        '                if (!_tunnel_wall_usolid(ux,uy-1)) face(0,-1, ax0,ay0, ax1,ay0);',
+        '                if (!_tunnel_wall_usolid(ux,uy+1)) face(0, 1, ax0,ay1, ax1,ay1);',
+        '            }',
+        '            if (!found) break;',
+        '            x=bx; y=by;',
+        '        }',
+        '    }', '',
+        f'    inline constexpr uint32_t NUM_DETAIL = {num_detail};',
         '    inline constexpr uint16_t CELL_MASK[GRID_W * GRID_H] = {',
     ]
     for r in range(H):
@@ -851,7 +1045,7 @@ def write_tilemap_header(layers, objgroups, W, H, terrain):
     print('Tilemap.hh terrain dist:', dict(Counter(terrain)))
     nfull = sum(1 for v in CELL_MASK if v == 1)
     ndet = sum(1 for v in CELL_MASK if v >= 2)
-    print(f'collision mask: {len(detail)} unique sub-masks, {nfull} full + {ndet} detailed cells, '
+    print(f'collision mask: {num_detail} unique sub-masks, {nfull} full + {ndet} detailed cells, '
           f'SUBMASK {len(submask)//1024}KB, {SUB}x{SUB}/cell ({WORLD_U_PER_PX:g} world u/px)')
 
     # Debug export: full-res red collision mask PNG (composited with the map by

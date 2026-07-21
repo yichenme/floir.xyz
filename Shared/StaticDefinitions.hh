@@ -6,8 +6,8 @@
 #include <cstdint>
 
 // Arena footprint tracks Shared/Tilemap.hh: GRID_W * CELL_SIZE and GRID_H * CELL_SIZE.
-inline uint32_t const ARENA_WIDTH = 25000;
-inline uint32_t const ARENA_HEIGHT = 25500;
+inline uint32_t const ARENA_WIDTH = 27500;
+inline uint32_t const ARENA_HEIGHT = 27500;
 
 inline uint32_t const MAX_SLOT_COUNT = 10;
 inline uint32_t const LEVELS_PER_EXTRA_SLOT = 15;
@@ -182,7 +182,8 @@ namespace FaceFlags {
         kPoisoned,
         kDandelioned,
         kDeadEyes,
-        kSquareEyes
+        kSquareEyes,
+        kHidden
     };
 };
 
