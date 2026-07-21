@@ -181,6 +181,13 @@ namespace {
     // ---- Right side: 5-box pentagon craft preview + chance + Craft button +
     // result ----
     float const PENT_CELL = 56.0f, PENT_RADIUS = 95.0f;
+    // Rotate-and-gather flourish that plays on every Craft click: the boxes
+    // spin a full extra turn while their radius dips to 0 and back out, so
+    // the two motions land together and the boxes end up exactly back where
+    // they started. Held afterward (a fixed constant, not tied to how long
+    // the server actually takes to answer) so a successful result gets a
+    // moment on screen before reverting to the live selection.
+    float const CRAFT_ANIM_MS = 1200.0f;
 
     // 5 boxes arranged in a point-up pentagon (one top, two upper-flanking,
     // two lower-flanking -- the same angular spacing as a 5-petal flower).
@@ -208,24 +215,46 @@ namespace {
             if (was_open && !open) clear_selection();
             was_open = open;
 
-            // Result banner overrides the pentagon briefly after a craft.
-            if (g_result_at > 0 && Game::timestamp - g_result_at < RESULT_MS
-                && Game::last_craft_result.received_at >= g_result_at) {
-                bool const ok = Game::last_craft_result.any_success;
-                std::string const txt = ok
-                    ? ("Crafted " + std::to_string(Game::last_craft_result.crafted) + "!")
-                    : std::string("Failed");
-                ctx.draw_text(txt.c_str(), { .fill = ok ? 0xff75dd34u : 0xffcc3333u, .size = 20 });
+            double const since_click = g_result_at > 0 ? Game::timestamp - g_result_at : -1;
+            bool const spinning = since_click >= 0 && since_click < CRAFT_ANIM_MS;
+            bool const have_result = Game::last_craft_result.received_at >= g_result_at;
+
+            // Once the spin settles: a successful craft holds a single
+            // centered box showing the result for a further RESULT_MS before
+            // reverting to the live selection; a failed craft has nothing
+            // special to show -- the boxes already read the (now smaller)
+            // live stack, so the loss is just visible directly.
+            if (!spinning && since_click >= 0 && since_click < CRAFT_ANIM_MS + RESULT_MS
+                && have_result && Game::last_craft_result.any_success) {
+                RenderContext c(&ctx);
+                ctx.set_fill(0x40000000);
+                ctx.begin_path();
+                ctx.round_rect(-PENT_CELL / 2, -PENT_CELL / 2, PENT_CELL, PENT_CELL, PENT_CELL / 10);
+                ctx.fill();
+                {
+                    RenderContext c2(&ctx);
+                    ctx.scale(PENT_CELL / 60.0f);
+                    draw_loadout_background(ctx, Game::last_craft_result.type, 1, 1, Game::last_craft_result.out_rarity);
+                }
                 return;
             }
 
             uint64_t const owned = g_sel_type == PetalID::kNone ? 0 : owned_count(g_sel_type, g_sel_rarity);
             uint64_t const per_box = g_sel_type == PetalID::kNone ? 0 : (g_craft_all ? owned / 5 : 1);
 
+            // Gather envelope: 0 at t=0 and t=1 (original spot), peaking at 1
+            // (radius 0, boxes meet at the center) at the midpoint -- paired
+            // with one full extra spin over the same span so both motions
+            // start and end together.
+            float const t = spinning ? fclamp((float) (since_click / CRAFT_ANIM_MS), 0.0f, 1.0f) : 0.0f;
+            float const gather = spinning ? sinf(t * (float) M_PI) : 0.0f;
+            float const radius = PENT_RADIUS * (1.0f - gather);
+            float const extra_rotation = spinning ? t * 2.0f * (float) M_PI : 0.0f;
+
             for (int i = 0; i < 5; ++i) {
-                float const angle = -(float) M_PI / 2 + i * (2.0f * (float) M_PI / 5);
+                float const angle = -(float) M_PI / 2 + i * (2.0f * (float) M_PI / 5) + extra_rotation;
                 RenderContext c(&ctx);
-                ctx.translate(PENT_RADIUS * cosf(angle), PENT_RADIUS * sinf(angle));
+                ctx.translate(radius * cosf(angle), radius * sinf(angle));
                 // Pure black at the same opacity as the grid's scrollbar
                 // (Ui::ScrollBar uses 0x40000000), no stroke -- matches its
                 // flat, single-tone look.
@@ -296,6 +325,10 @@ Element *Ui::make_craft_panel() {
     // grid AND its scrollbar -- instead of showing an empty list with a
     // scrollbar that has nothing to scroll.
     grid->style.should_render = [](){ refresh_craft_order(); return !g_craft_order.empty(); };
+    // Pin to the top of the row instead of the default Middle -- with few
+    // rows the grid is much shorter than the pentagon UI beside it, and
+    // Middle was centering it partway down the row instead of at the top.
+    grid->style.v_justify = Style::Top;
 
     // Craft is the ONLY thing that actually crafts: the selection just set up
     // the (type, rarity) and whether the whole stack is queued (g_craft_all).
@@ -310,12 +343,19 @@ Element *Ui::make_craft_panel() {
             if (!craftable(g_sel_rarity, count)) return;
             do_craft(g_craft_all ? (uint32_t)count : 1);
         }, nullptr,
-        { .fill = 0xff8a7860, .line_width = 4, .round_radius = 4,
+        { .fill = 0xff888888, .line_width = 4, .round_radius = 4,
           .animate = [](Element *elt, Renderer &ctx){
               ctx.scale((float) elt->animation);
-              bool const can = g_sel_type != PetalID::kNone
+              // Gray for the entire spin+result window (matches the
+              // "close/secondary" button convention, 0xff888888, also used
+              // by DeathScreen's Close button) -- once it settles, colored
+              // the same as the rarity a success would produce (rarity+1),
+              // so the button previews what you're crafting UP TO.
+              bool const just_crafted = g_result_at > 0
+                  && Game::timestamp - g_result_at < CRAFT_ANIM_MS + RESULT_MS;
+              bool const can = !just_crafted && g_sel_type != PetalID::kNone
                   && craftable(g_sel_rarity, owned_count(g_sel_type, g_sel_rarity));
-              elt->style.fill = can ? 0xff8a7860 : 0xff888888;
+              elt->style.fill = can ? RARITY_COLORS[g_sel_rarity + 1] : 0xff888888;
           }
         }
     );
