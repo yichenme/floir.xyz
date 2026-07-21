@@ -9,7 +9,11 @@ const fs = require('fs');
 const crypto = require('crypto');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, '..', 'database.json');
+// Override via FLOIR_DB_PATH so two map servers (Garden, Ant Hell -- separate
+// processes, separate directories) can point at ONE shared file instead of
+// each keeping its own account DB. Defaults to the old per-directory path so
+// a single-server local run needs no env var.
+const DB_PATH = process.env.FLOIR_DB_PATH || path.join(__dirname, '..', 'database.json');
 
 // Petal IDs that have been removed from the game. They stay numbered in the
 // PetalID enum (so surviving petals keep their saved IDs), but any copies still
@@ -24,10 +28,10 @@ const DB_PATH = path.join(__dirname, '..', 'database.json');
 const RETIRED_PETALS = new Set([3, 6, 21, 23, 27, 29, 30, 32, 35, 36, 38, 50]);
 
 global.purgeRetiredPetals = () => {
-    let changed = false;
     for (const user of Object.keys(global.db)) {
         const acct = global.db[user];
         if (!acct) continue;
+        let changed = false;
         if (Array.isArray(acct.inventory)) {
             const kept = acct.inventory.filter((s) => !RETIRED_PETALS.has(s.type | 0));
             if (kept.length !== acct.inventory.length) { acct.inventory = kept; changed = true; }
@@ -37,20 +41,51 @@ global.purgeRetiredPetals = () => {
                 if (slot && RETIRED_PETALS.has(slot.type | 0)) { slot.type = 0; slot.rarity = 0; changed = true; }
             }
         }
+        if (changed) global.saveDatabase(user);
     }
-    if (changed) global.saveDatabase();
 };
+
+const _readDbFromDisk = () => {
+    try {
+        return { data: JSON.parse(fs.readFileSync(DB_PATH, 'utf8')), mtimeMs: fs.statSync(DB_PATH).mtimeMs };
+    } catch {
+        return { data: {}, mtimeMs: 0 };
+    }
+};
+
+let dbMtimeMs = 0;
+// Accounts THIS process has changed since its last flush -- see flushDatabase.
+// Tracked per-user (not one dbDirty bool) so a refresh from disk can safely
+// pull in another server's edits to every OTHER account without clobbering
+// this process's own not-yet-flushed changes.
+const dirtyUsers = new Set();
 
 global.loadDatabase = () => {
     if (!global.db) {
-        try {
-            global.db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-        } catch {
-            global.db = {};
-        }
+        const { data, mtimeMs } = _readDbFromDisk();
+        global.db = data;
+        dbMtimeMs = mtimeMs;
         // One-time cleanup per process: strip retired petals from all accounts.
         global.purgeRetiredPetals();
+        return;
     }
+    // Two map servers (Garden, Ant Hell) share one DB_PATH file. Every dbXxx
+    // call already routes through here first, so this is where the other
+    // process's writes actually become visible: if the file's mtime moved
+    // since we last read it, pull in every account we haven't ourselves
+    // dirtied since our last flush. (Our own dirty accounts stay as our
+    // in-memory version until flushDatabase's merge-write reconciles them.)
+    let stat;
+    try { stat = fs.statSync(DB_PATH); } catch { return; }
+    if (stat.mtimeMs <= dbMtimeMs) return;
+    const { data } = _readDbFromDisk();
+    for (const user of Object.keys(data)) {
+        if (!dirtyUsers.has(user)) global.db[user] = data[user];
+    }
+    for (const user of Object.keys(global.db)) {
+        if (!dirtyUsers.has(user) && !Object.prototype.hasOwnProperty.call(data, user)) delete global.db[user];
+    }
+    dbMtimeMs = stat.mtimeMs;
 };
 
 // Coalesced, ASYNC persistence. The whole account DB is one JSON file; writing
@@ -66,9 +101,10 @@ global.loadDatabase = () => {
 //   * Fixed-interval coalescing (schedule once, do NOT reset the timer on every
 //     save) -- a debounce-reset would starve the flush on a busy server and
 //     lose a lot of data on a crash. This guarantees a flush every ~3s.
-//   * dbDirty is cleared BEFORE the snapshot, so a mutation that lands during
-//     the async write re-marks it dirty and gets picked up by the next flush
-//     (rather than being cleared away after the await).
+//   * dirtyUsers is drained into a local snapshot BEFORE the async write, so a
+//     mutation landing on some user during the write re-adds that user to
+//     dirtyUsers and gets picked up by the next flush (rather than being
+//     cleared away after the await).
 //   * isWriting only prevents OVERLAPPING writes; it never causes a mutation to
 //     skip marking the DB dirty.
 //   * A temp-file + atomic rename avoids a truncated/corrupt DB if the process
@@ -76,7 +112,6 @@ global.loadDatabase = () => {
 //   * flushDatabaseNow stays SYNCHRONOUS: the shutdown handler (Wasm.cc) calls
 //     it and then process.exit(0) without awaiting, so it must finish the write
 //     before returning -- an async version would let the process exit mid-write.
-let dbDirty = false;
 let flushTimer = null;
 let isWriting = false;
 // The flush's JSON.stringify of the whole DB is synchronous and blocks the
@@ -93,32 +128,45 @@ const scheduleFlush = () => {
 };
 
 const flushDatabase = async () => {
-    if (isWriting || !dbDirty) return;
+    if (isWriting || dirtyUsers.size === 0) return;
     isWriting = true;
-    // Clear dirty + snapshot the DB synchronously, before any await, so writes
-    // that happen DURING the async write re-mark dbDirty and aren't lost.
-    dbDirty = false;
-    let snapshot;
+    // Snapshot which accounts we're flushing and their CURRENT in-memory state,
+    // then clear dirty for exactly those users -- before any await, so a
+    // mutation landing during the write re-marks its user dirty and isn't lost.
+    const users = Array.from(dirtyUsers);
+    dirtyUsers.clear();
+    const patch = {};
+    for (const u of users) patch[u] = global.db[u];   // undefined => deleted (ban)
     try {
-        snapshot = JSON.stringify(global.db);
-    } catch (e) {
-        dbDirty = true; isWriting = false; return;
-    }
-    const tmp = DB_PATH + '.tmp';
-    try {
+        // Merge onto the CURRENT on-disk state, not our in-memory global.db --
+        // the other map server may have flushed changes to OTHER accounts since
+        // we last refreshed, and a blind dump of global.db would silently
+        // discard those. Only the accounts we actually changed get applied.
+        const { data: onDisk } = _readDbFromDisk();
+        for (const u of users) {
+            if (patch[u] === undefined) delete onDisk[u];
+            else onDisk[u] = patch[u];
+        }
+        const snapshot = JSON.stringify(onDisk);
+        const tmp = DB_PATH + '.tmp';
         await fs.promises.writeFile(tmp, snapshot);
         await fs.promises.rename(tmp, DB_PATH);   // atomic swap
+        try { dbMtimeMs = fs.statSync(DB_PATH).mtimeMs; } catch {}
+        // Pick up the other server's accounts we just read, so this process's
+        // cache reflects them without waiting for the next loadDatabase() poll.
+        for (const u of Object.keys(onDisk)) {
+            if (!users.includes(u) && !dirtyUsers.has(u)) global.db[u] = onDisk[u];
+        }
     } catch (e) {
-        dbDirty = true;   // write failed -- keep it dirty so the next flush retries
+        for (const u of users) dirtyUsers.add(u);   // write failed -- retry next flush
     } finally {
         isWriting = false;
     }
-    // If the DB changed while we were writing, make sure another flush is queued.
-    if (dbDirty) scheduleFlush();
+    if (dirtyUsers.size > 0) scheduleFlush();
 };
 
-global.saveDatabase = () => {
-    dbDirty = true;
+global.saveDatabase = (user) => {
+    if (user !== undefined) dirtyUsers.add(user);
     scheduleFlush();
 };
 
@@ -130,8 +178,16 @@ global.saveDatabase = () => {
 global.flushDatabaseNow = () => {
     if (flushTimer !== null) { clearTimeout(flushTimer); flushTimer = null; }
     try {
-        fs.writeFileSync(DB_PATH, JSON.stringify(global.db));
-        dbDirty = false;
+        // Same merge-onto-current-disk-state approach as the async flush (see
+        // flushDatabase): only overwrite the accounts THIS process touched, so
+        // a deploy restart on one map server can't stomp the other's writes.
+        const { data: onDisk } = _readDbFromDisk();
+        for (const u of dirtyUsers) {
+            if (global.db[u] === undefined) delete onDisk[u];
+            else onDisk[u] = global.db[u];
+        }
+        fs.writeFileSync(DB_PATH, JSON.stringify(onDisk));
+        dirtyUsers.clear();
     } catch (e) { /* best effort on shutdown */ }
 };
 
@@ -157,7 +213,7 @@ global.dbRegister = (user, passwordHash, loadoutJson, inventoryJson) => {
         loadout: JSON.parse(loadoutJson),
         inventory: JSON.parse(inventoryJson),
     };
-    global.saveDatabase();
+    global.saveDatabase(user);
     return sessionKey;
 };
 
@@ -166,7 +222,7 @@ global.dbLogin = (user, passwordHash) => {
     const acct = global.db[user];
     if (!acct || acct.password_hash !== passwordHash) return null;
     acct.session_key = global.makeSessionKey();
-    global.saveDatabase();
+    global.saveDatabase(user);
     return acct.session_key;
 };
 
@@ -187,7 +243,7 @@ global.dbSetLoadout = (user, loadoutJson) => {
     const acct = global.db[user];
     if (!acct) return false;
     acct.loadout = JSON.parse(loadoutJson);
-    global.saveDatabase();
+    global.saveDatabase(user);
     return true;
 };
 
@@ -202,7 +258,7 @@ global.dbSetInventory = (user, inventoryJson) => {
     const acct = global.db[user];
     if (!acct) return false;
     acct.inventory = JSON.parse(inventoryJson);
-    global.saveDatabase();
+    global.saveDatabase(user);
     return true;
 };
 
@@ -245,7 +301,7 @@ global.dbSetProgress = (user, level, xp) => {
     if (!acct) return false;
     acct.level = level;
     acct.xp = xp;
-    global.saveDatabase();
+    global.saveDatabase(user);
     return true;
 };
 
@@ -261,7 +317,7 @@ global.dbSetTalents = (user, healthRank, reloadRank) => {
     if (!acct) return false;
     acct.talentHealth = healthRank;
     acct.talentReload = reloadRank;
-    global.saveDatabase();
+    global.saveDatabase(user);
     return true;
 };
 
@@ -299,7 +355,7 @@ global.adminApi = (bodyStr) => {
         const ex = acct.inventory.find((s) => s.type === type && s.rarity === rarity);
         if (ex) ex.count = (ex.count | 0) + count;
         else acct.inventory.push({ type, rarity, count });
-        global.saveDatabase();
+        global.saveDatabase(req.target);
         return JSON.stringify({ ok: true, message: 'gave ' + count + ' to ' + req.target });
     }
     // Permanently deletes the account record (password, session, loadout,
@@ -312,7 +368,7 @@ global.adminApi = (bodyStr) => {
         if (!Object.prototype.hasOwnProperty.call(global.db, name))
             return JSON.stringify({ ok: false, error: 'no such account' });
         delete global.db[name];
-        global.saveDatabase();
+        global.saveDatabase(name);
         return JSON.stringify({ ok: true, message: 'permanently deleted ' + name });
     }
     return JSON.stringify({ ok: false, error: 'unknown action' });
