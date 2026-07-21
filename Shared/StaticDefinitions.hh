@@ -65,10 +65,10 @@ namespace PetalID {
         kTricac, // "Triple Cactus"; removed from game (numbering kept for accounts)
         kHeavy, // formerly "Heaviest"; the old kHeavy is now kHeavyLegacy.
         kThirdEye,
-        kObserver,
+        kObserver, // removed from game (numbering kept for accounts)
         kPoisonCactus, // "Purple Cactus"; removed from game (numbering kept for accounts)
         kSalt,
-        kUniqueBasic,
+        kUniqueBasic, // "Basic" at Unique rarity; removed from game (numbering kept for accounts)
         kSquare,
         kMoon,
         kLotus,

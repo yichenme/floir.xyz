@@ -244,10 +244,6 @@ void GameInstance::add_client(Client *client) {
         ent.set_inventory(i, PetalID::kBasic);
         ent.set_inventory_rarity(i, PETAL_DATA[PetalID::kBasic].rarity);
     }
-    if (frand() < 0.001 && PetalTracker::get_count(&simulation, PetalID::kUniqueBasic) == 0) {
-        ent.set_inventory(0, PetalID::kUniqueBasic);
-        ent.set_inventory_rarity(0, PETAL_DATA[PetalID::kUniqueBasic].rarity);
-    }
     for (uint32_t i = 0; i < loadout_slots_at_level(ent.get_respawn_level()); ++i)
         PetalTracker::add_petal(&simulation, ent.get_inventory(i));
     client->camera = ent.id;

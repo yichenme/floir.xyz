@@ -32,12 +32,14 @@ void GalleryPetal::on_event(uint8_t event) {
 
 static bool is_retired_petal(PetalID::T i) {
     // Retired / removed petals (kept in the enum only so saved account petal IDs
-    // don't renumber). kTringer folded into kStinger.
+    // don't renumber). kTringer folded into kStinger. kUniqueBasic ("Basic" at
+    // Unique rarity) retired: it was a stat-less joke reward, never worth the
+    // slot it occupied.
     return i == PetalID::kHeavyLegacy || i == PetalID::kAzalea ||
            i == PetalID::kBlueIris || i == PetalID::kTriweb ||
            i == PetalID::kTricac || i == PetalID::kPoisonCactus ||
            i == PetalID::kTwin || i == PetalID::kTriplet || i == PetalID::kTringer ||
-           i == PetalID::kObserver;
+           i == PetalID::kObserver || i == PetalID::kUniqueBasic;
 }
 
 static Element *make_scroll() {

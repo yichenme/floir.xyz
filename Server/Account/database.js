@@ -15,10 +15,13 @@ const DB_PATH = path.join(__dirname, '..', 'database.json');
 // PetalID enum (so surviving petals keep their saved IDs), but any copies still
 // sitting in accounts are purged: dropped from inventory, and cleared to an
 // empty slot (type 0) in loadouts. kTringer (29) folded into kStinger.
+// 38 = kUniqueBasic ("Basic" at Unique rarity): retired, was a stat-less joke
+// reward granted at a 0.1% chance -- no longer grantable (see Server/Spawn.cc,
+// Server/Game.cc).
 // 50 = Mjolnir: not retired, but a transient leaderboard-#1 reward that must
 // never live in a saved account (stripped on load as a backstop so it can't be
 // duplicated/kept via any persistence path).
-const RETIRED_PETALS = new Set([3, 6, 21, 23, 27, 29, 30, 32, 35, 36, 50]);
+const RETIRED_PETALS = new Set([3, 6, 21, 23, 27, 29, 30, 32, 35, 36, 38, 50]);
 
 global.purgeRetiredPetals = () => {
     let changed = false;
