@@ -18,7 +18,7 @@ uint8_t roll_drop_rarity(uint8_t mob_rarity);
 
 // Flat chance to turn 5 petals of `rarity` (Common=0..Super=7) into 1 of
 // rarity+1: 64% at Common, halving per tier through Mythic->Ultra, then 2.5%
-// at Ultra->Super and 1% at Super->Unique, 0 at/above Unique (Unique is the
+// at Ultra->Super and 0.5% at Super->Unique, 0 at/above Unique (Unique is the
 // final tier and can't be crafted further). Shared so the server's actual
 // roll and the client's displayed "?% success chance" can't drift apart.
 float craft_success_chance(uint8_t rarity);

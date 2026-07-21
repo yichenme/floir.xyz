@@ -68,6 +68,27 @@ void try_craft(Client *client, PetalID::T type, uint8_t rarity, uint32_t amount)
     AccountDB::save();
     InventoryOps::sync_inventory_update(client);
 
+    // Announce every Super/Unique craft success individually -- a batched
+    // "craft all" landing 10 successes gets 10 separate messages, not one
+    // summarizing line, matching how Spawn.cc's _announce_spawn treats every
+    // Super+ wild mob spawn as its own announcement.
+    if (crafted > 0 && out_rarity >= RarityID::kSuper) {
+        bool const uniq = out_rarity >= RarityID::kUnique;
+        Simulation *sim = &client->game->simulation;
+        std::string name = "A player";
+        if (sim->ent_exists(client->camera)) {
+            EntityID const player_id = sim->get_ent(client->camera).get_player();
+            if (sim->ent_exists(player_id)) {
+                std::string const nm = sim->get_ent(player_id).get_name();
+                if (!nm.empty()) name = nm;
+            }
+        }
+        std::string const msg = name + " has crafted a " + (uniq ? "Unique " : "Super ")
+            + PETAL_DATA[type].name + "!";
+        for (uint32_t i = 0; i < crafted; ++i)
+            Server::game.system_message(uniq ? SystemMsgKind::kSysUnique : SystemMsgKind::kSysSuper, msg);
+    }
+
     Writer writer(Server::OUTGOING_PACKET);
     writer.write<uint8_t>(Clientbound::kCraftResult);
     writer.write<uint8_t>(type);

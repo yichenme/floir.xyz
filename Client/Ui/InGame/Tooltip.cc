@@ -8,6 +8,7 @@
 #include <Client/Game.hh>
 
 #include <Shared/RarityScale.hh>
+#include <Shared/TalentData.hh>
 
 #include <format>
 
@@ -20,8 +21,10 @@ static float get_reload_factor() {
     // Final Reload = Original x product over equipped Golden Leaves of
     // (1 - reduction), where each leaf's reduction scales with its rarity
     // (matches Server/Process/Flower.cc). Multiplying per leaf gives the
-    // (1 - r)^(#leaves) behaviour.
-    float factor = 1;
+    // (1 - r)^(#leaves) behaviour. The Reload talent is a further flat
+    // account-wide multiplier, matching how Flower.cc folds it into
+    // buffs.reload_factor server-side.
+    float factor = talent_reload_mult(Game::talent_reload_rank);
     Entity &player = Game::simulation.get_ent(Game::player_id);
     for (uint32_t i = 0; i < player.get_loadout_count(); ++i) {
         float rf = PETAL_DATA[player.get_loadout_ids(i)].attributes.extra_reload_factor;
@@ -66,7 +69,11 @@ static Ui::Element *make_petal_stat_container(PetalID::T id, uint8_t rarity) {
     if (petal_data.health > 0 && !hide_combat) {
         stats.push_back(new Ui::HContainer({
             new Ui::StaticText(12, "Health:", { .fill = 0xff77ff77 }),
-            new Ui::StaticText(12, format_number(petal_data.health * eff_hp_mult))
+            new Ui::DynamicText(12, [&petal_data, eff_hp_mult](){
+                // Petal Health talent is a flat account-wide multiplier on top
+                // of the rarity scaling above (matches Spawn.cc's alloc_petal).
+                return format_number(petal_data.health * eff_hp_mult * talent_health_mult(Game::talent_health_rank));
+            })
         }, 0, 5, { .h_justify = Style::Left }));
     }
     if (petal_data.damage > 0 && !hide_combat) {
