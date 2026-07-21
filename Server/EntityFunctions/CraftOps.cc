@@ -30,7 +30,7 @@ namespace CraftOps {
 void try_craft(Client *client, PetalID::T type, uint8_t rarity, uint32_t amount) {
     if (client == nullptr || client->username.empty()) return;
     if (type == PetalID::kNone || type >= PetalID::kNumPetals) return;
-    if (rarity >= RarityID::kSuper) return;   // Super+ isn't craftable (Unique unreachable)
+    if (rarity >= RarityID::kUnique) return;   // Unique+ isn't craftable (final tier)
     if (amount < 1) return;
 
     std::vector<PetalStack> inv;

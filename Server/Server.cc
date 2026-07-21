@@ -4,6 +4,7 @@
 #include <Server/Client.hh>
 
 #include <Shared/Binary.hh>
+#include <Shared/StaticData.hh>
 
 #include <chrono>
 #include <iostream>
@@ -23,7 +24,9 @@ void Server::tick() {
     std::chrono::duration<double, std::milli> tick_time = end - start;
     // Only warn on ticks approaching the TPS budget (a healthy tick is well
     // under this); the old 5ms threshold logged every tick once populated.
-    if (tick_time > 40ms) std::cout << "tick took " << tick_time << '\n';
+    // 80% of the actual per-tick budget (1000/TPS), so this scales with TPS
+    // instead of assuming the old fixed 20 TPS / 50ms budget.
+    if (tick_time.count() > 800.0 / TPS) std::cout << "tick took " << tick_time << '\n';
 }
 
 void Server::init() {

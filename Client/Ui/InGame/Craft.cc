@@ -30,12 +30,12 @@ using namespace Ui;
 // drag-to-equip, and FILTERED to stacks of 5+ (fewer can never be crafted, so
 // they're just left out instead of cluttering the list); RIGHT is the craft
 // UI, a 5-box pentagon preview + success % + Craft button + result.
-// Super and Unique rarity stacks never appear in the grid at all (never a
-// valid craft input); a stack that IS a valid rarity but owns fewer than 5
-// still renders, just in black/white/gray instead of a translucent icon.
-// Hovering a grid slot, or anywhere over the pentagon boxes, shows the same
-// name/rarity/description/damage/health tooltip used everywhere else
-// (Ui::UiLoadout::petal_tooltips).
+// Unique rarity stacks never appear in the grid at all (never a valid craft
+// input -- it's the final tier); a stack that IS a valid rarity but owns
+// fewer than 5 still renders, just in black/white/gray instead of a
+// translucent icon. Hovering a grid slot, or anywhere over the pentagon
+// boxes, shows the same name/rarity/description/damage/health tooltip used
+// everywhere else (Ui::UiLoadout::petal_tooltips).
 //
 // Clicking a slot never crafts by itself -- it only selects (type, rarity)
 // and previews what a Craft click would consume: a plain click shows 1 in
@@ -44,10 +44,10 @@ using namespace Ui;
 // button actually sends the request.
 //
 // Economics live server-side (Server/EntityFunctions/CraftOps.cc): each
-// attempt rolls craft_success_chance (flat per-rarity, 64% halving per tier,
-// 0 at/above Super -- Unique is never reachable through crafting). On
-// SUCCESS it consumes exactly 5 and yields 1 of rarity+1; on FAILURE the base
-// 5 is untouched and only a random 1-4 is lost.
+// attempt rolls craft_success_chance (64% at Common, halving per tier through
+// Mythic->Ultra, then 2.5% at Ultra->Super and 1% at Super->Unique, 0 at/above
+// Unique). On SUCCESS it consumes exactly 5 and yields 1 of rarity+1; on
+// FAILURE the base 5 is untouched and only a random 1-4 is lost.
 namespace {
     PetalID::T g_sel_type = PetalID::kNone;
     uint8_t g_sel_rarity = 0;
@@ -70,7 +70,7 @@ namespace {
     }
 
     bool craftable(uint8_t rarity, uint64_t count) {
-        return rarity < RarityID::kSuper && count >= 5;
+        return rarity < RarityID::kUnique && count >= 5;
     }
 
     // amount==1 -> single attempt; amount==owned -> "craft all" (server caps).
@@ -105,10 +105,10 @@ namespace {
         g_craft_order.clear();
         for (uint32_t real : Game::inventory_display_order) {
             PetalStack const &s = Game::inventory_stacks[real];
-            // Super and Unique never appear in the craft grid at all (not
-            // even grayed-out): neither is ever a valid craft input, and
-            // showing them was just clutter.
-            if (s.count >= 5 && s.rarity != RarityID::kSuper && s.rarity != RarityID::kUnique)
+            // Unique never appears in the craft grid at all (not even
+            // grayed-out): it's never a valid craft input (final tier), and
+            // showing it was just clutter.
+            if (s.count >= 5 && s.rarity != RarityID::kUnique)
                 g_craft_order.push_back(real);
         }
     }
@@ -369,7 +369,7 @@ namespace {
         void on_render(Renderer &ctx) override {
             if (g_sel_type == PetalID::kNone) return;
             uint64_t const count = owned_count(g_sel_type, g_sel_rarity);
-            if (g_sel_rarity >= RarityID::kSuper) {
+            if (g_sel_rarity >= RarityID::kUnique) {
                 ctx.draw_text("Not craftable", { .fill = 0xffcc7777, .size = 14 });
                 return;
             }

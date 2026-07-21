@@ -212,7 +212,16 @@ void Game::init() {
             return elt;
         }()
     );
-    other_ui_window.add_child(
+    // Squad invite lives in game_ui_window, NOT other_ui_window: the whole
+    // point of other_ui_window.style.no_polling below is that it's a
+    // click-through overlay (debug stats, disconnect/squad-notice banners) --
+    // Window::poll_events short-circuits on no_polling before it ever reaches
+    // children, so Accept/Reject buttons placed there would never receive a
+    // click on ANY platform. game_ui_window is already correctly polled (it's
+    // where the Craft/Inventory buttons live) and renders to a same-sized
+    // renderer (game_ui_renderer.set_dimensions mirrors the main renderer),
+    // so the same x/y placement works unchanged.
+    game_ui_window.add_child(
         [](){
             // Squad invite: same disconnect-banner look (fill/round_radius),
             // but with a message plus Accept (DeathScreen's green Continue

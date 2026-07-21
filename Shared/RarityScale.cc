@@ -15,13 +15,16 @@ float rarity_pow3(uint8_t rarity) {
 float mob_rarity_mult(uint8_t rarity) {
     return rarity_pow3(rarity);
 }
-// Flat craft chance: 64% at Common->Uncommon, halving each tier up
-// (32/16/8/4/2%), 1% at Ultra->Super, 0 at/above Super (uncraftable). Unique
-// can never be reached through crafting -- Super is the ceiling. The
+// Flat craft chance: 64% at Common->Uncommon, halving each tier up through
+// Mythic->Ultra (32/16/8/4/2%), then two explicit overrides for the top of
+// the ladder: 2.5% at Ultra->Super and 1% at Super->Unique. 0 at/above Unique
+// (uncraftable -- Unique is the final tier and can't be crafted further). The
 // pity/attempt-scaling system was intentionally removed -- these are the
 // fixed per-tier odds the crafting page displays and rolls against.
 float craft_success_chance(uint8_t rarity) {
-    if (rarity >= RarityID::kSuper) return 0.f;
+    if (rarity >= RarityID::kUnique) return 0.f;
+    if (rarity == RarityID::kSuper) return 0.01f;
+    if (rarity == RarityID::kUltra) return 0.025f;
     return 0.64f * std::pow(0.5f, (float)rarity);
 }
 float extra_vision_bonus(uint8_t rarity) {

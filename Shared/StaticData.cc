@@ -3,7 +3,7 @@
 #include <cmath>
 
 uint32_t const MAX_LEVEL = 999;
-uint32_t const TPS = 20;
+uint32_t const TPS = 30;
 
 //these two are based on the base game's 20 TPS
 float const PLAYER_ACCELERATION = 5.0f;
@@ -511,7 +511,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
             // Mass is never rarity-scaled (see alloc_petal), so this push
             // stays constant across rarities by construction -- only the
             // health/damage/reload above scale with rarity.
-            .mass = 70
+            .mass = 75
         }
     },
     {
@@ -720,6 +720,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .count = 1,
         .rarity = RarityID::kEpic,
         .attributes = {
+            .mass = 10,
             .icon_angle = 0.5
         }
     },
@@ -747,7 +748,7 @@ std::array<struct PetalData, PetalID::kNumPetals> const PETAL_DATA = {{
         .count = 1,
         .rarity = RarityID::kUnique,
         .attributes = {
-            .mass = 40
+            .mass = 25
         }
     },
     {
