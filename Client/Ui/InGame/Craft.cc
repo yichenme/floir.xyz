@@ -101,9 +101,14 @@ namespace {
         if (g_craft_order_version == Game::inventory_version) return;
         g_craft_order_version = Game::inventory_version;
         g_craft_order.clear();
-        for (uint32_t real : Game::inventory_display_order)
-            if (Game::inventory_stacks[real].count >= 5)
+        for (uint32_t real : Game::inventory_display_order) {
+            PetalStack const &s = Game::inventory_stacks[real];
+            // Super and Unique never appear in the craft grid at all (not
+            // even grayed-out): neither is ever a valid craft input, and
+            // showing them was just clutter.
+            if (s.count >= 5 && s.rarity != RarityID::kSuper && s.rarity != RarityID::kUnique)
                 g_craft_order.push_back(real);
+        }
     }
 
     class CraftStackSlot final : public Element {
