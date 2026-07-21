@@ -299,6 +299,10 @@ Element *Ui::make_craft_panel() {
 
     // Craft is the ONLY thing that actually crafts: the selection just set up
     // the (type, rarity) and whether the whole stack is queued (g_craft_all).
+    // Its color mirrors the "close/secondary" button convention used
+    // elsewhere (DeathScreen's Close button, 0xff888888 gray) whenever
+    // there's nothing to craft -- warm tan-brown only once a craftable
+    // selection is actually queued up.
     Element *craft_btn = new Ui::Button(120, 40, new Ui::StaticText(17, "Craft"),
         [](Element *e, uint8_t ev) {
             if (ev != Ui::kClick) return;
@@ -306,8 +310,14 @@ Element *Ui::make_craft_panel() {
             if (!craftable(g_sel_rarity, count)) return;
             do_craft(g_craft_all ? (uint32_t)count : 1);
         }, nullptr,
-        // Muted warm gray-tan, matching the reference panel's Craft button.
-        { .fill = 0xff8a7860, .line_width = 4, .round_radius = 4 }
+        { .fill = 0xff8a7860, .line_width = 4, .round_radius = 4,
+          .animate = [](Element *elt, Renderer &ctx){
+              ctx.scale((float) elt->animation);
+              bool const can = g_sel_type != PetalID::kNone
+                  && craftable(g_sel_rarity, owned_count(g_sel_type, g_sel_rarity));
+              elt->style.fill = can ? 0xff8a7860 : 0xff888888;
+          }
+        }
     );
 
     Element *right = new VContainer({
@@ -316,21 +326,34 @@ Element *Ui::make_craft_panel() {
         craft_btn
     }, 6, 10, { .v_justify = Style::Middle });
 
-    // h_justify Left on the row (and the text below) so the petal grid --
-    // first child of the row -- hugs the panel's left edge instead of being
-    // centred by the wider paragraph text. Left (grid) and right (craft UI)
-    // are roughly equal width panel halves.
-    Element *row = new HContainer({ grid, right }, 4, 16, { .h_justify = Style::Left, .v_justify = Style::Top });
+    // Left (grid) hugs the panel's left edge, matching the wider paragraph
+    // text below, whenever there's actually a grid to show; with nothing
+    // craftable the grid disappears entirely (see should_render above), so
+    // the row re-centers the craft UI instead of leaving it stranded at the
+    // left edge of a now-mostly-empty panel.
+    Element *row = new HContainer({ grid, right }, 4, 16, {
+        .animate = [](Element *elt, Renderer &ctx){
+            ctx.scale((float) elt->animation);
+            refresh_craft_order();
+            elt->style.h_justify = g_craft_order.empty() ? Style::Center : Style::Left;
+        },
+        .h_justify = Style::Left, .v_justify = Style::Top
+    });
 
     class CraftPanel final : public VContainer {
     public:
         using VContainer::VContainer;
     };
 
+    // Narrow enough to force a wrap (rather than the panel staying wide to
+    // fit one long line), and to actually shrink the panel -- along with the
+    // row above -- when the grid is hidden.
+    float const DESC_WIDTH = 260.0f;
     Element *elt = new CraftPanel(std::vector<Element *>{
         new Ui::StaticText(22, "Craft", { .fill = 0xffffffff, .h_justify = Style::Left }),
         row,
-        new Ui::StaticParagraph(500, 12, "Click a petal to select it (shift-click to queue the whole stack), then hit Craft: 5 become a chance at +1 rarity, and every attempt always loses 1-4 extra.", { .h_justify = Style::Left })
+        new Ui::StaticParagraph(DESC_WIDTH, 13, "Combine 5 of the same petal to craft an upgrade", { .h_justify = Style::Left }),
+        new Ui::StaticParagraph(DESC_WIDTH, 10, "Failure will destroy 1-4 petals", { .h_justify = Style::Left })
     }, 14, 8, {
         // Warm tan/caramel panel (border auto-derives a darker brown via
         // Style::stroke_hsv), matching the reference craft panel's page color.
