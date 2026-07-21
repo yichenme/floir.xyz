@@ -201,7 +201,7 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
                 talent_writer.write<uint8_t>(Clientbound::kTalentUpdate);
                 talent_writer.write<uint8_t>(saved_health_rank);
                 talent_writer.write<uint8_t>(saved_reload_rank);
-                talent_writer.write<uint32_t>(camera.get_respawn_level() / 5);
+                talent_writer.write<uint32_t>(camera.get_respawn_level() * 2);
                 client->send_packet(talent_writer.packet, talent_writer.at - talent_writer.packet);
             }
             Entity &player = alloc_player(simulation, camera.get_team());
@@ -330,11 +330,14 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
         }
         // Doesn't require a live player -- TP/rank live in AccountDB, keyed
         // off level/xp, not the ECS entity -- just a logged-in account.
+        // target_rank lets a single click jump past multiple unbought ranks
+        // at once (paying their combined cost), not just the immediate next.
         case Serverbound::kTalentBuy: {
             if (!client->logged_in) break;
-            if (client->check_invalid(validator.validate_uint8())) return;
+            if (client->check_invalid(validator.validate_uint8() && validator.validate_uint8())) return;
             uint8_t const tree = reader.read<uint8_t>();
-            TalentOps::try_buy(client, tree);
+            uint8_t const target_rank = reader.read<uint8_t>();
+            TalentOps::try_buy(client, tree, target_rank);
             break;
         }
     }

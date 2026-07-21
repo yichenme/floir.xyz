@@ -214,7 +214,7 @@ static void make_petal_tooltip(PetalID::T id, uint8_t rarity) {
         new Ui::HFlexContainer(
             new Ui::StaticText(20, PETAL_DATA[id].name, { .fill = 0xffffffff, .h_justify = Style::Left }),
             new Ui::DynamicText(16, [=](){
-                float reload = PETAL_DATA[id].reload * get_reload_factor();
+                float reload = PETAL_DATA[id].reload;
                 // Yggdrasil's cooldown is divided by 3 each rarity up.
                 if (id == PetalID::kYggdrasil) reload /= rarity_pow3(rarity);
                 float secondary = PETAL_DATA[id].attributes.secondary_reload;
@@ -224,11 +224,18 @@ static void make_petal_tooltip(PetalID::T id, uint8_t rarity) {
                     secondary = rarity >= RarityID::kUnique ? 0.f : 0.7f - 0.1f * rarity;
                     if (secondary < 0.1f && secondary > 0) secondary = 0.1f;
                 }
-                // Show both reload phases with their own "s" (e.g. 0.1s + 0.1s),
-                // no reload icon.
+                // Golden Leaf / Talent only ever reduce the SECOND ("behind")
+                // number when a petal shows two reload phases -- the front
+                // number is whatever the petal's own rarity table already
+                // computed, untouched. When there's only one phase (no
+                // secondary), that sole number is the one that gets reduced.
                 if (reload == 0) return std::string("");
-                if (secondary == 0)
+                if (secondary == 0) {
+                    reload *= get_reload_factor();
+                    if (reload == 0) return std::string("");
                     return std::format("{:.1f}s", reload);
+                }
+                secondary *= get_reload_factor();
                 return std::format("{:.1f}s + {:.1f}s", reload, secondary);
             }, { .fill = 0xffffffff, .v_justify = Style::Top }),
             5, 10, {}

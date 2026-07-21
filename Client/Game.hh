@@ -93,7 +93,7 @@ namespace Game {
     extern uint8_t talent_health_rank;
     extern uint8_t talent_reload_rank;
     extern uint32_t talent_points_total;
-    void send_talent_buy(uint8_t tree);
+    void send_talent_buy(uint8_t tree, uint8_t target_rank);
 
     extern std::array<PetalID::T, 2 * MAX_SLOT_COUNT> cached_loadout;
 

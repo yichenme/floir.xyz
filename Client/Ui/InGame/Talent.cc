@@ -20,18 +20,21 @@ using namespace Ui;
 
 // Talent panel: two rows (Petal Health, Reload), each a strip of
 // TALENT_MAX_RANK circles -- one per rarity tier, Common..Unique -- colored
-// by RARITY_COLORS. A circle beyond the account's current rank is grayed
-// out; the very next unbought circle is clickable (buys exactly that rank);
-// anything already owned is fully colored but inert. Hovering any circle
-// shows a small stat-box tooltip (tier name, before/after value, TP cost),
-// matching the hover convention every petal slot in the game already uses.
+// by RARITY_COLORS. Any FUTURE (unowned) circle is clickable as long as its
+// CUMULATIVE cost from the current rank fits in available TP -- clicking
+// rank 9 (Unique) with 0 owned buys every rank 1..9 in one shot, paying
+// their combined cost (not just the immediate next rank); a circle whose
+// jump cost exceeds available TP is grayed out and inert. Already-owned
+// circles are fully colored but inert. Hovering any circle shows a small
+// stat-box tooltip (tier name, before/after value, TP cost), matching the
+// hover convention every petal slot in the game already uses.
 //
 // Ranks/costs live in Shared/TalentData.hh so the panel's displayed numbers
 // and the server's actual roll (Server/EntityFunctions/TalentOps.cc) can't
-// drift apart. TP is 1 per 5 levels, shared across both trees -- the
-// available count is pushed by the server (Clientbound::kTalentUpdate) on
-// spawn and after every successful buy, not computed locally from a client-
-// tracked level (the client doesn't reliably track its own live level).
+// drift apart. TP is 2 per level, shared across both trees -- the available
+// count is pushed by the server (Clientbound::kTalentUpdate) on spawn and
+// after every successful buy, not computed locally from a client-tracked
+// level (the client doesn't reliably track its own live level).
 namespace {
     // Panel/button color scheme, explicit hex per spec rather than the usual
     // auto-derived-from-fill Style::stroke_hsv border -- drawn the same way
@@ -99,7 +102,11 @@ namespace {
             uint8_t const owned_rank = tree == TalentTree::kHealth ? Game::talent_health_rank : Game::talent_reload_rank;
             uint32_t const rarity = rank - 1;
             bool const owned = rank <= owned_rank;
-            bool const buyable = rank == owned_rank + 1 && talent_rank_cost(tree, rank) <= available_tp();
+            // Any FUTURE rank is buyable in one click, not just the next one --
+            // clicking rank 9 with 0 owned jumps straight there, paying every
+            // rank's cost from owned_rank+1..9 combined (see TalentOps::try_buy).
+            uint32_t const jump_cost = talent_cumulative_cost(tree, rank) - talent_cumulative_cost(tree, owned_rank);
+            bool const buyable = rank > owned_rank && jump_cost <= available_tp();
             uint32_t const base = RARITY_COLORS[rarity];
             uint32_t fill = base;
             if (!owned && !buyable) fill = 0xff555555;   // out of reach: flat gray
@@ -124,9 +131,10 @@ namespace {
             }
             if (event != kClick) return;
             uint8_t const owned_rank = tree == TalentTree::kHealth ? Game::talent_health_rank : Game::talent_reload_rank;
-            if (rank != owned_rank + 1) return;   // only the very next rank is buyable
-            if (talent_rank_cost(tree, rank) > available_tp()) return;
-            Game::send_talent_buy((uint8_t)tree);
+            if (rank <= owned_rank) return;
+            uint32_t const jump_cost = talent_cumulative_cost(tree, rank) - talent_cumulative_cost(tree, owned_rank);
+            if (jump_cost > available_tp()) return;
+            Game::send_talent_buy((uint8_t)tree, rank);
         }
     };
 
@@ -203,6 +211,16 @@ Element *Ui::make_talent_panel() {
         ctx.scale((float) e->animation);
         draw_bordered_rect(ctx, e->width, e->height, 3, 7, TALENT_OUTLINE, TALENT_MAIN);
     };
+    // VContainer::refactor() only accumulates width/height from children whose
+    // `visible` flag is already true -- which is false for EVERY child the
+    // very first time this panel is ever opened (visible only flips true once
+    // an element has actually rendered at least one frame), so the width
+    // computed at construction time is near-zero. Since a row is the widest
+    // content the panel ever holds, that bogus tiny width made the justify
+    // math in Container::on_render shove the rows toward the panel's right
+    // side instead of flush left. Setting the true width explicitly sidesteps
+    // the lazy-visibility bug entirely (same fix shape as Craft.cc's grid).
+    elt->width = TALENT_MAX_RANK * (2 * CIRCLE_R) + (TALENT_MAX_RANK - 1) * CIRCLE_GAP + 2 * 10;
     elt->x = 10;
     elt->y = -160;
     return elt;

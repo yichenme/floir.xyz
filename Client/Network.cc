@@ -265,10 +265,11 @@ void Game::send_craft(PetalID::T type, uint8_t rarity, uint32_t amount) {
     socket.send(writer.packet, writer.at - writer.packet);
 }
 
-void Game::send_talent_buy(uint8_t tree) {
+void Game::send_talent_buy(uint8_t tree, uint8_t target_rank) {
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
     writer.write<uint8_t>(Serverbound::kTalentBuy);
     writer.write<uint8_t>(tree);
+    writer.write<uint8_t>(target_rank);
     socket.send(writer.packet, writer.at - writer.packet);
 }
 
