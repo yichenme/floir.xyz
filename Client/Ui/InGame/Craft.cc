@@ -18,7 +18,6 @@
 
 #include <Helpers/Math.hh>
 
-#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -26,19 +25,19 @@
 using namespace Ui;
 
 // Crafting page. Rectangular panel split into two roughly equal halves: LEFT
-// is the inventory grid, one row per petal TYPE x 8 rarity columns
-// (Common..Super -- Unique is never a craft input/output so it's dropped from
-// the grid entirely); RIGHT is the craft UI, a 5-box pentagon preview +
-// success % + Craft button + result. Uncraftable cells (the Super column, or
-// fewer than 5 owned) render in black/white/gray instead of a translucent
-// icon. Hovering a grid cell shows the same name/rarity/description/damage/
-// health tooltip used everywhere else (Ui::UiLoadout::petal_tooltips).
+// is literally the same grid as the real Inventory panel (Inventory.cc) --
+// one slot per owned stack, 5 columns, 60px slots -- just wired for
+// selection instead of drag-to-equip; RIGHT is the craft UI, a 5-box pentagon
+// preview + success % + Craft button + result. Uncraftable stacks (Super or
+// Unique rarity, or fewer than 5 owned) render in black/white/gray instead of
+// a translucent icon. Hovering a slot shows the same name/rarity/description/
+// damage/health tooltip used everywhere else (Ui::UiLoadout::petal_tooltips).
 //
-// Clicking a grid cell never crafts by itself -- it only selects (type,
-// rarity) and previews what a Craft click would consume: a plain click shows
-// 1 in each of the 5 pentagon boxes (5 total = one attempt), a shift-click
-// splits the whole owned stack evenly across the 5 boxes. Only clicking the
-// Craft button actually sends the request.
+// Clicking a slot never crafts by itself -- it only selects (type, rarity)
+// and previews what a Craft click would consume: a plain click shows 1 in
+// each of the 5 pentagon boxes (5 total = one attempt), a shift-click splits
+// the whole owned stack evenly across the 5 boxes. Only clicking the Craft
+// button actually sends the request.
 //
 // Economics live server-side (Server/EntityFunctions/CraftOps.cc): each
 // attempt consumes 5 of the selected stack, rolls craft_success_chance (flat
@@ -77,111 +76,86 @@ namespace {
         g_result_at = Game::timestamp;
     }
 
-    // ---- Left grid: one row per owned type, 8 rarity columns (Common..Super;
-    // Unique is dropped from the craft grid entirely -- it's never a valid
-    // craft input or output) ----
-    uint8_t const GRID_COLS = 8;
-    float const CELL = 30.0f, CELL_GAP = 4.0f;
+    // ---- Left side: the SAME grid as the real Inventory panel (Inventory.cc)
+    // -- one slot per owned stack in Game::inventory_display_order, 5 columns,
+    // 60px slots, pre-allocated up to a display cap with should_render hiding
+    // unused slots. No separate rebuild-on-version-change logic needed: every
+    // slot reads live by index each frame, exactly like InventoryStackSlot.
+    // This is a selection grid, not drag-to-equip, so clicking selects
+    // (type, rarity) for crafting instead of equipping to the loadout.
+    uint32_t const CRAFT_DISPLAY_CAP = 200;
+    uint32_t const CRAFT_COLUMNS = 5;
+    float const CRAFT_SLOT_SIZE = 60.0f;
 
-    // Same rounding proportion as the loadout slots (width/20).
-    float const CELL_ROUND = CELL / 20.0f;
-
-    class RaritySlot final : public Element {
+    class CraftStackSlot final : public Element {
     public:
-        PetalID::T type;
-        uint8_t rarity;
-        RaritySlot(PetalID::T t, uint8_t r) : Element(CELL, CELL, { .round_radius = CELL_ROUND }), type(t), rarity(r) {}
+        uint32_t index;
+        CraftStackSlot(uint32_t idx) : Element(CRAFT_SLOT_SIZE, CRAFT_SLOT_SIZE, { .h_justify = Style::Left }), index(idx) {
+            style.should_render = [this](){ return index < Game::inventory_display_order.size(); };
+        }
         void on_render(Renderer &ctx) override {
-            uint64_t const count = owned_count(type, rarity);
-            bool const selected = g_sel_type == type && g_sel_rarity == rarity && count > 0;
-            // Slot background tinted by rarity (muted normally, full brightness
-            // when selected) -- same RARITY_COLORS palette used everywhere else
-            // (tooltips, gallery, mob cards) so the grid reads consistently.
-            ctx.set_fill(selected ? RARITY_COLORS[rarity] : Renderer::HSV(RARITY_COLORS[rarity], 0.45f));
-            ctx.begin_path();
-            ctx.round_rect(-CELL / 2, -CELL / 2, CELL, CELL, CELL_ROUND);
-            ctx.fill();
-            if (count == 0) return;   // empty rarity for this type: just the box
-            bool const can = craftable(rarity, count);
+            if (index >= Game::inventory_display_order.size()) return;
+            PetalStack const &stack = Game::inventory_stacks[Game::inventory_display_order[index]];
+            bool const selected = g_sel_type == stack.type && g_sel_rarity == stack.rarity;
+            if (selected) {
+                ctx.set_fill(0x60ffffff);
+                ctx.begin_path();
+                ctx.round_rect(-width / 2, -height / 2, width, height, width / 20);
+                ctx.fill();
+            }
+            bool const can = craftable(stack.rarity, stack.count);
             {
                 RenderContext c(&ctx);
-                // Uncraftable cells (Super column, or fewer than 5 owned) render
-                // in black/white/gray instead of a translucent full-color icon --
-                // a flat color filter forces every fill/stroke toward mid-gray.
+                // Uncraftable stacks (Super/Unique rarity, or fewer than 5
+                // owned) render in black/white/gray instead of a translucent
+                // full-color icon -- a flat color filter forces every
+                // fill/stroke toward mid-gray.
                 if (!can) ctx.add_color_filter(0xff888888, 1.0f);
-                ctx.scale(CELL / 60.0f);
-                draw_loadout_background(ctx, type, 1, 1, rarity);
+                draw_loadout_background(ctx, stack.type, 1, 1, stack.rarity);
             }
-            std::string const t = format_stack_count(count);
+            std::string const t = format_stack_count(stack.count);
             if (!t.empty()) {
                 RenderContext c(&ctx);
-                ctx.translate(CELL / 2 - 8, -CELL / 2 + 7);
-                ctx.draw_text(t.c_str(), { .fill = 0xffffffff, .size = 10 });
+                ctx.translate(width / 2 - 12, -height / 2 + 10);
+                ctx.draw_text(t.c_str(), { .fill = 0xffffffff, .size = 13 });
             }
         }
         // Click ONLY selects -- it never crafts by itself. A plain click
         // previews one attempt (5 total, shown as 1 in each of the 5 pentagon
         // boxes); shift-click previews the whole stack split evenly across
         // the 5 boxes. Either way, the Craft button is what actually sends
-        // the request. Non-craftable cells (Super, or fewer than 5) still
-        // select, so the right side can show why. Hovering shows the same
-        // name/rarity/description/damage/health tooltip used on every other
-        // petal slot in the game.
+        // the request. Hovering shows the same name/rarity/description/
+        // damage/health tooltip used on every other petal slot in the game.
         void on_event(uint8_t event) override {
-            uint64_t const count = owned_count(type, rarity);
-            if (event != kFocusLost && count > 0) {
+            if (index >= Game::inventory_display_order.size()) { rendering_tooltip = 0; return; }
+            PetalStack const &stack = Game::inventory_stacks[Game::inventory_display_order[index]];
+            if (event != kFocusLost) {
                 rendering_tooltip = 1;
-                tooltip = Ui::UiLoadout::petal_tooltips[type][rarity];
-            } else if (event == kFocusLost) {
+                tooltip = Ui::UiLoadout::petal_tooltips[stack.type][stack.rarity];
+            } else {
                 rendering_tooltip = 0;
             }
             if (event != kClick) return;
-            if (count == 0) return;
-            g_sel_type = type;
-            g_sel_rarity = rarity;
+            g_sel_type = stack.type;
+            g_sel_rarity = stack.rarity;
             g_craft_all = Input::keys_held.contains('\x10');
         }
     };
 
-    Element *make_type_grid() {
-        Element *grid = new VContainer({}, 6, CELL_GAP, {});
-        // Distinct owned types, sorted by petal name for a stable layout.
-        std::vector<PetalID::T> types;
-        for (PetalStack const &s : Game::inventory_stacks) {
-            if (s.count == 0) continue;
-            if (std::find(types.begin(), types.end(), s.type) == types.end())
-                types.push_back(s.type);
-        }
-        std::sort(types.begin(), types.end(), [](PetalID::T a, PetalID::T b) {
-            return std::string(PETAL_DATA[a].name) < std::string(PETAL_DATA[b].name);
-        });
-        for (PetalID::T type : types) {
-            Element *row = new HContainer({}, 0, CELL_GAP, { .v_justify = Style::Top });
-            for (uint8_t rar = 0; rar < GRID_COLS; ++rar)
-                row->add_child(new RaritySlot(type, rar));
+    Element *make_craft_grid() {
+        Element *grid = new VContainer({}, 10, 10, {});
+        for (uint32_t i = 0; i < CRAFT_DISPLAY_CAP;) {
+            uint32_t const start = i;
+            Element *row = new HContainer({}, 0, 10, { .v_justify = Style::Top });
+            for (uint32_t j = 0; j < CRAFT_COLUMNS && i < CRAFT_DISPLAY_CAP; ++j, ++i)
+                row->add_child(new CraftStackSlot(i));
             row->refactor();
-            row->width = GRID_COLS * CELL + (GRID_COLS - 1) * CELL_GAP;
+            row->width = CRAFT_COLUMNS * CRAFT_SLOT_SIZE + (CRAFT_COLUMNS - 1) * 10;
+            row->style.should_render = [start](){ return start < Game::inventory_display_order.size(); };
             grid->add_child(row);
         }
-        return grid;
+        return new ScrollContainer(grid, 260);
     }
-
-    class CraftGrid final : public ScrollContainer {
-    public:
-        CraftGrid() : ScrollContainer(make_type_grid(), 260) {}
-        void on_render(Renderer &ctx) override {
-            static uint32_t last_version = (uint32_t)-1;
-            if (last_version != Game::inventory_version) {
-                last_version = Game::inventory_version;
-                children[0] = make_type_grid();
-                children[0]->parent = this;
-                // Drop a selection whose stack no longer exists.
-                if (g_sel_type != PetalID::kNone && owned_count(g_sel_type, g_sel_rarity) == 0)
-                    clear_selection();
-            }
-            ScrollContainer::on_render(ctx);
-        }
-    };
 
     // ---- Right side: 5-box pentagon craft preview + chance + Craft button +
     // result ----
@@ -285,7 +259,7 @@ Element *Ui::make_craft_button() {
 }
 
 Element *Ui::make_craft_panel() {
-    Element *grid = new CraftGrid();
+    Element *grid = make_craft_grid();
 
     // Craft is the ONLY thing that actually crafts: the selection just set up
     // the (type, rarity) and whether the whole stack is queued (g_craft_all).
