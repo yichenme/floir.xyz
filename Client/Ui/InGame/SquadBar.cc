@@ -42,7 +42,16 @@ namespace {
             // Bar left edge, matched to LevelBar's: -width/2 + FACE_OFF lands at
             // the same screen x as the player HP bar (both anchored at x=20).
             float const bar_x0 = -width / 2 + FACE_OFF;
-            float y = 0;
+            // This element is v_justify=Top, so its own local (0,0) sits at the
+            // box's vertical CENTER (Container::on_render's justify offset math),
+            // not its top edge. Starting the loop at y=0 therefore only used the
+            // BOTTOM half of the declared height -2*(BAR_H+GAP) worth of unused
+            // margin above row 0 -- which is what made the LevelBar-to-row-1 gap
+            // read as much bigger than the row-1-to-row-2 gap even though GAP
+            // itself was already uniform. Starting at -height/2 (the box's true
+            // top) makes row 0 land exactly at make_squad_bars()'s y, so that y
+            // can be tuned to match GAP precisely (see there).
+            float y = -height / 2;
             uint32_t shown = 0;
             for (Game::SquadMember const &m : Game::squad_members) {
                 if (m.camera_id == Game::camera_id) continue;   // self already has the full bar
@@ -128,9 +137,13 @@ Element *Ui::make_squad_bars() {
     Element *elt = new SquadBars();
     elt->style.h_justify = Style::Left;
     elt->style.v_justify = Style::Top;
-    // x=20 matches LevelBar, so the bar-left alignment math above holds; y sits
-    // just below the player LevelBar.
+    // x=20 matches LevelBar, so the bar-left alignment math above holds.
     elt->x = 20;
-    elt->y = 130;
+    // y is row 0's own flower-centre y (now that on_render starts its loop at
+    // -height/2, see there) -- set so the LevelBar-to-row-1 gap is exactly
+    // GAP=38 (BAR_H+GAP=58 centre-to-centre), the same pitch used between
+    // every squadmate row. LevelBar's own flower centre is at its y(54) +
+    // height/2(30) = 84 (Ui::make_level_bar), so row 0 sits at 84+58=142.
+    elt->y = 142;
     return elt;
 }
