@@ -138,10 +138,22 @@ namespace {
         }
     };
 
+    float const ROW_WIDTH = TALENT_MAX_RANK * (2 * CIRCLE_R) + (TALENT_MAX_RANK - 1) * CIRCLE_GAP;
+
     Element *make_talent_row(TalentTree::T tree) {
         Element *row = new HContainer({}, 0, (int)CIRCLE_GAP, { .h_justify = Style::Left });
         for (uint8_t r = 1; r <= TALENT_MAX_RANK; ++r)
             row->add_child(new TalentRankCircle(tree, r));
+        // Same lazy-visibility bug as the outer panel (HContainer::refactor()
+        // only accumulates width/height from children already `visible`,
+        // which is false for every circle the very first time this row is
+        // rendered) -- fix it here directly rather than only at the panel
+        // level, since Container::on_render's PER-CHILD justify offset uses
+        // each child's OWN reported width, not just the panel's total. Without
+        // this the row's first-ever render mispositions all 9 circles (they
+        // don't clip, they just land somewhere other than flush left).
+        row->width = ROW_WIDTH;
+        row->height = 2 * CIRCLE_R;
         return row;
     }
 
@@ -153,8 +165,6 @@ namespace {
             ctx.draw_text(t.c_str(), { .fill = 0xffffffff, .size = 15 });
         }
     };
-
-    float const ROW_WIDTH = TALENT_MAX_RANK * (2 * CIRCLE_R) + (TALENT_MAX_RANK - 1) * CIRCLE_GAP;
 
     // Title flush left, TP counter + Reset button flush right, all on one
     // row -- HContainer/VContainer force every DIRECT child to one shared
@@ -241,13 +251,19 @@ Element *Ui::make_talent_panel() {
     // VContainer::refactor() only accumulates width/height from children whose
     // `visible` flag is already true -- which is false for EVERY child the
     // very first time this panel is ever opened (visible only flips true once
-    // an element has actually rendered at least one frame), so the width
-    // computed at construction time is near-zero. Since a row is the widest
-    // content the panel ever holds, that bogus tiny width made the justify
-    // math in Container::on_render shove the rows toward the panel's right
-    // side instead of flush left. Setting the true width explicitly sidesteps
-    // the lazy-visibility bug entirely (same fix shape as Craft.cc's grid).
+    // an element has actually rendered at least one frame), so the width AND
+    // height computed at construction time are both near-zero. Since a row is
+    // the widest content the panel ever holds, that bogus tiny width made the
+    // justify math in Container::on_render shove the rows toward the panel's
+    // right side instead of flush left; the bogus tiny height similarly threw
+    // off the v_justify=Bottom math and the drawn border, making the rows
+    // land outside/overlapping the visible box on first open. Setting both
+    // explicitly sidesteps the lazy-visibility bug entirely (same fix shape
+    // as Craft.cc's grid). Height = 10(outer_pad) + 24(header) + 8 + 14(text)
+    // + 8 + 28(row) + 8 + 14(text) + 8 + 28(row) + 10 - 8 = 160, matching
+    // VContainer::refactor()'s own formula for these exact children.
     elt->width = ROW_WIDTH + 2 * 10;
+    elt->height = 160;
     elt->x = 10;
     elt->y = -160;
     return elt;
