@@ -16,10 +16,11 @@ uint8_t roll_spawn_rarity(uint8_t band_difficulty);
 constexpr uint8_t DROP_NOTHING = 255;
 uint8_t roll_drop_rarity(uint8_t mob_rarity);
 
-// Flat chance to turn 5 petals of `rarity` (Common=0..Ultra=6) into 1 of
-// rarity+1: 64% at Common, halving per tier, 1% at Ultra, 0 at/above Super
-// (not craftable). Shared so the server's actual roll and the client's
-// displayed "?% success chance" can't drift apart.
+// Flat chance to turn 5 petals of `rarity` (Common=0..Mythic=5) into 1 of
+// rarity+1: 64% at Common, halving per tier, 2% at Mythic->Ultra, 0 at/above
+// Ultra (not craftable -- Super and Unique are never reachable by crafting).
+// Shared so the server's actual roll and the client's displayed
+// "?% success chance" can't drift apart.
 float craft_success_chance(uint8_t rarity);
 
 // Antennae extra-vision bonus per rarity (the view radius scales by 1+bonus,

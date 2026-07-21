@@ -2,6 +2,7 @@
 
 #include <Client/Ui/Button.hh>
 #include <Client/Ui/Container.hh>
+#include <Client/Ui/InGame/Loadout.hh>
 #include <Client/Ui/ScrollContainer.hh>
 #include <Client/Ui/StaticText.hh>
 #include <Client/Ui/Extern.hh>
@@ -25,13 +26,16 @@ using namespace Ui;
 
 // Crafting page. Rectangular panel: LEFT half is the inventory laid out as one
 // row per petal TYPE x 9 rarity columns (Common..Unique); RIGHT half is the
-// craft UI (selected petal, success %, Craft button, result). Click a left
-// cell to select that (type, rarity). One Craft click = one attempt; a
-// double-click, or shift+click, crafts the whole stack.
+// craft UI (selected petal preview, success %, Craft button, result). Hovering
+// a grid cell shows the same name/rarity/description/damage/health tooltip
+// used everywhere else (Ui::UiLoadout::petal_tooltips). Click a left cell to
+// select that (type, rarity). One Craft click = one attempt; a double-click,
+// or shift+click, crafts the whole stack.
 //
 // Economics live server-side (Server/EntityFunctions/CraftOps.cc): each
 // attempt consumes 5 of the selected stack, rolls craft_success_chance (flat
-// per-rarity, 64% halving per tier), on success yields 1 of rarity+1, and
+// per-rarity, 64% halving per tier, 0 at/above Ultra -- Super and Unique are
+// never reachable through crafting), on success yields 1 of rarity+1, and
 // ALWAYS destroys an extra random 1-4 on top.
 namespace {
     PetalID::T g_sel_type = PetalID::kNone;
@@ -50,7 +54,7 @@ namespace {
     }
 
     bool craftable(uint8_t rarity, uint64_t count) {
-        return rarity < RarityID::kSuper && count >= 5;
+        return rarity < RarityID::kUltra && count >= 5;
     }
 
     // amount==1 -> single attempt; amount==owned -> "craft all" (server caps).
@@ -74,8 +78,10 @@ namespace {
         void on_render(Renderer &ctx) override {
             uint64_t const count = owned_count(type, rarity);
             bool const selected = g_sel_type == type && g_sel_rarity == rarity && count > 0;
-            // Slot background (dark blue), brighter ring if selected.
-            ctx.set_fill(selected ? 0xff2f6fa0 : 0xff1c3a52);
+            // Slot background tinted by rarity (muted normally, full brightness
+            // when selected) -- same RARITY_COLORS palette used everywhere else
+            // (tooltips, gallery, mob cards) so the grid reads consistently.
+            ctx.set_fill(selected ? RARITY_COLORS[rarity] : Renderer::HSV(RARITY_COLORS[rarity], 0.45f));
             ctx.begin_path();
             ctx.round_rect(-CELL / 2, -CELL / 2, CELL, CELL, CELL_ROUND);
             ctx.fill();
@@ -98,10 +104,17 @@ namespace {
         // Click the petal to craft it directly: single click = one attempt,
         // shift-click or double-click = craft the whole stack. Non-craftable
         // cells (Super/Unique, or fewer than 5) just get selected so the right
-        // panel can show why.
+        // panel can show why. Hovering shows the same name/rarity/description/
+        // damage/health tooltip used on every other petal slot in the game.
         void on_event(uint8_t event) override {
-            if (event != kClick) return;
             uint64_t const count = owned_count(type, rarity);
+            if (event != kFocusLost && count > 0) {
+                rendering_tooltip = 1;
+                tooltip = Ui::UiLoadout::petal_tooltips[type][rarity];
+            } else if (event == kFocusLost) {
+                rendering_tooltip = 0;
+            }
+            if (event != kClick) return;
             if (count == 0) return;
             g_sel_type = type;
             g_sel_rarity = rarity;
@@ -156,7 +169,8 @@ namespace {
         }
     };
 
-    // ---- Right side: selected preview + chance + Craft button + result ----
+    // ---- Right side: selected preview + name/rarity/stats + chance + Craft
+    // button + result ----
     class CraftPreview final : public Element {
     public:
         CraftPreview() : Element(150, 150, {}) {}
@@ -194,7 +208,7 @@ namespace {
         void on_render(Renderer &ctx) override {
             if (g_sel_type == PetalID::kNone) return;
             uint64_t const count = owned_count(g_sel_type, g_sel_rarity);
-            if (g_sel_rarity >= RarityID::kSuper) {
+            if (g_sel_rarity >= RarityID::kUltra) {
                 ctx.draw_text("Not craftable", { .fill = 0xffcc7777, .size = 14 });
                 return;
             }
@@ -210,7 +224,8 @@ Element *Ui::make_craft_button() {
     class CraftIcon final : public Element {
     public:
         CraftIcon() : Element(140, 40, {
-            .fill = 0xff5a9fdb, .line_width = 5, .round_radius = 3,
+            // Same warm tan/caramel as the crafting panel it opens.
+            .fill = 0xffc9975b, .line_width = 5, .round_radius = 3,
             .should_render = [](){ return Game::alive(); },
             .h_justify = Style::Left, .v_justify = Style::Bottom
         }) {}
@@ -244,7 +259,8 @@ Element *Ui::make_craft_panel() {
             last_click = Game::timestamp;
             do_craft((shift || dbl) ? (uint32_t)count : 1);
         }, nullptr,
-        { .fill = 0xff5a9fdb, .line_width = 4, .round_radius = 4 }
+        // Muted warm gray-tan, matching the reference panel's Craft button.
+        { .fill = 0xff8a7860, .line_width = 4, .round_radius = 4 }
     );
 
     Element *right = new VContainer({
@@ -258,18 +274,34 @@ Element *Ui::make_craft_panel() {
     // centred by the wider paragraph text.
     Element *row = new HContainer({ grid, right }, 4, 16, { .h_justify = Style::Left, .v_justify = Style::Top });
 
+    // Header: "Craft" title on the left, red close-X on the right (stretches
+    // to the panel's full width via HFlexContainer).
+    Element *close_btn = new Ui::Button(24, 24, new Ui::StaticText(14, "X"),
+        [](Element *, uint8_t ev) {
+            if (ev != Ui::kClick) return;
+            Ui::panel_open = Panel::kNone;
+        }, nullptr,
+        { .fill = 0xffd9534f, .line_width = 3, .round_radius = 12 }
+    );
+    Element *header = new Ui::HFlexContainer(
+        new Ui::StaticText(22, "Craft", { .fill = 0xffffffff }),
+        close_btn, 0, 10, {}
+    );
+
     class CraftPanel final : public VContainer {
     public:
         using VContainer::VContainer;
     };
 
     Element *elt = new CraftPanel(std::vector<Element *>{
-        new Ui::StaticText(22, "Craft", { .fill = 0xffffffff, .h_justify = Style::Left }),
+        header,
         row,
         new Ui::StaticParagraph(500, 12, "Click a petal to craft it: 5 become a chance at +1 rarity; every craft also loses 1-4 extra.", { .h_justify = Style::Left }),
         new Ui::StaticParagraph(500, 12, "Single click = 1 craft. Shift-click or double-click = craft the whole stack.", { .h_justify = Style::Left })
     }, 14, 8, {
-        .fill = 0xff5a9fdb,
+        // Warm tan/caramel panel (border auto-derives a darker brown via
+        // Style::stroke_hsv), matching the reference craft panel's page color.
+        .fill = 0xffc9975b,
         .line_width = 7,
         .round_radius = 3,
         .animate = [](Element *elt, Renderer &ctx){

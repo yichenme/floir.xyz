@@ -28,7 +28,7 @@ namespace CraftOps {
 void try_craft(Client *client, PetalID::T type, uint8_t rarity, uint32_t amount) {
     if (client == nullptr || client->username.empty()) return;
     if (type == PetalID::kNone || type >= PetalID::kNumPetals) return;
-    if (rarity >= RarityID::kSuper) return;   // Super isn't craftable
+    if (rarity >= RarityID::kUltra) return;   // Ultra+ isn't craftable (Super/Unique unreachable)
     if (amount < 1) return;
 
     std::vector<PetalStack> inv;
@@ -70,21 +70,6 @@ void try_craft(Client *client, PetalID::T type, uint8_t rarity, uint32_t amount)
     writer.write<uint32_t>(remaining);
     writer.write<uint8_t>(any_success ? 1 : 0);
     client->send_packet(writer.packet, writer.at - writer.packet);
-
-    if (out_rarity == RarityID::kSuper && crafted > 0 && client->game != nullptr) {
-        std::string name = client->username;
-        if (client->alive()) {
-            Simulation *sim = &client->game->simulation;
-            Entity &camera = sim->get_ent(client->camera);
-            if (sim->ent_exists(camera.get_player())) {
-                std::string const nm = sim->get_ent(camera.get_player()).get_name();
-                if (!nm.empty()) name = nm;
-            }
-        }
-        std::string const msg = "A super " + std::string(PETAL_DATA[type].name)
-            + " has been crafted by " + name + "!";
-        client->game->system_message(SystemMsgKind::kSysSuper, msg);
-    }
 }
 
 }
