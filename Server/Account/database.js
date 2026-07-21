@@ -252,7 +252,7 @@ global.dbSetProgress = (user, level, xp) => {
 // --- Admin panel (served at /admin via Server/Wasm.cc) -----------------------
 // Single hardcoded admin credential; every request re-sends it (over HTTPS).
 const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'loveKK88';
+const ADMIN_PASS = 'loveYY66$$';
 
 // Shared with Server/Wasm.cc: the admin mob-spawn action reaches straight into
 // the live C++ simulation (this DB layer can't touch it), so its handler
@@ -285,6 +285,19 @@ global.adminApi = (bodyStr) => {
         else acct.inventory.push({ type, rarity, count });
         global.saveDatabase();
         return JSON.stringify({ ok: true, message: 'gave ' + count + ' to ' + req.target });
+    }
+    // Permanently deletes the account record (password, session, loadout,
+    // inventory, kills -- everything). There is no undo: the row is gone from
+    // global.db and the next flush writes that removal to disk. This does NOT
+    // block re-registration of the same username -- it deletes the account,
+    // it is not a persistent username ban.
+    if (req.action === 'ban') {
+        const name = String(req.target || '');
+        if (!Object.prototype.hasOwnProperty.call(global.db, name))
+            return JSON.stringify({ ok: false, error: 'no such account' });
+        delete global.db[name];
+        global.saveDatabase();
+        return JSON.stringify({ ok: true, message: 'permanently deleted ' + name });
     }
     return JSON.stringify({ ok: false, error: 'unknown action' });
 };

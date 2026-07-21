@@ -26,6 +26,10 @@
         #users li.sel { background: #5a9fdb; color: #fff; }
         .target { font-size: 13px; color: #bbb; margin-top: 6px; }
         .target b { color: #6ee0e0; }
+        .danger { border: 1px solid #a33; }
+        .danger h2 { margin: 0 0 4px; font-size: 15px; color: #ff8a8a; }
+        #banBtn { background: #c0392b; }
+        #banBtn:hover { background: #a5281b; }
     </style>
 </head>
 <body>
@@ -65,6 +69,15 @@
         </div>
         <button onclick="give()">Give petal</button>
         <div class="msg" id="giveMsg"></div>
+    </div>
+
+    <div class="card hidden danger" id="banCard">
+        <h2>Danger zone</h2>
+        <div class="target">Delete: <b id="banTargetName">(pick a player above)</b></div>
+        <label>Type the username to confirm</label>
+        <input id="banConfirm" autocomplete="off" placeholder="username">
+        <button id="banBtn" onclick="ban()">Permanently delete account</button>
+        <div class="msg" id="banMsg"></div>
     </div>
 
     <div class="card hidden" id="spawnCard">
@@ -121,6 +134,7 @@
             document.getElementById('loginCard').classList.add('hidden');
             document.getElementById('searchCard').classList.remove('hidden');
             document.getElementById('giveCard').classList.remove('hidden');
+            document.getElementById('banCard').classList.remove('hidden');
             document.getElementById('spawnCard').classList.remove('hidden');
             renderUsers(res.users);
             loadZones();
@@ -244,6 +258,8 @@
             li.onclick = function(){
                 target = u;
                 document.getElementById('targetName').textContent = u;
+                document.getElementById('banTargetName').textContent = u;
+                document.getElementById('banConfirm').value = '';
                 Array.prototype.forEach.call(ul.children, function(c){ c.classList.remove('sel'); });
                 li.classList.add('sel');
             };
@@ -263,6 +279,27 @@
         });
         m.className = 'msg ' + (res.ok ? 'ok' : 'err');
         m.textContent = res.ok ? (res.message || 'done') : (res.error || 'failed');
+    }
+
+    // Irreversible: two guards before the request ever goes out -- the typed
+    // username must match the selected target exactly, and a native confirm()
+    // as a final "are you sure" (this is a permanent delete, not a ban-list).
+    async function ban(){
+        const m = document.getElementById('banMsg');
+        if (!target){ m.className = 'msg err'; m.textContent = 'pick a player first'; return; }
+        const typed = document.getElementById('banConfirm').value.trim();
+        if (typed !== target){ m.className = 'msg err'; m.textContent = 'type the username exactly to confirm'; return; }
+        if (!confirm('Permanently delete account "' + target + '"? This cannot be undone.')) return;
+        const res = await api({ action: 'ban', target: target });
+        m.className = 'msg ' + (res.ok ? 'ok' : 'err');
+        m.textContent = res.ok ? (res.message || 'done') : (res.error || 'failed');
+        if (res.ok) {
+            target = null;
+            document.getElementById('targetName').textContent = '(pick a player above)';
+            document.getElementById('banTargetName').textContent = '(pick a player above)';
+            document.getElementById('banConfirm').value = '';
+            search();
+        }
     }
 </script>
 </body>
