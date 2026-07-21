@@ -226,13 +226,13 @@ namespace {
                 float const angle = -(float) M_PI / 2 + i * (2.0f * (float) M_PI / 5);
                 RenderContext c(&ctx);
                 ctx.translate(PENT_RADIUS * cosf(angle), PENT_RADIUS * sinf(angle));
-                ctx.set_fill(0xffb98a54);
-                ctx.set_stroke(Renderer::HSV(0xffb98a54, 0.8f));
-                ctx.set_line_width(3);
+                // Pure black at the same opacity as the grid's scrollbar
+                // (Ui::ScrollBar uses 0x40000000), no stroke -- matches its
+                // flat, single-tone look.
+                ctx.set_fill(0x40000000);
                 ctx.begin_path();
                 ctx.round_rect(-PENT_CELL / 2, -PENT_CELL / 2, PENT_CELL, PENT_CELL, PENT_CELL / 10);
                 ctx.fill();
-                ctx.stroke();
                 if (g_sel_type == PetalID::kNone) continue;
                 {
                     RenderContext c2(&ctx);
@@ -292,6 +292,10 @@ Element *Ui::make_craft_button() {
 
 Element *Ui::make_craft_panel() {
     Element *grid = make_craft_grid();
+    // If nothing is craftable (no stack of 5+), drop the whole left side --
+    // grid AND its scrollbar -- instead of showing an empty list with a
+    // scrollbar that has nothing to scroll.
+    grid->style.should_render = [](){ refresh_craft_order(); return !g_craft_order.empty(); };
 
     // Craft is the ONLY thing that actually crafts: the selection just set up
     // the (type, rarity) and whether the whole stack is queued (g_craft_all).
