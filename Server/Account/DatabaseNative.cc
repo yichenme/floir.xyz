@@ -81,4 +81,18 @@ int AccountDB::write_progress(std::string const &user, uint8_t level, uint32_t x
     (void)xp;
     return 1;
 }
+
+int AccountDB::read_talents(std::string const &user, uint8_t &health_rank, uint8_t &reload_rank) {
+    (void)user;
+    health_rank = 0;
+    reload_rank = 0;
+    return 1;
+}
+
+int AccountDB::write_talents(std::string const &user, uint8_t health_rank, uint8_t reload_rank) {
+    (void)user;
+    (void)health_rank;
+    (void)reload_rank;
+    return 1;
+}
 #endif

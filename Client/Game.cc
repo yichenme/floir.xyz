@@ -62,6 +62,10 @@ namespace Game {
     double squad_invite_until = 0;
     CraftResult last_craft_result;
 
+    uint8_t talent_health_rank = 0;
+    uint8_t talent_reload_rank = 0;
+    uint32_t talent_points_total = 0;
+
     uint8_t loadout_count = 5;
     uint8_t simulation_ready = 0;
     uint8_t on_game_screen = 0;
@@ -147,6 +151,9 @@ void Game::init() {
         Ui::make_craft_button()
     );
     game_ui_window.add_child(
+        Ui::make_talent_button()
+    );
+    game_ui_window.add_child(
         Ui::make_inventory_button()
     );
     for (uint8_t i = 0; i < MAX_SLOT_COUNT * 2; ++i) game_ui_window.add_child(new Ui::UiLoadoutPetal(i));
@@ -155,6 +162,9 @@ void Game::init() {
     // Inventory wins if they ever briefly overlap during a switch.
     game_ui_window.add_child(
         Ui::make_craft_panel()
+    );
+    game_ui_window.add_child(
+        Ui::make_talent_panel()
     );
     game_ui_window.add_child(
         Ui::make_inventory_panel()

@@ -87,6 +87,14 @@ namespace Game {
     extern CraftResult last_craft_result;
     void send_craft(PetalID::T, uint8_t rarity, uint32_t amount);
 
+    // Talent ranks (0-9, Common..Unique) and unspent-TP snapshot, pushed by
+    // the server on spawn and after every successful buy (Shared/TalentData.hh
+    // has the actual rank->percent/cost tables).
+    extern uint8_t talent_health_rank;
+    extern uint8_t talent_reload_rank;
+    extern uint32_t talent_points_total;
+    void send_talent_buy(uint8_t tree);
+
     extern std::array<PetalID::T, 2 * MAX_SLOT_COUNT> cached_loadout;
 
     extern uint8_t loadout_count;

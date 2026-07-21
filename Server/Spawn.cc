@@ -9,6 +9,7 @@
 #include <Shared/RarityScale.hh>
 #include <Shared/Simulation.hh>
 #include <Shared/StaticData.hh>
+#include <Shared/TalentData.hh>
 #include <Shared/Tilemap.hh>
 
 #include <cmath>
@@ -234,7 +235,18 @@ Entity &alloc_petal(Simulation *sim, PetalID::T petal_id, Entity const &parent, 
     // both HP and damage instead of being multiplied up from a Common base.
     bool const flat_stats = petal_id == PetalID::kMjolnir;
     float const hp_mult = (petal_id == PetalID::kStinger || petal_id == PetalID::kBubble || flat_stats) ? 1.0f : petal_hp_mult(rarity);
-    petal.health = petal.max_health = petal_data.health * hp_mult;
+    // Petal Health talent: a flat account-wide multiplier, read off the
+    // owning player's camera (parent here is the player; parent.get_parent()
+    // is the camera -- see Client.hh's Camera fields and Client.cc's
+    // kClientSpawn for where this gets cached). Mob-owned petals (parent is
+    // a mob, not a player) have no camera parent so this is just a no-op 1.0x.
+    float talent_mult = 1.0f;
+    if (sim->ent_alive(parent.get_parent())) {
+        Entity const &owner_camera = sim->get_ent(parent.get_parent());
+        if (owner_camera.has_component(kCamera))
+            talent_mult = talent_health_mult(owner_camera.get_talent_health_rank());
+    }
+    petal.health = petal.max_health = petal_data.health * hp_mult * talent_mult;
     petal.damage = petal_data.damage * (flat_stats ? 1.0f : petal_damage_mult(rarity));
     petal.set_health_ratio(1);
     // Poison and armor both scale x3 per rarity (Iris/Grapes/Pincer poison,

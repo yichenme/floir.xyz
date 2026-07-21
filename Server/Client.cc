@@ -4,6 +4,7 @@
 #include <Server/Account/Database.hh>
 #include <Server/EntityFunctions/CraftOps.hh>
 #include <Server/EntityFunctions/InventoryOps.hh>
+#include <Server/EntityFunctions/TalentOps.hh>
 #include <Server/Game.hh>
 #include <Server/Server.hh>
 #include <Server/Spawn.hh>
@@ -185,6 +186,24 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
                     camera.set_respawn_level(lvl < 1 ? 1 : lvl);
                 }
             }
+            // Mirror the account's saved talent ranks onto the live camera --
+            // Flower.cc/Spawn.cc read these every tick/petal-alloc, so they need
+            // to be on the entity itself, not re-fetched from AccountDB each time.
+            uint8_t saved_health_rank = 0, saved_reload_rank = 0;
+            AccountDB::read_talents(client->username, saved_health_rank, saved_reload_rank);
+            camera.set_talent_health_rank(saved_health_rank);
+            camera.set_talent_reload_rank(saved_reload_rank);
+            {
+                // Push the panel its starting snapshot right away -- otherwise
+                // the client has no way to know its available TP (1 per 5
+                // levels) until after it tries a purchase.
+                Writer talent_writer(Server::OUTGOING_PACKET);
+                talent_writer.write<uint8_t>(Clientbound::kTalentUpdate);
+                talent_writer.write<uint8_t>(saved_health_rank);
+                talent_writer.write<uint8_t>(saved_reload_rank);
+                talent_writer.write<uint32_t>(camera.get_respawn_level() / 5);
+                client->send_packet(talent_writer.packet, talent_writer.at - talent_writer.packet);
+            }
             Entity &player = alloc_player(simulation, camera.get_team());
             player_spawn(simulation, camera, player);
             player.set_name(name);
@@ -307,6 +326,15 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
         case Serverbound::kSquadReject: {
             if (!client->alive()) break;
             Squad::reject(client->camera);
+            break;
+        }
+        // Doesn't require a live player -- TP/rank live in AccountDB, keyed
+        // off level/xp, not the ECS entity -- just a logged-in account.
+        case Serverbound::kTalentBuy: {
+            if (!client->logged_in) break;
+            if (client->check_invalid(validator.validate_uint8())) return;
+            uint8_t const tree = reader.read<uint8_t>();
+            TalentOps::try_buy(client, tree);
             break;
         }
     }

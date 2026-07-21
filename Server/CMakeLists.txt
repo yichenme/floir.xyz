@@ -12,6 +12,7 @@ set(SOURCES
     EntityFunctions/Death.cc
     EntityFunctions/Detection.cc
     EntityFunctions/Misc.cc
+    EntityFunctions/TalentOps.cc
     Process/Ai.cc
     Process/Camera.cc
     Process/Collision.cc
@@ -47,6 +48,7 @@ set(SOURCES
     ../Shared/RarityScale.cc
     ../Shared/StackFormat.cc
     ../Shared/AccountValidation.cc
+    ../Shared/TalentData.cc
 )
 
 set(SOURCES ${SOURCES} Account/Auth.cc EntityFunctions/InventoryOps.cc)

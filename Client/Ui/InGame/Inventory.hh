@@ -34,6 +34,10 @@ namespace Ui {
     Element *make_craft_button();
     Element *make_craft_panel();
 
+    // Talents: button sits directly above Craft. See Talent.cc.
+    Element *make_talent_button();
+    Element *make_talent_panel();
+
     // Chat box (input + recent-message log) shown beside the inventory icon.
     Element *make_chat_box();
     // Called each tick from Game: if the chat input is focused and Enter was

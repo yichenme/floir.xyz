@@ -6,6 +6,7 @@
 #include <Shared/Simulation.hh>
 #include <Shared/StaticData.hh>
 #include <Shared/RarityScale.hh>
+#include <Shared/TalentData.hh>
 #include <Shared/Tilemap.hh>
 
 #include <cmath>
@@ -37,6 +38,12 @@ static struct PlayerBuffs _get_petal_passive_buffs(Simulation *sim, Entity &play
     player.set_equip_flags(0);
     player.damage_reflection = 0;
     player.poison_armor = 0;
+    // Reload talent: a flat account-wide multiplier on top of every petal's
+    // own reload_factor contributions below, read off the owning camera (the
+    // only place it's cached -- see Client.cc's kClientSpawn and
+    // TalentOps::try_buy for where it gets written).
+    if (sim->ent_alive(player.get_parent()))
+        buffs.reload_factor *= talent_reload_mult(sim->get_ent(player.get_parent()).get_talent_reload_rank());
     for (uint32_t i = 0; i < player.get_loadout_count(); ++i) {
         LoadoutSlot const &slot = player.loadout[i];
         PetalID::T slot_petal_id = slot.get_petal_id();

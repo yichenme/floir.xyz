@@ -45,6 +45,7 @@ set(SRCS
     Ui/InGame/Map.cc
     Ui/InGame/Mobile.cc
     Ui/InGame/SquadBar.cc
+    Ui/InGame/Talent.cc
     Ui/InGame/Tooltip.cc
     Ui/TitleScreen/Account.cc
     Ui/TitleScreen/Changelog.cc
@@ -79,6 +80,7 @@ set(SRCS
     ../Shared/RarityScale.cc
     ../Shared/StackFormat.cc
     ../Shared/AccountValidation.cc
+    ../Shared/TalentData.cc
 )
 
 set(CMAKE_CXX_COMPILER "em++")

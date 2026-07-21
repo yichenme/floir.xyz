@@ -86,6 +86,15 @@ EM_JS(int, ejs_set_progress, (char const *user, int level, int xp), {
     return global['dbSetProgress'](UTF8ToString(user), level, xp) ? 1 : 0;
 });
 
+EM_JS(char *, ejs_get_talents, (char const *user), {
+    var json = global['dbGetTalents'](UTF8ToString(user));
+    return json === null ? 0 : global['__allocUtf8'](json);
+});
+
+EM_JS(int, ejs_set_talents, (char const *user, int health_rank, int reload_rank), {
+    return global['dbSetTalents'](UTF8ToString(user), health_rank, reload_rank) ? 1 : 0;
+});
+
 EM_JS(int, ejs_add_kill, (char const *user, int mob, int rarity), {
     return global['dbAddKill'](UTF8ToString(user), mob, rarity) ? 1 : 0;
 });
@@ -293,6 +302,21 @@ int AccountDB::read_progress(std::string const &user, uint32_t &level, uint32_t 
 int AccountDB::write_progress(std::string const &user, uint32_t level, uint32_t xp) {
     ejs_ensure_ready();
     return ejs_set_progress(user.c_str(), level, xp);
+}
+
+int AccountDB::read_talents(std::string const &user, uint8_t &health_rank, uint8_t &reload_rank) {
+    ejs_ensure_ready();
+    char *json_ptr = ejs_get_talents(user.c_str());
+    if (!json_ptr) return 0;
+    std::string const json = take_owned(json_ptr);
+    health_rank = static_cast<uint8_t>(extract_field(json, "health"));
+    reload_rank = static_cast<uint8_t>(extract_field(json, "reload"));
+    return 1;
+}
+
+int AccountDB::write_talents(std::string const &user, uint8_t health_rank, uint8_t reload_rank) {
+    ejs_ensure_ready();
+    return ejs_set_talents(user.c_str(), health_rank, reload_rank);
 }
 
 void AccountDB::add_kill(std::string const &user, uint8_t mob, uint8_t rarity) {

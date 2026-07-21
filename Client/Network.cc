@@ -145,6 +145,12 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
             Game::squad_invite_until = Game::timestamp + 5000;
             break;
         }
+        case Clientbound::kTalentUpdate: {
+            Game::talent_health_rank = reader.read<uint8_t>();
+            Game::talent_reload_rank = reader.read<uint8_t>();
+            Game::talent_points_total = reader.read<uint32_t>();
+            break;
+        }
         default:
             break;
     }
@@ -256,6 +262,13 @@ void Game::send_craft(PetalID::T type, uint8_t rarity, uint32_t amount) {
     writer.write<uint8_t>(type);
     writer.write<uint8_t>(rarity);
     writer.write<uint32_t>(amount);
+    socket.send(writer.packet, writer.at - writer.packet);
+}
+
+void Game::send_talent_buy(uint8_t tree) {
+    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
+    writer.write<uint8_t>(Serverbound::kTalentBuy);
+    writer.write<uint8_t>(tree);
     socket.send(writer.packet, writer.at - writer.packet);
 }
 

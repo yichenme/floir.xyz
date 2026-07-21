@@ -249,6 +249,22 @@ global.dbSetProgress = (user, level, xp) => {
     return true;
 };
 
+global.dbGetTalents = (user) => {
+    global.loadDatabase();
+    const acct = global.db[user];
+    return acct ? JSON.stringify({ health: acct.talentHealth || 0, reload: acct.talentReload || 0 }) : null;
+};
+
+global.dbSetTalents = (user, healthRank, reloadRank) => {
+    global.loadDatabase();
+    const acct = global.db[user];
+    if (!acct) return false;
+    acct.talentHealth = healthRank;
+    acct.talentReload = reloadRank;
+    global.saveDatabase();
+    return true;
+};
+
 // --- Admin panel (served at /admin via Server/Wasm.cc) -----------------------
 // Single hardcoded admin credential; every request re-sends it (over HTTPS).
 const ADMIN_USER = 'admin';

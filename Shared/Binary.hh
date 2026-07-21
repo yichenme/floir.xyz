@@ -33,7 +33,8 @@ enum Clientbound {
     kCraftResult,
     kSquadUpdate,
     kSquadNotice,
-    kSquadInvite
+    kSquadInvite,
+    kTalentUpdate
 };
 
 // Colour band for a system chat line.
@@ -72,7 +73,8 @@ enum Serverbound {
     kCraft,
     kLeave,     // voluntarily end the run: despawn the flower so re-entering spawns fresh
     kSquadAccept,
-    kSquadReject
+    kSquadReject,
+    kTalentBuy
 };
 
 enum CloseReason {
