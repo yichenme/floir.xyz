@@ -20,15 +20,17 @@ namespace CraftOps {
 
 // `amount` is the number of craft ATTEMPTS the client asked for (1 for a
 // single click, or the owned count for a "craft all" double-click / shift-
-// click -- the loop just caps itself by availability). Each attempt requires
-// 5 of (type, rarity): it consumes those 5, rolls the flat chance, and on
-// success produces 1 petal of rarity+1. Regardless of success or failure, an
-// EXTRA random 1-4 petals are then destroyed (capped at what's left), so
-// every attempt burns 5 + (1..4) of the stack.
+// click -- the loop just caps itself by availability). Each attempt rolls the
+// flat chance: on SUCCESS it consumes EXACTLY 5 and produces 1 petal of
+// rarity+1; on FAILURE it does NOT touch the base 5 at all -- it only loses a
+// random 1-4 (capped at what's left). So a run like 15 owned might go
+// fail(-4)->11, success(-5)->6, fail(-1)->5, success(-5)->0, ending with 2
+// crafted -- each attempt's cost depends on its own outcome, not a flat 5+extra
+// every time.
 void try_craft(Client *client, PetalID::T type, uint8_t rarity, uint32_t amount) {
     if (client == nullptr || client->username.empty()) return;
     if (type == PetalID::kNone || type >= PetalID::kNumPetals) return;
-    if (rarity >= RarityID::kUltra) return;   // Ultra+ isn't craftable (Super/Unique unreachable)
+    if (rarity >= RarityID::kSuper) return;   // Super+ isn't craftable (Unique unreachable)
     if (amount < 1) return;
 
     std::vector<PetalStack> inv;
@@ -45,11 +47,15 @@ void try_craft(Client *client, PetalID::T type, uint8_t rarity, uint32_t amount)
     uint32_t crafted = 0;
     bool any_success = false;
     while (attempts_left > 0 && count >= 5) {
-        count -= 5;                       // the 5 fed into this attempt
-        if (frand() < chance) { ++crafted; any_success = true; }
-        uint32_t extra = 1 + (uint32_t)(frand() * 4.f);   // 1..4 always lost on top
-        if (extra > count) extra = (uint32_t)count;       // capped at what remains
-        count -= extra;
+        if (frand() < chance) {
+            count -= 5;                   // success: exactly the 5 fed in
+            ++crafted;
+            any_success = true;
+        } else {
+            uint32_t extra = 1 + (uint32_t)(frand() * 4.f);   // failure: only 1-4 lost
+            if (extra > count) extra = (uint32_t)count;       // capped at what remains
+            count -= extra;
+        }
         --attempts_left;
     }
     uint32_t const remaining = (uint32_t)count;

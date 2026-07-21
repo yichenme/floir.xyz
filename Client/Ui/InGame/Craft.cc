@@ -30,10 +30,12 @@ using namespace Ui;
 // drag-to-equip, and FILTERED to stacks of 5+ (fewer can never be crafted, so
 // they're just left out instead of cluttering the list); RIGHT is the craft
 // UI, a 5-box pentagon preview + success % + Craft button + result.
-// Uncraftable stacks (Super or Unique rarity) still render in black/white/
-// gray instead of a translucent icon. Hovering a grid slot, or anywhere over
-// the pentagon boxes, shows the same name/rarity/description/damage/health
-// tooltip used everywhere else (Ui::UiLoadout::petal_tooltips).
+// Super and Unique rarity stacks never appear in the grid at all (never a
+// valid craft input); a stack that IS a valid rarity but owns fewer than 5
+// still renders, just in black/white/gray instead of a translucent icon.
+// Hovering a grid slot, or anywhere over the pentagon boxes, shows the same
+// name/rarity/description/damage/health tooltip used everywhere else
+// (Ui::UiLoadout::petal_tooltips).
 //
 // Clicking a slot never crafts by itself -- it only selects (type, rarity)
 // and previews what a Craft click would consume: a plain click shows 1 in
@@ -42,10 +44,10 @@ using namespace Ui;
 // button actually sends the request.
 //
 // Economics live server-side (Server/EntityFunctions/CraftOps.cc): each
-// attempt consumes 5 of the selected stack, rolls craft_success_chance (flat
-// per-rarity, 64% halving per tier, 0 at/above Ultra -- Super and Unique are
-// never reachable through crafting), on success yields 1 of rarity+1, and
-// ALWAYS destroys an extra random 1-4 on top.
+// attempt rolls craft_success_chance (flat per-rarity, 64% halving per tier,
+// 0 at/above Super -- Unique is never reachable through crafting). On
+// SUCCESS it consumes exactly 5 and yields 1 of rarity+1; on FAILURE the base
+// 5 is untouched and only a random 1-4 is lost.
 namespace {
     PetalID::T g_sel_type = PetalID::kNone;
     uint8_t g_sel_rarity = 0;
@@ -68,7 +70,7 @@ namespace {
     }
 
     bool craftable(uint8_t rarity, uint64_t count) {
-        return rarity < RarityID::kUltra && count >= 5;
+        return rarity < RarityID::kSuper && count >= 5;
     }
 
     // amount==1 -> single attempt; amount==owned -> "craft all" (server caps).
@@ -189,12 +191,13 @@ namespace {
     // Rotate-and-gather flourish: the boxes spin a full extra turn every
     // CRAFT_ANIM_MS while their radius dips to 0 (they meet at the center)
     // and back out, so the two motions start and end together each lap. It
-    // LOOPS continuously for as long as the request is in flight -- there's
-    // no fixed "attempt duration," it just keeps going until the server's
-    // kCraftResult actually lands (have_result below) -- then stops exactly
-    // at a lap boundary (t wraps via fmodf, so it's always mid-return to the
-    // original spot when the result arrives, never a hard cut).
-    float const CRAFT_ANIM_MS = 1200.0f;
+    // LOOPS continuously (0.5s/lap) for as long as the request is in flight --
+    // there's no fixed "attempt duration," it just keeps going until the
+    // server's kCraftResult actually lands (have_result below). A failed
+    // result settles to the SPREAD-OUT extreme (5 separate boxes, blank);
+    // a success settles to the GATHERED extreme (all 5 merged into 1 box) --
+    // the same two poses this loop already passes through every lap.
+    float const CRAFT_ANIM_MS = 500.0f;
 
     // Small UI-space "pop" burst played once per result: NOT the world-space
     // Particle::add_game_particle system (Client/Particle.cc) -- that one
@@ -292,9 +295,21 @@ namespace {
                     ctx.begin_path();
                     ctx.round_rect(-PENT_CELL / 2, -PENT_CELL / 2, PENT_CELL, PENT_CELL, PENT_CELL / 10);
                     ctx.fill();
-                    RenderContext c2(&ctx);
-                    ctx.scale(PENT_CELL / 60.0f);
-                    draw_loadout_background(ctx, Game::last_craft_result.type, 1, 1, Game::last_craft_result.out_rarity);
+                    {
+                        RenderContext c2(&ctx);
+                        ctx.scale(PENT_CELL / 60.0f);
+                        draw_loadout_background(ctx, Game::last_craft_result.type, 1, 1, Game::last_craft_result.out_rarity);
+                    }
+                    // A batched "craft all" can land more than one success in
+                    // a single request (e.g. 15 owned -> 2 crafted) -- show
+                    // the total as an "xN" badge, same corner/style as every
+                    // other stack-count label in this panel.
+                    std::string const t = format_stack_count(Game::last_craft_result.crafted);
+                    if (!t.empty()) {
+                        RenderContext c3(&ctx);
+                        ctx.translate(PENT_CELL / 2 - 11, -PENT_CELL / 2 + 10);
+                        ctx.draw_text(t.c_str(), { .fill = 0xffffffff, .size = 12 });
+                    }
                     return;
                 }
                 for (int i = 0; i < 5; ++i) {
@@ -354,7 +369,7 @@ namespace {
         void on_render(Renderer &ctx) override {
             if (g_sel_type == PetalID::kNone) return;
             uint64_t const count = owned_count(g_sel_type, g_sel_rarity);
-            if (g_sel_rarity >= RarityID::kUltra) {
+            if (g_sel_rarity >= RarityID::kSuper) {
                 ctx.draw_text("Not craftable", { .fill = 0xffcc7777, .size = 14 });
                 return;
             }
