@@ -25,13 +25,15 @@
 using namespace Ui;
 
 // Crafting page. Rectangular panel split into two roughly equal halves: LEFT
-// is literally the same grid as the real Inventory panel (Inventory.cc) --
-// one slot per owned stack, 5 columns, 60px slots -- just wired for
-// selection instead of drag-to-equip; RIGHT is the craft UI, a 5-box pentagon
-// preview + success % + Craft button + result. Uncraftable stacks (Super or
-// Unique rarity, or fewer than 5 owned) render in black/white/gray instead of
-// a translucent icon. Hovering a slot shows the same name/rarity/description/
-// damage/health tooltip used everywhere else (Ui::UiLoadout::petal_tooltips).
+// is the same grid as the real Inventory panel (Inventory.cc) -- one slot per
+// owned stack, 5 columns, 60px slots -- wired for selection instead of
+// drag-to-equip, and FILTERED to stacks of 5+ (fewer can never be crafted, so
+// they're just left out instead of cluttering the list); RIGHT is the craft
+// UI, a 5-box pentagon preview + success % + Craft button + result.
+// Uncraftable stacks (Super or Unique rarity) still render in black/white/
+// gray instead of a translucent icon. Hovering a grid slot, or anywhere over
+// the pentagon boxes, shows the same name/rarity/description/damage/health
+// tooltip used everywhere else (Ui::UiLoadout::petal_tooltips).
 //
 // Clicking a slot never crafts by itself -- it only selects (type, rarity)
 // and previews what a Craft click would consume: a plain click shows 1 in
@@ -77,25 +79,43 @@ namespace {
     }
 
     // ---- Left side: the SAME grid as the real Inventory panel (Inventory.cc)
-    // -- one slot per owned stack in Game::inventory_display_order, 5 columns,
-    // 60px slots, pre-allocated up to a display cap with should_render hiding
-    // unused slots. No separate rebuild-on-version-change logic needed: every
-    // slot reads live by index each frame, exactly like InventoryStackSlot.
-    // This is a selection grid, not drag-to-equip, so clicking selects
-    // (type, rarity) for crafting instead of equipping to the loadout.
+    // -- one slot per owned stack, 5 columns, 60px slots, pre-allocated up to
+    // a display cap with should_render hiding unused slots. This is a
+    // selection grid, not drag-to-equip, so clicking selects (type, rarity)
+    // for crafting instead of equipping to the loadout.
+    //
+    // Unlike the real inventory, this list is FILTERED to stacks with 5+
+    // (fewer can never be crafted, so showing them just clutters the list).
+    // Filtering means the slot's `index` no longer maps 1:1 onto
+    // Game::inventory_display_order, so a separate g_craft_order cache holds
+    // the filtered real-stack indices, refreshed only when
+    // Game::inventory_version actually changes (cheap check every frame).
     uint32_t const CRAFT_DISPLAY_CAP = 200;
     uint32_t const CRAFT_COLUMNS = 5;
     float const CRAFT_SLOT_SIZE = 60.0f;
+
+    std::vector<uint32_t> g_craft_order;
+    uint32_t g_craft_order_version = (uint32_t) -1;
+
+    void refresh_craft_order() {
+        if (g_craft_order_version == Game::inventory_version) return;
+        g_craft_order_version = Game::inventory_version;
+        g_craft_order.clear();
+        for (uint32_t real : Game::inventory_display_order)
+            if (Game::inventory_stacks[real].count >= 5)
+                g_craft_order.push_back(real);
+    }
 
     class CraftStackSlot final : public Element {
     public:
         uint32_t index;
         CraftStackSlot(uint32_t idx) : Element(CRAFT_SLOT_SIZE, CRAFT_SLOT_SIZE, { .h_justify = Style::Left }), index(idx) {
-            style.should_render = [this](){ return index < Game::inventory_display_order.size(); };
+            style.should_render = [this](){ refresh_craft_order(); return index < g_craft_order.size(); };
         }
         void on_render(Renderer &ctx) override {
-            if (index >= Game::inventory_display_order.size()) return;
-            PetalStack const &stack = Game::inventory_stacks[Game::inventory_display_order[index]];
+            refresh_craft_order();
+            if (index >= g_craft_order.size()) return;
+            PetalStack const &stack = Game::inventory_stacks[g_craft_order[index]];
             bool const selected = g_sel_type == stack.type && g_sel_rarity == stack.rarity;
             if (selected) {
                 ctx.set_fill(0x60ffffff);
@@ -127,8 +147,9 @@ namespace {
         // the request. Hovering shows the same name/rarity/description/
         // damage/health tooltip used on every other petal slot in the game.
         void on_event(uint8_t event) override {
-            if (index >= Game::inventory_display_order.size()) { rendering_tooltip = 0; return; }
-            PetalStack const &stack = Game::inventory_stacks[Game::inventory_display_order[index]];
+            refresh_craft_order();
+            if (index >= g_craft_order.size()) { rendering_tooltip = 0; return; }
+            PetalStack const &stack = Game::inventory_stacks[g_craft_order[index]];
             if (event != kFocusLost) {
                 rendering_tooltip = 1;
                 tooltip = Ui::UiLoadout::petal_tooltips[stack.type][stack.rarity];
@@ -151,7 +172,7 @@ namespace {
                 row->add_child(new CraftStackSlot(i));
             row->refactor();
             row->width = CRAFT_COLUMNS * CRAFT_SLOT_SIZE + (CRAFT_COLUMNS - 1) * 10;
-            row->style.should_render = [start](){ return start < Game::inventory_display_order.size(); };
+            row->style.should_render = [start](){ refresh_craft_order(); return start < g_craft_order.size(); };
             grid->add_child(row);
         }
         return new ScrollContainer(grid, 260);
@@ -166,10 +187,21 @@ namespace {
     // Selecting a grid cell doesn't craft; it just fills these boxes as a
     // preview of what a Craft click will actually consume: a plain click
     // shows 1 per box (5 total, one attempt), a shift-click shows the whole
-    // owned stack split evenly across the 5 boxes.
+    // owned stack split evenly across the 5 boxes. All 5 boxes show the same
+    // petal, so hovering anywhere over this element shows one tooltip for the
+    // selected (type, rarity) -- the same info box every other petal slot in
+    // the game shows on hover.
     class PentagonCraft final : public Element {
     public:
         PentagonCraft() : Element(2 * (PENT_RADIUS + PENT_CELL / 2), 2 * (PENT_RADIUS + PENT_CELL / 2), {}) {}
+        void on_event(uint8_t event) override {
+            if (event != kFocusLost && g_sel_type != PetalID::kNone) {
+                rendering_tooltip = 1;
+                tooltip = Ui::UiLoadout::petal_tooltips[g_sel_type][g_sel_rarity];
+            } else {
+                rendering_tooltip = 0;
+            }
+        }
         void on_render(Renderer &ctx) override {
             static bool was_open = false;
             bool const open = Ui::panel_open == Panel::kCraft;
