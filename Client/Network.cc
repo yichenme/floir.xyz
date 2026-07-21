@@ -273,6 +273,12 @@ void Game::send_talent_buy(uint8_t tree, uint8_t target_rank) {
     socket.send(writer.packet, writer.at - writer.packet);
 }
 
+void Game::send_talent_reset() {
+    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
+    writer.write<uint8_t>(Serverbound::kTalentReset);
+    socket.send(writer.packet, writer.at - writer.packet);
+}
+
 void Game::swap_petals(uint8_t pos1, uint8_t pos2) {
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
     if (!Game::alive()) return;

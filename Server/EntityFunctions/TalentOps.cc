@@ -10,6 +10,29 @@
 #include <Shared/Simulation.hh>
 #include <Shared/TalentData.hh>
 
+namespace {
+    uint32_t _total_tp(uint32_t level) {
+        return level / 2;   // 1 TP every 2 levels
+    }
+
+    void _apply_and_notify(Client *client, uint8_t health_rank, uint8_t reload_rank, uint32_t total_tp) {
+        if (client->game != nullptr) {
+            Simulation *sim = &client->game->simulation;
+            if (sim->ent_exists(client->camera)) {
+                Entity &camera = sim->get_ent(client->camera);
+                camera.set_talent_health_rank(health_rank);
+                camera.set_talent_reload_rank(reload_rank);
+            }
+        }
+        Writer writer(Server::OUTGOING_PACKET);
+        writer.write<uint8_t>(Clientbound::kTalentUpdate);
+        writer.write<uint8_t>(health_rank);
+        writer.write<uint8_t>(reload_rank);
+        writer.write<uint32_t>(total_tp);
+        client->send_packet(writer.packet, writer.at - writer.packet);
+    }
+}
+
 namespace TalentOps {
 
 // Buys UP TO `target_rank` in `tree` in one shot -- not just the next rank:
@@ -17,8 +40,8 @@ namespace TalentOps {
 // pay the full cumulative cost of every rank from 1..9 at once, as long as
 // they have enough unspent TP for the whole jump (matches the client's
 // TalentRankCircle, which only shows a rank as buyable once its cumulative
-// cost from the current rank fits in available_tp()). 2 TP per level, shared
-// across both trees. Doesn't require a live player -- level/xp comes
+// cost from the current rank fits in available_tp()). 1 TP every 2 levels,
+// shared across both trees. Doesn't require a live player -- level/xp comes
 // straight from AccountDB::read_progress, not the live entity -- but if a
 // camera exists (the common case, since the talent panel only opens
 // in-game) its live rank fields are updated too so the effect applies
@@ -36,7 +59,7 @@ void try_buy(Client *client, uint8_t tree, uint8_t target_rank) {
 
     uint32_t level = 0, xp = 0;
     AccountDB::read_progress(client->username, level, xp);
-    uint32_t const total_tp = level * 2;
+    uint32_t const total_tp = _total_tp(level);
     uint32_t const spent = talent_cumulative_cost(TalentTree::kHealth, health_rank)
                           + talent_cumulative_cost(TalentTree::kReload, reload_rank);
     uint32_t const jump_cost = talent_cumulative_cost((TalentTree::T)tree, target_rank)
@@ -46,22 +69,21 @@ void try_buy(Client *client, uint8_t tree, uint8_t target_rank) {
     rank_ref = target_rank;
     AccountDB::write_talents(client->username, health_rank, reload_rank);
     AccountDB::save();
+    _apply_and_notify(client, health_rank, reload_rank, total_tp);
+}
 
-    if (client->game != nullptr) {
-        Simulation *sim = &client->game->simulation;
-        if (sim->ent_exists(client->camera)) {
-            Entity &camera = sim->get_ent(client->camera);
-            camera.set_talent_health_rank(health_rank);
-            camera.set_talent_reload_rank(reload_rank);
-        }
-    }
+// Free respec: both trees back to rank 0, refunding every spent TP (the
+// refund is implicit -- available TP is always total_tp minus the
+// cumulative cost of the CURRENT ranks, so zeroing the ranks alone frees
+// all of it back up).
+void reset(Client *client) {
+    if (client == nullptr || client->username.empty()) return;
+    AccountDB::write_talents(client->username, 0, 0);
+    AccountDB::save();
 
-    Writer writer(Server::OUTGOING_PACKET);
-    writer.write<uint8_t>(Clientbound::kTalentUpdate);
-    writer.write<uint8_t>(health_rank);
-    writer.write<uint8_t>(reload_rank);
-    writer.write<uint32_t>(total_tp);
-    client->send_packet(writer.packet, writer.at - writer.packet);
+    uint32_t level = 0, xp = 0;
+    AccountDB::read_progress(client->username, level, xp);
+    _apply_and_notify(client, 0, 0, _total_tp(level));
 }
 
 }

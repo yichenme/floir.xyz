@@ -74,7 +74,8 @@ enum Serverbound {
     kLeave,     // voluntarily end the run: despawn the flower so re-entering spawns fresh
     kSquadAccept,
     kSquadReject,
-    kTalentBuy
+    kTalentBuy,
+    kTalentReset
 };
 
 enum CloseReason {

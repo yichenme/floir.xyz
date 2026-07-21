@@ -147,12 +147,43 @@ namespace {
 
     class TpCounter final : public Element {
     public:
-        TpCounter() : Element(70, 18, { .h_justify = Style::Right }) {}
+        TpCounter() : Element(60, 18, {}) {}
         void on_render(Renderer &ctx) override {
             std::string const t = "TP: " + std::to_string(available_tp());
             ctx.draw_text(t.c_str(), { .fill = 0xffffffff, .size = 15 });
         }
     };
+
+    float const ROW_WIDTH = TALENT_MAX_RANK * (2 * CIRCLE_R) + (TALENT_MAX_RANK - 1) * CIRCLE_GAP;
+
+    // Title flush left, TP counter + Reset button flush right, all on one
+    // row -- HContainer/VContainer force every DIRECT child to one shared
+    // h_justify (Left/Top respectively), so getting independent left- and
+    // right-anchored content in the same row needs the base Container
+    // instead: it leaves each child's own h_justify alone, and
+    // Container::on_render's justify offset (using THIS container's own
+    // declared width, set explicitly below to match the rows) does the rest.
+    Element *make_talent_header() {
+        Element *tp_and_reset = new HContainer({
+            new TpCounter(),
+            new Ui::Button(56, 22, new Ui::StaticText(13, "Reset"),
+                [](Element *, uint8_t ev) {
+                    if (ev != Ui::kClick) return;
+                    Game::send_talent_reset();
+                }, nullptr,
+                { .fill = 0xff888888, .line_width = 3, .round_radius = 3 }
+            )
+        }, 0, 10, { .h_justify = Style::Right });
+        // Same lazy-visibility width bug as the outer panel (see below) --
+        // fix it here too so the right-anchored group doesn't jump on the
+        // panel's very first open. 60 (TpCounter) + 56 (Reset) + 10 (inner_pad).
+        tp_and_reset->width = 126;
+        Element *header = new Container({
+            new Ui::StaticText(22, "Talents", { .fill = 0xffffffff, .h_justify = Style::Left }),
+            tp_and_reset
+        }, ROW_WIDTH, 24, {});
+        return header;
+    }
 }
 
 Element *Ui::make_talent_button() {
@@ -180,11 +211,7 @@ Element *Ui::make_talent_button() {
 Element *Ui::make_talent_panel() {
     Element *health_row = make_talent_row(TalentTree::kHealth);
     Element *reload_row = make_talent_row(TalentTree::kReload);
-
-    Element *header = new HContainer({
-        new Ui::StaticText(22, "Talents", { .fill = 0xffffffff, .h_justify = Style::Left }),
-        new TpCounter()
-    }, 0, 20, { .h_justify = Style::Left });
+    Element *header = make_talent_header();
 
     class TalentPanel final : public VContainer {
     public:
@@ -220,7 +247,7 @@ Element *Ui::make_talent_panel() {
     // math in Container::on_render shove the rows toward the panel's right
     // side instead of flush left. Setting the true width explicitly sidesteps
     // the lazy-visibility bug entirely (same fix shape as Craft.cc's grid).
-    elt->width = TALENT_MAX_RANK * (2 * CIRCLE_R) + (TALENT_MAX_RANK - 1) * CIRCLE_GAP + 2 * 10;
+    elt->width = ROW_WIDTH + 2 * 10;
     elt->x = 10;
     elt->y = -160;
     return elt;
