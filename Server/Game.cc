@@ -57,9 +57,15 @@ static void _update_client(Simulation *sim, Client *client) {
     // never rendered).
     // Query rect padded 20% beyond the visible screen (florr-style) instead of
     // a flat pixel margin, so the pad scales with zoom -- an entity crossing
-    // into view is already synced a beat early regardless of FOV.
+    // into view is already synced a beat early regardless of FOV. The
+    // absolute padding is capped (see Culling.cc's CULL_PAD_MAX comment): at
+    // the Unique Antennae FOV floor a naive 20% relative pad blows up the
+    // query area and syncs (full-serializes) a huge extra swath of entities
+    // every tick, which is what made the game freeze while it's equipped.
+    float const _rx = 960 / camera.get_fov(), _ry = 540 / camera.get_fov();
+    float const _px = std::min(_rx * 0.2f, 300.f), _py = std::min(_ry * 0.2f, 300.f);
     sim->spatial_hash.query(camera.get_camera_x(), camera.get_camera_y(),
-    960 / camera.get_fov() * 1.2f, 540 / camera.get_fov() * 1.2f,
+    _rx + _px, _ry + _py,
     [&](Simulation *, Entity &ent){
         add_view(ent.id);
     });

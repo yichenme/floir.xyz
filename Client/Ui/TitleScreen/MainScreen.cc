@@ -24,10 +24,14 @@ using namespace Ui;
 // compiled-in constants, not a runtime-loaded asset, so one process can only
 // ever serve one map). Switching maps means loading the page from that
 // process's own port, which naturally reconnects the socket (Socket::connect
-// always dials location.host, not a compiled-in URL).
+// always dials location.host, not a compiled-in URL). Always plain http:
+// (not location.protocol) -- these are raw Node listeners with no TLS of
+// their own (only the primary domain's 443 is nginx/certbot-terminated), so
+// carrying https: over to another map's port made the navigation itself
+// fail outright (players couldn't reach the other map at all).
 static void _goto_map_port(uint16_t port) {
     EM_ASM({
-        window.location.href = location.protocol + '//' + location.hostname + ':' + $0;
+        window.location.href = 'http://' + location.hostname + ':' + $0;
     }, port);
 }
 
