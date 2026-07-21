@@ -15,8 +15,9 @@ namespace {
     std::unordered_map<uint32_t, std::vector<EntityID>> g_squads;
     uint32_t g_next_id = 1;
     std::vector<EntityID> const EMPTY_MEMBERS;
-    // Pending invites awaiting the target's /squad-accept: target camera id ->
-    // inviter camera. Only one pending invite per target (a new one replaces it).
+    // Pending invites awaiting the target's kSquadAccept/kSquadReject:
+    // target camera id -> inviter camera. Only one pending invite per target
+    // (a new one replaces it).
     std::unordered_map<uint32_t, EntityID> g_pending;
 
     std::string _member_name(Simulation *sim, EntityID camera) {
@@ -59,6 +60,17 @@ namespace {
         Writer writer(Server::OUTGOING_PACKET);
         writer.write<uint8_t>(Clientbound::kSquadNotice);
         writer.write<std::string>(text);
+        c->send_packet(writer.packet, writer.at - writer.packet);
+    }
+
+    // Distinct from _send_notice: this drives the client's Accept/Reject
+    // popup rather than a plain dismiss-only banner.
+    void _send_invite(EntityID camera, std::string const &inviter_name) {
+        Client *c = Server::game.client_for_camera(camera);
+        if (c == nullptr) return;
+        Writer writer(Server::OUTGOING_PACKET);
+        writer.write<uint8_t>(Clientbound::kSquadInvite);
+        writer.write<std::string>(inviter_name);
         c->send_packet(writer.packet, writer.at - writer.packet);
     }
 }
@@ -106,13 +118,16 @@ bool Squad::invite(Simulation *sim, EntityID inviter_camera, EntityID target_cam
         if (target.get_squad_id() == sid) return true;   // already squadmates
         if (Squad::members(sid).size() >= MAX_SIZE) return false;
     }
-    // Record the invite as PENDING and prompt the target -- they must accept
-    // (type /squad-accept) before actually joining.
+    // Record the invite as PENDING and prompt the target with an
+    // Accept/Reject popup -- joining only happens if they accept.
     g_pending[target_camera.id] = inviter_camera;
     std::string const iname = _member_name(sim, inviter_camera);
-    _send_notice(target_camera, (iname.empty() ? std::string("A player") : iname)
-                 + " invited you to their squad -- type /squad-accept to join");
+    _send_invite(target_camera, iname.empty() ? "A player" : iname);
     return true;
+}
+
+bool Squad::reject(EntityID target_camera) {
+    return g_pending.erase(target_camera.id) > 0;
 }
 
 bool Squad::accept(Simulation *sim, EntityID target_camera) {

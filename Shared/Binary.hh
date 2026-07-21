@@ -20,6 +20,9 @@
 //   camera_id, string name) -- full roster, pushed whenever membership changes.
 // kSquadNotice: string message -- shown as a standalone banner (like the
 //   disconnect-with-code one), not routed through the chat log.
+// kSquadInvite: string inviter_name -- a PENDING invite awaiting the client's
+//   kSquadAccept/kSquadReject response (shown as its own banner with
+//   Accept/Reject buttons, distinct from the plain kSquadNotice banner).
 enum Clientbound {
     kClientUpdate,
     kAuthResponse,
@@ -29,7 +32,8 @@ enum Clientbound {
     kSystemMessage,
     kCraftResult,
     kSquadUpdate,
-    kSquadNotice
+    kSquadNotice,
+    kSquadInvite
 };
 
 // Colour band for a system chat line.
@@ -49,6 +53,9 @@ enum SystemMsgKind {
 //   intercepted server-side (Client.cc) and never broadcast as chat text.
 // kCraft: uint8 type, uint8 rarity, uint32 amount -- craft `amount` (>=5) of
 //   the (type,rarity) inventory stack into (type,rarity+1).
+// kSquadAccept / kSquadReject: no payload -- responds to the client's own
+// pending kSquadInvite (the server already knows which invite is pending for
+// this connection's camera).
 enum Serverbound {
     kVerify,
     kClientInput,
@@ -63,7 +70,9 @@ enum Serverbound {
     kLogout,
     kChat,
     kCraft,
-    kLeave      // voluntarily end the run: despawn the flower so re-entering spawns fresh
+    kLeave,     // voluntarily end the run: despawn the flower so re-entering spawns fresh
+    kSquadAccept,
+    kSquadReject
 };
 
 enum CloseReason {

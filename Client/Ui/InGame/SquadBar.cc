@@ -21,7 +21,12 @@ namespace {
     // Flower icon is the SAME size as the player's own bar (FACE_R 26); only the
     // bar is shorter -- 75% of the player's 220-wide HP bar. Rows are spaced for
     // the full-size flower.
-    float const BAR_W = 165, BAR_H = 20, GAP = 12, FACE_R = 26, FACE_OFF = 26;
+    // GAP must clear the mini flower's own diameter (2*FACE_R = 52): the
+    // per-row pitch is BAR_H+GAP, and at the old GAP=12 that pitch (32) was
+    // smaller than the flower icon itself, so every row's flower visually
+    // overlapped the next row's flower -- reading as "no gap" even though
+    // the y-advance math was already uniform across every row.
+    float const BAR_W = 165, BAR_H = 20, GAP = 38, FACE_R = 26, FACE_OFF = 26;
 
     class SquadBars final : public Element {
     public:

@@ -58,6 +58,8 @@ namespace Game {
     std::vector<SquadMember> squad_members;
     std::string squad_notice;
     double squad_notice_until = 0;
+    std::string squad_invite_from;
+    double squad_invite_until = 0;
     CraftResult last_craft_result;
 
     uint8_t loadout_count = 5;
@@ -207,6 +209,43 @@ void Game::init() {
                 .v_justify = Ui::Style::Top
             });
             elt->y = 90;
+            return elt;
+        }()
+    );
+    other_ui_window.add_child(
+        [](){
+            // Squad invite: same disconnect-banner look (fill/round_radius),
+            // but with a message plus Accept (DeathScreen's green Continue
+            // style) / Reject (DeathScreen's gray Close style) buttons
+            // underneath, and its own 5s auto-dismiss window.
+            Ui::Element *accept_btn = new Ui::Button(120, 36, new Ui::StaticText(18, "Accept"),
+                [](Ui::Element *, uint8_t ev) {
+                    if (ev != Ui::kClick) return;
+                    Game::send_squad_accept();
+                    Game::squad_invite_until = 0;
+                }, nullptr,
+                { .fill = 0xff1dd129, .line_width = 5, .round_radius = 3 }
+            );
+            Ui::Element *reject_btn = new Ui::Button(120, 36, new Ui::StaticText(18, "Reject"),
+                [](Ui::Element *, uint8_t ev) {
+                    if (ev != Ui::kClick) return;
+                    Game::send_squad_reject();
+                    Game::squad_invite_until = 0;
+                }, nullptr,
+                { .fill = 0xff888888, .line_width = 5, .round_radius = 3 }
+            );
+            Ui::Element *elt = new Ui::VContainer({
+                new Ui::DynamicText(16, [](){ return Game::squad_invite_from + " is inviting you to join their squad!"; }),
+                new Ui::HContainer({ accept_btn, reject_btn }, 0, 10, {})
+            }, 8, 8, {
+                .fill = 0x40000000,
+                .round_radius = 5,
+                .should_render = [](){
+                    return Game::timestamp < Game::squad_invite_until && !Game::squad_invite_from.empty();
+                },
+                .v_justify = Ui::Style::Top
+            });
+            elt->y = 130;
             return elt;
         }()
     );

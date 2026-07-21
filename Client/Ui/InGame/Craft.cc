@@ -186,13 +186,54 @@ namespace {
     // ---- Right side: 5-box pentagon craft preview + chance + Craft button +
     // result ----
     float const PENT_CELL = 56.0f, PENT_RADIUS = 95.0f;
-    // Rotate-and-gather flourish that plays on every Craft click: the boxes
-    // spin a full extra turn while their radius dips to 0 and back out, so
-    // the two motions land together and the boxes end up exactly back where
-    // they started. Held afterward (a fixed constant, not tied to how long
-    // the server actually takes to answer) so a successful result gets a
-    // moment on screen before reverting to the live selection.
+    // Rotate-and-gather flourish: the boxes spin a full extra turn every
+    // CRAFT_ANIM_MS while their radius dips to 0 (they meet at the center)
+    // and back out, so the two motions start and end together each lap. It
+    // LOOPS continuously for as long as the request is in flight -- there's
+    // no fixed "attempt duration," it just keeps going until the server's
+    // kCraftResult actually lands (have_result below) -- then stops exactly
+    // at a lap boundary (t wraps via fmodf, so it's always mid-return to the
+    // original spot when the result arrives, never a hard cut).
     float const CRAFT_ANIM_MS = 1200.0f;
+
+    // Small UI-space "pop" burst played once per result: NOT the world-space
+    // Particle::add_game_particle system (Client/Particle.cc) -- that one
+    // draws in game-world coordinates as part of the main scene pass, so it
+    // can't appear inside this panel's own canvas transform. This mirrors
+    // its visual language instead (small fading circles, random outward
+    // velocity) at UI scale, colored per the same rarity-tint convention
+    // Petal.cc's Super/Unique particles use, but with the actual craft
+    // rarity color rather than a fixed Super=white/Unique=black.
+    struct CraftParticle { float x, y, vx, vy; double born; uint32_t color; };
+    std::vector<CraftParticle> g_craft_particles;
+    double g_particle_spawn_at = -1;
+    float const PARTICLE_LIFE_MS = 650.0f;
+
+    void spawn_craft_burst(uint32_t color) {
+        for (int i = 0; i < 16; ++i) {
+            float const angle = (float) i / 16.0f * 2.0f * (float) M_PI + frand() * 0.35f;
+            float const speed = 70.0f + frand() * 70.0f;
+            g_craft_particles.push_back({ 0, 0, cosf(angle) * speed, sinf(angle) * speed, Game::timestamp, color });
+        }
+    }
+
+    void render_craft_particles(Renderer &ctx) {
+        for (auto it = g_craft_particles.begin(); it != g_craft_particles.end();) {
+            double const age = Game::timestamp - it->born;
+            if (age > PARTICLE_LIFE_MS) { it = g_craft_particles.erase(it); continue; }
+            it->x += it->vx * (float) (Ui::dt / 1000.0);
+            it->y += it->vy * (float) (Ui::dt / 1000.0);
+            float const life = 1.0f - (float) (age / PARTICLE_LIFE_MS);
+            RenderContext c(&ctx);
+            ctx.translate(it->x, it->y);
+            uint32_t const faded = ((uint32_t) (life * ((it->color >> 24) & 0xff)) << 24) | (it->color & 0xffffff);
+            ctx.set_fill(faded);
+            ctx.begin_path();
+            ctx.arc(0, 0, 4.0f * life);
+            ctx.fill();
+            ++it;
+        }
+    }
 
     // 5 boxes arranged in a point-up pentagon (one top, two upper-flanking,
     // two lower-flanking -- the same angular spacing as a 5-petal flower).
@@ -221,25 +262,49 @@ namespace {
             was_open = open;
 
             double const since_click = g_result_at > 0 ? Game::timestamp - g_result_at : -1;
-            bool const spinning = since_click >= 0 && since_click < CRAFT_ANIM_MS;
-            bool const have_result = Game::last_craft_result.received_at >= g_result_at;
+            bool const have_result = g_result_at > 0 && Game::last_craft_result.received_at >= g_result_at;
+            bool const spinning = since_click >= 0 && !have_result;
+            bool const settling = have_result && since_click >= 0 && since_click < RESULT_MS;
 
-            // Once the spin settles: a successful craft holds a single
-            // centered box showing the result for a further RESULT_MS before
-            // reverting to the live selection; a failed craft has nothing
-            // special to show -- the boxes already read the (now smaller)
-            // live stack, so the loss is just visible directly.
-            if (!spinning && since_click >= 0 && since_click < CRAFT_ANIM_MS + RESULT_MS
-                && have_result && Game::last_craft_result.any_success) {
-                RenderContext c(&ctx);
-                ctx.set_fill(0x40000000);
-                ctx.begin_path();
-                ctx.round_rect(-PENT_CELL / 2, -PENT_CELL / 2, PENT_CELL, PENT_CELL, PENT_CELL / 10);
-                ctx.fill();
-                {
+            // Fire the pop burst exactly once per craft, the instant its
+            // result lands: fail = the FROM rarity's own card color (what
+            // was fed in), success = the OUT rarity's card color (what was
+            // actually produced) -- read from the server's authoritative
+            // result, not the (possibly-since-changed) current selection.
+            if (have_result && g_particle_spawn_at != g_result_at) {
+                g_particle_spawn_at = g_result_at;
+                bool const ok = Game::last_craft_result.any_success;
+                spawn_craft_burst(ok ? RARITY_COLORS[Game::last_craft_result.out_rarity]
+                                     : RARITY_COLORS[g_sel_rarity]);
+            }
+
+            render_craft_particles(ctx);
+
+            // Once the result lands: a successful craft holds a single
+            // centered box showing the result; a failed craft shows all 5
+            // boxes BLANK (no icon) -- the burst above is the "loss" cue.
+            // Either way this holds for RESULT_MS before reverting to the
+            // live selection.
+            if (settling) {
+                if (Game::last_craft_result.any_success) {
+                    RenderContext c(&ctx);
+                    ctx.set_fill(0x40000000);
+                    ctx.begin_path();
+                    ctx.round_rect(-PENT_CELL / 2, -PENT_CELL / 2, PENT_CELL, PENT_CELL, PENT_CELL / 10);
+                    ctx.fill();
                     RenderContext c2(&ctx);
                     ctx.scale(PENT_CELL / 60.0f);
                     draw_loadout_background(ctx, Game::last_craft_result.type, 1, 1, Game::last_craft_result.out_rarity);
+                    return;
+                }
+                for (int i = 0; i < 5; ++i) {
+                    float const angle = -(float) M_PI / 2 + i * (2.0f * (float) M_PI / 5);
+                    RenderContext c(&ctx);
+                    ctx.translate(PENT_RADIUS * cosf(angle), PENT_RADIUS * sinf(angle));
+                    ctx.set_fill(0x40000000);
+                    ctx.begin_path();
+                    ctx.round_rect(-PENT_CELL / 2, -PENT_CELL / 2, PENT_CELL, PENT_CELL, PENT_CELL / 10);
+                    ctx.fill();
                 }
                 return;
             }
@@ -247,11 +312,12 @@ namespace {
             uint64_t const owned = g_sel_type == PetalID::kNone ? 0 : owned_count(g_sel_type, g_sel_rarity);
             uint64_t const per_box = g_sel_type == PetalID::kNone ? 0 : (g_craft_all ? owned / 5 : 1);
 
-            // Gather envelope: 0 at t=0 and t=1 (original spot), peaking at 1
-            // (radius 0, boxes meet at the center) at the midpoint -- paired
-            // with one full extra spin over the same span so both motions
-            // start and end together.
-            float const t = spinning ? fclamp((float) (since_click / CRAFT_ANIM_MS), 0.0f, 1.0f) : 0.0f;
+            // Gather envelope: 0 at the start/end of each lap (original
+            // spot), peaking at 1 (radius 0, boxes meet at the center) at
+            // the lap's midpoint -- paired with one full extra spin over the
+            // same lap so both motions start and end together, repeating
+            // (fmodf) for as long as `spinning` holds.
+            float const t = spinning ? fmodf((float) (since_click / CRAFT_ANIM_MS), 1.0f) : 0.0f;
             float const gather = spinning ? sinf(t * (float) M_PI) : 0.0f;
             float const radius = PENT_RADIUS * (1.0f - gather);
             float const extra_rotation = spinning ? t * 2.0f * (float) M_PI : 0.0f;

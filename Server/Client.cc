@@ -270,17 +270,6 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
                     Squad::leave(&client->game->simulation, client->camera);
                 break;
             }
-            if (message == "/squad-accept") {
-                if (client->alive()) {
-                    bool const ok = Squad::accept(&client->game->simulation, client->camera);
-                    Writer w(Server::OUTGOING_PACKET);
-                    w.write<uint8_t>(Clientbound::kSystemMessage);
-                    w.write<uint8_t>(SystemMsgKind::kSysSquad);
-                    w.write<std::string>(ok ? "You joined the squad!" : "You have no pending squad invite.");
-                    client->send_packet(w.packet, w.at - w.packet);
-                }
-                break;
-            }
             // Prefer the flower's in-game name; fall back to the account name.
             std::string sender = client->username.empty() ? "Anonymous" : client->username;
             if (client->alive()) {
@@ -306,6 +295,18 @@ void Client::on_message(WebSocket *ws, std::string_view message, uint64_t code) 
             uint8_t const rarity = reader.read<uint8_t>();
             uint32_t const amount = reader.read<uint32_t>();
             CraftOps::try_craft(client, (PetalID::T)type, rarity, amount);
+            break;
+        }
+        // Responses to the client's own pending kSquadInvite -- replaces the
+        // old "/squad-accept" chat command with a real button-driven flow.
+        case Serverbound::kSquadAccept: {
+            if (!client->alive()) break;
+            Squad::accept(&client->game->simulation, client->camera);
+            break;
+        }
+        case Serverbound::kSquadReject: {
+            if (!client->alive()) break;
+            Squad::reject(client->camera);
             break;
         }
     }

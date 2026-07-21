@@ -16,9 +16,9 @@ namespace Squad {
     uint32_t const MAX_SIZE = 4;
 
     // Records a PENDING invite from `inviter_camera` to `target_camera` and
-    // prompts the target to /squad-accept. Does NOT join them -- joining only
-    // happens on accept(). Returns false if the squad is full or a camera is
-    // invalid.
+    // pushes a kSquadInvite (Accept/Reject buttons client-side) to the
+    // target. Does NOT join them -- joining only happens on accept(). Returns
+    // false if the squad is full or a camera is invalid.
     bool invite(Simulation *sim, EntityID inviter_camera, EntityID target_camera);
 
     // The target accepts its pending invite and actually joins the inviter's
@@ -26,6 +26,10 @@ namespace Squad {
     // Returns false if there's no valid pending invite. Pushes kSquadUpdate +
     // kSquadNotice to affected clients.
     bool accept(Simulation *sim, EntityID target_camera);
+
+    // The target declines its pending invite: just clears it, no join.
+    // Returns false if there was no pending invite to clear.
+    bool reject(EntityID target_camera);
 
     // Removes `camera` from its squad (dissolving it if fewer than 2 members
     // remain afterward). Pushes kSquadUpdate to affected clients, including a

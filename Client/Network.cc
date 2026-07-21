@@ -138,6 +138,13 @@ void Game::on_message(uint8_t *ptr, uint32_t len) {
             Game::squad_notice_until = Game::timestamp + 4000;
             break;
         }
+        case Clientbound::kSquadInvite: {
+            std::string inviter_name;
+            reader.read<std::string>(inviter_name);
+            Game::squad_invite_from = inviter_name;
+            Game::squad_invite_until = Game::timestamp + 5000;
+            break;
+        }
         default:
             break;
     }
@@ -187,6 +194,18 @@ void Game::spawn_in() {
     socket.send(writer.packet, writer.at - writer.packet);
 }
 
+void Game::send_squad_accept() {
+    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
+    writer.write<uint8_t>(Serverbound::kSquadAccept);
+    socket.send(writer.packet, writer.at - writer.packet);
+}
+
+void Game::send_squad_reject() {
+    Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
+    writer.write<uint8_t>(Serverbound::kSquadReject);
+    socket.send(writer.packet, writer.at - writer.packet);
+}
+
 void Game::leave_game() {
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
     writer.write<uint8_t>(Serverbound::kLeave);
@@ -224,7 +243,14 @@ void Game::send_chat(std::string const &msg) {
 }
 
 void Game::send_craft(PetalID::T type, uint8_t rarity, uint32_t amount) {
-    if (amount < 5) return;
+    // `amount` is a count of ATTEMPTS (server-side: CraftOps::try_craft loops
+    // `attempts_left = amount`, consuming 5 petals per attempt) -- NOT a
+    // petal count. A single-click craft is exactly one attempt (amount=1),
+    // so gating on amount<5 silently dropped every single-attempt craft
+    // before it ever reached the network; only "craft all" (amount==owned
+    // count, almost always >=5) got through. Guard only against the
+    // genuinely invalid amount==0.
+    if (amount < 1) return;
     Writer writer(static_cast<uint8_t *>(OUTGOING_PACKET));
     writer.write<uint8_t>(Serverbound::kCraft);
     writer.write<uint8_t>(type);

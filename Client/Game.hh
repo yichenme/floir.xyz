@@ -68,6 +68,13 @@ namespace Game {
     // disconnect-with-code banner -- not routed through the chat log.
     extern std::string squad_notice;
     extern double squad_notice_until;
+    // Pending invite awaiting Accept/Reject (empty = none showing). Cleared
+    // immediately on either response, or after squad_invite_until elapses
+    // (auto-dismiss, same 5s-banner pattern as the disconnect/notice banners).
+    extern std::string squad_invite_from;
+    extern double squad_invite_until;
+    void send_squad_accept();
+    void send_squad_reject();
     // Latest craft outcome, for the Craft panel's roll/reveal animation.
     struct CraftResult {
         PetalID::T type = PetalID::kNone;
