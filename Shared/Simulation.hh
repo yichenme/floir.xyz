@@ -16,7 +16,7 @@ inline uint32_t const ENTITY_CAP = 8192;
 // number of mobs (every mob runs AI + motion + collision every tick), so this
 // is the main knob for how many players the server can carry. Keep it well
 // under ENTITY_CAP -- players, petals, drops and summons also draw from the cap.
-inline uint32_t const MOB_TARGET = 2048;
+inline uint32_t const MOB_TARGET = 3000;
 
 class Simulation {
     std::array<uint8_t, div_round_up(ENTITY_CAP, 8)> entity_tracker;
@@ -45,4 +45,15 @@ public:
     void for_each_entity(std::function<void (Simulation *, Entity &)>);
     template <uint8_t>
     void for_each(std::function<void (Simulation *, Entity &)>);
+
+#if defined(SERVERSIDE) && defined(THREADED_MOTION)
+    // Run `cb` over every live kPhysics entity, partitioned across `nthreads`
+    // worker threads. ONLY safe for a callback that touches each entity in
+    // isolation (reads static data + its own fields, writes only its own
+    // fields) -- tick_entity_motion qualifies: it resolves against the static
+    // Tilemap and writes only ent's position/velocity, never another entity or
+    // any shared mutable state. Each entity lands in exactly one thread's index
+    // slice, so there are no overlapping writes and no locks are needed.
+    void parallel_for_physics(void (*cb)(Simulation *, Entity &), int nthreads);
+#endif
 };

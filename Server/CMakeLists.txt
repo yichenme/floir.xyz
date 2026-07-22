@@ -80,7 +80,17 @@ if(WASM_SERVER)
     set(CMAKE_CXX_COMPILER "em++")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWASM_SERVER=1")
     add_link_options(-sEXIT_RUNTIME=0 -sEXPORTED_FUNCTIONS=_main,_on_connect,_on_disconnect,_tick,_on_message,_admin_spawn_mob,_admin_build_live_json,_graceful_shutdown_flush,_malloc,_free)
-    if (NOT DEBUG) 
+    # Optional multithreaded build (-DTHREADED=ON): parallelizes the per-entity
+    # motion phase across a pthread pool (Web Workers + SharedArrayBuffer under
+    # Node). Memory must be a fixed, shared heap: 128MiB covers the 23MiB sim
+    # heap plus worker stacks with headroom (raising MOB_TARGET doesn't grow it
+    # -- entities draw from the fixed ENTITY_CAP pool). Closure is disabled here
+    # to avoid conflicts with the pthread worker bootstrap.
+    if(THREADED)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -DTHREADED_MOTION=1")
+        add_link_options(-pthread -sPTHREAD_POOL_SIZE=8 -sINITIAL_MEMORY=134217728 -sALLOW_MEMORY_GROWTH=0)
+    endif()
+    if (NOT DEBUG AND NOT THREADED)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --closure=1")
     endif()
     add_executable(floir-server ${SOURCES})
