@@ -63,10 +63,30 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
         // tunnel through a thin wall; resolve exactly against tile polygons.
         float tx = ent.get_x(), ty = ent.get_y();
         float dist = std::hypot(tx - prev_x, ty - prev_y);
+        // Coarse swept-path reject: if no solid cell (and, for mobs, no tunnel
+        // cell) lies anywhere near the whole prev->cur segment -- bbox padded by
+        // the move distance so the entire swept circle is covered -- there is
+        // nothing to resolve. Skip the sub-step loop AND the post-move rejection
+        // checks entirely. On open terrain (most non-culled mobs, away from
+        // walls) this makes terrain collision nearly free; it was the bulk of
+        // per-tick motion cost. The precise sub-cell work below is unchanged for
+        // anything actually near terrain, so behavior is identical.
+        bool const _maybe_terrain =
+            Tilemap::_near_solid_cells(tx, ty, r + dist) ||
+            (ent.has_component(kMob) && Tilemap::_near_tunnel_cells(tx, ty, r + dist));
+        if (_maybe_terrain) {
         // Step must be <= this body's radius so the swept circle overlaps any
         // wall it crosses (no thin-wall skip); the floor bounds the step count.
         float step = std::max(4.0f, r * 0.8f);
         int steps = std::max(1, (int)std::ceil(dist / step));
+        // Hard cap the sub-step count. A body moving a normal per-tick distance
+        // needs only a handful of steps; a count in the hundreds/thousands only
+        // happens for an anomalous single-tick jump (spawn/teleport/runaway
+        // knockback), where each step runs a full push_circle scan -- that was
+        // the ~356ms motion spike (a whole-frame freeze) seen in profiling. 64
+        // swept sub-steps still covers any legitimate fast move without letting
+        // one entity blow the entire tick budget.
+        if (steps > 64) steps = 64;
         float sdx = (tx - prev_x) / steps, sdy = (ty - prev_y) / steps;
         float cx = prev_x, cy = prev_y;
         // Mobs (not players/drops) also treat tunnels as impassable -- they
@@ -106,6 +126,7 @@ void tick_entity_motion(Simulation *sim, Entity &ent) {
         }
         ent.set_x(cx);
         ent.set_y(cy);
+        }   // end if (_maybe_terrain)
     }
     //ent.acceleration.set(0,0);
     ent.collision_velocity.set(0,0);

@@ -3923,6 +3923,13 @@ namespace Tilemap {
     }
 
     inline bool tunnel_wall_circle(float x, float y, float rad) {
+        // Cheap coarse reject first (mirrors tunnel_push_circle): with no
+        // tunnel cell anywhere near this circle there is no tunnel wall to hit,
+        // so skip the full unstrided sub-cell scan. This is called for EVERY
+        // mob every tick (Motion.cc), and on a tunnel-free map (Garden) the
+        // scan otherwise runs over the whole radius bbox returning false --
+        // wasted work that showed up as a large slice of per-tick motion cost.
+        if (!_near_tunnel_cells(x, y, rad)) return false;
         int x0=(int)std::floor((x-rad)/COLL_UNIT), x1=(int)std::floor((x+rad)/COLL_UNIT);
         int y0=(int)std::floor((y-rad)/COLL_UNIT), y1=(int)std::floor((y+rad)/COLL_UNIT);
         float r2=rad*rad;

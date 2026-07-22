@@ -15,6 +15,84 @@ const path = require('path');
 // a single-server local run needs no env var.
 const DB_PATH = process.env.FLOIR_DB_PATH || path.join(__dirname, '..', 'database.json');
 
+// Only ONE process writes DB_PATH unless FLOIR_DB_PATH is set to point two map
+// servers at a shared file. In the common single-server case, global.db is the
+// sole source of truth, so the whole read-merge-write dance below (a SYNCHRONOUS
+// 4.6MB fs.readFileSync + JSON.parse of the on-disk state, plus the cross-process
+// lock) is pure overhead that blocks the game thread on every flush -- observed
+// as an ~80-130ms tick stall every ~15s in production ("the server froze for a
+// short while"). SHARED_MODE gates that path off entirely when we're the only
+// writer: the flush then just stringifies global.db and writes it async, with
+// no synchronous read. The full merge/lock path is kept intact for when sharing
+// is deliberately re-enabled.
+const SHARED_MODE = !!process.env.FLOIR_DB_PATH;
+
+// Cross-process advisory lock guarding the read-merge-write critical section
+// in flushDatabase/flushDatabaseNow. Without this, two processes sharing one
+// DB_PATH can both read the on-disk state, compute independent patches, and
+// write back -- whichever renames second wins outright and silently discards
+// everything the first writer just added, because its patch was computed
+// from a snapshot that predates the first writer's commit. Reproduced
+// locally (two processes hammering one shared file lost an entire side's
+// users on ~40% of runs); this is almost certainly the actual mechanism
+// behind the production incident where a shared DB collapsed from 1024 users
+// to 7 over repeated flush cycles. exclusive-create (wx) is atomic at the
+// filesystem level, so it works as a real mutex across processes.
+const LOCK_PATH = DB_PATH + '.lock';
+const LOCK_STALE_MS = 5000;   // a lock older than this is assumed abandoned by a crashed process
+const LOCK_ACQUIRE_TIMEOUT_MS = 2000;
+
+const _sleepSyncMs = (ms) => {
+    const ia = new Int32Array(new SharedArrayBuffer(4));
+    Atomics.wait(ia, 0, 0, ms);
+};
+
+const _acquireLockSync = () => {
+    const deadline = Date.now() + LOCK_ACQUIRE_TIMEOUT_MS;
+    for (;;) {
+        try {
+            fs.closeSync(fs.openSync(LOCK_PATH, 'wx'));
+            return true;
+        } catch (e) {
+            if (e.code !== 'EEXIST') throw e;
+            try {
+                if (Date.now() - fs.statSync(LOCK_PATH).mtimeMs > LOCK_STALE_MS) {
+                    fs.unlinkSync(LOCK_PATH);   // previous holder crashed without releasing it
+                    continue;
+                }
+            } catch { /* lock vanished between the failed open and this stat -- retry */ }
+            if (Date.now() > deadline) return false;
+            _sleepSyncMs(5);
+        }
+    }
+};
+
+const _releaseLockSync = () => { try { fs.unlinkSync(LOCK_PATH); } catch {} };
+
+const _acquireLockAsync = async () => {
+    const deadline = Date.now() + LOCK_ACQUIRE_TIMEOUT_MS;
+    for (;;) {
+        try {
+            const fh = await fs.promises.open(LOCK_PATH, 'wx');
+            await fh.close();
+            return true;
+        } catch (e) {
+            if (e.code !== 'EEXIST') throw e;
+            try {
+                const st = await fs.promises.stat(LOCK_PATH);
+                if (Date.now() - st.mtimeMs > LOCK_STALE_MS) {
+                    await fs.promises.unlink(LOCK_PATH).catch(() => {});
+                    continue;
+                }
+            } catch { /* lock vanished between the failed open and this stat -- retry */ }
+            if (Date.now() > deadline) return false;
+            await new Promise((r) => setTimeout(r, 5));
+        }
+    }
+};
+
+const _releaseLockAsync = async () => { await fs.promises.unlink(LOCK_PATH).catch(() => {}); };
+
 // Petal IDs that have been removed from the game. They stay numbered in the
 // PetalID enum (so surviving petals keep their saved IDs), but any copies still
 // sitting in accounts are purged: dropped from inventory, and cleared to an
@@ -45,12 +123,23 @@ global.purgeRetiredPetals = () => {
     }
 };
 
+// Only ENOENT (file genuinely doesn't exist yet, e.g. first boot) is treated
+// as "start empty". Any other failure -- a transient read error, a parse
+// failure from reading mid-write, permissions, whatever -- is a REAL error
+// and must propagate, never silently collapse to an empty database. A
+// caller that swallowed this into `{}` previously caused a live merge-write
+// to treat "empty" as ground truth and wipe every account it didn't just
+// touch (the 1024-users-to-7 incident). Callers must decide explicitly what
+// "disk unreadable" means for them, not have it decided here.
 const _readDbFromDisk = () => {
+    let raw;
     try {
-        return { data: JSON.parse(fs.readFileSync(DB_PATH, 'utf8')), mtimeMs: fs.statSync(DB_PATH).mtimeMs };
-    } catch {
-        return { data: {}, mtimeMs: 0 };
+        raw = fs.readFileSync(DB_PATH, 'utf8');
+    } catch (e) {
+        if (e.code === 'ENOENT') return { data: {}, mtimeMs: 0 };
+        throw e;
     }
+    return { data: JSON.parse(raw), mtimeMs: fs.statSync(DB_PATH).mtimeMs };
 };
 
 let dbMtimeMs = 0;
@@ -60,15 +149,28 @@ let dbMtimeMs = 0;
 // this process's own not-yet-flushed changes.
 const dirtyUsers = new Set();
 
+// Safety net independent of the above: track the largest user count we've
+// ever confirmed on disk, and refuse to flush a merge result that collapses
+// far below it. This catches any FUTURE bug in the merge logic (not just the
+// one behind the incident) before it can commit data loss to disk -- worst
+// case a flush is skipped and retried, never a silent wipe.
+let maxKnownUserCount = 0;
+const _trackUserCount = (n) => { if (n > maxKnownUserCount) maxKnownUserCount = n; };
+const _looksLikeCorruption = (newCount) => maxKnownUserCount >= 10 && newCount < maxKnownUserCount * 0.5;
+
 global.loadDatabase = () => {
     if (!global.db) {
         const { data, mtimeMs } = _readDbFromDisk();
         global.db = data;
         dbMtimeMs = mtimeMs;
+        _trackUserCount(Object.keys(data).length);
         // One-time cleanup per process: strip retired petals from all accounts.
         global.purgeRetiredPetals();
         return;
     }
+    // Single-writer mode: nothing else touches the file, so there is nothing to
+    // refresh in from disk. Skip the per-call statSync syscall entirely.
+    if (!SHARED_MODE) return;
     // Two map servers (Garden, Ant Hell) share one DB_PATH file. Every dbXxx
     // call already routes through here first, so this is where the other
     // process's writes actually become visible: if the file's mtime moved
@@ -78,12 +180,22 @@ global.loadDatabase = () => {
     let stat;
     try { stat = fs.statSync(DB_PATH); } catch { return; }
     if (stat.mtimeMs <= dbMtimeMs) return;
-    const { data } = _readDbFromDisk();
+    let data;
+    try {
+        ({ data } = _readDbFromDisk());
+    } catch (e) {
+        console.error('[database] loadDatabase refresh read failed, skipping this poll:', e);
+        return;   // retry on the next dbXxx call; never treat this as "file is empty"
+    }
+    _trackUserCount(Object.keys(data).length);
     for (const user of Object.keys(data)) {
         if (!dirtyUsers.has(user)) global.db[user] = data[user];
     }
     for (const user of Object.keys(global.db)) {
-        if (!dirtyUsers.has(user) && !Object.prototype.hasOwnProperty.call(data, user)) delete global.db[user];
+        if (!dirtyUsers.has(user) && !Object.prototype.hasOwnProperty.call(data, user)) {
+            if (process.env.DB_DEBUG) console.error(`[DEBUG pid=${process.pid}] deleting ${user} from memory: not dirty, not on disk (disk has ${Object.keys(data).length} users)`);
+            delete global.db[user];
+        }
     }
     dbMtimeMs = stat.mtimeMs;
 };
@@ -138,24 +250,70 @@ const flushDatabase = async () => {
     const patch = {};
     for (const u of users) patch[u] = global.db[u];   // undefined => deleted (ban)
     try {
-        // Merge onto the CURRENT on-disk state, not our in-memory global.db --
-        // the other map server may have flushed changes to OTHER accounts since
-        // we last refreshed, and a blind dump of global.db would silently
-        // discard those. Only the accounts we actually changed get applied.
-        const { data: onDisk } = _readDbFromDisk();
-        for (const u of users) {
-            if (patch[u] === undefined) delete onDisk[u];
-            else onDisk[u] = patch[u];
+        if (!SHARED_MODE) {
+            // Single-writer fast path: global.db is authoritative, so skip the
+            // synchronous on-disk read+parse and the cross-process lock. Only
+            // the (unavoidable) stringify is synchronous here; the write itself
+            // is async. This is what removes the periodic ~15s tick stall.
+            const newCount = Object.keys(global.db).length;
+            if (_looksLikeCorruption(newCount))
+                throw new Error(`flush aborted: suspected corruption (${newCount} vs known max ${maxKnownUserCount})`);
+            _trackUserCount(newCount);
+            const snapshot = JSON.stringify(global.db);
+            const tmp = `${DB_PATH}.tmp.${process.pid}`;
+            await fs.promises.writeFile(tmp, snapshot);
+            await fs.promises.rename(tmp, DB_PATH);   // atomic swap
+            try { dbMtimeMs = fs.statSync(DB_PATH).mtimeMs; } catch {}
+            isWriting = false;
+            if (dirtyUsers.size > 0) scheduleFlush();
+            return;
         }
-        const snapshot = JSON.stringify(onDisk);
-        const tmp = DB_PATH + '.tmp';
-        await fs.promises.writeFile(tmp, snapshot);
-        await fs.promises.rename(tmp, DB_PATH);   // atomic swap
-        try { dbMtimeMs = fs.statSync(DB_PATH).mtimeMs; } catch {}
-        // Pick up the other server's accounts we just read, so this process's
-        // cache reflects them without waiting for the next loadDatabase() poll.
-        for (const u of Object.keys(onDisk)) {
-            if (!users.includes(u) && !dirtyUsers.has(u)) global.db[u] = onDisk[u];
+        // The whole read-merge-write below is the critical section: without
+        // a lock, two processes can both read the same pre-write state and
+        // write back independently, and whichever renames second wins
+        // outright -- silently discarding everything the first writer just
+        // committed, since its patch was computed from a now-stale read. See
+        // the comment on LOCK_PATH above; reproduced locally, and the most
+        // likely actual mechanism behind the production incident.
+        if (!(await _acquireLockAsync())) throw new Error('flush aborted: could not acquire DB lock');
+        try {
+            // Merge onto the CURRENT on-disk state, not our in-memory global.db --
+            // the other map server may have flushed changes to OTHER accounts since
+            // we last refreshed, and a blind dump of global.db would silently
+            // discard those. Only the accounts we actually changed get applied.
+            const { data: onDisk } = _readDbFromDisk();
+            if (process.env.DB_DEBUG) console.error(`[DEBUG pid=${process.pid}] flushDatabase: read onDisk with ${Object.keys(onDisk).length} users, patching ${users.length} of my own`);
+            for (const u of users) {
+                if (patch[u] === undefined) delete onDisk[u];
+                else onDisk[u] = patch[u];
+            }
+            const newCount = Object.keys(onDisk).length;
+            if (_looksLikeCorruption(newCount)) {
+                // The merge result is far smaller than any count we've ever
+                // confirmed on disk -- refuse to commit it. Better to skip a
+                // flush and retry than to permanently overwrite real accounts
+                // with a bad snapshot (see the incident this guards against).
+                console.error(`[database] refusing to flush: merged user count ${newCount} is far below the known max ${maxKnownUserCount} -- possible corruption, skipping this write`);
+                throw new Error('flush aborted: suspected corruption');
+            }
+            _trackUserCount(newCount);
+            const snapshot = JSON.stringify(onDisk);
+            // Per-process tmp name -- Garden and Ant Hell share DB_PATH, and a
+            // shared ".tmp" name let one process's in-flight write be clobbered
+            // by the other's before either renamed, so whichever renamed last
+            // could commit the WRONG process's snapshot. Still kept even with
+            // the lock above, as a second independent line of defense.
+            const tmp = `${DB_PATH}.tmp.${process.pid}`;
+            await fs.promises.writeFile(tmp, snapshot);
+            await fs.promises.rename(tmp, DB_PATH);   // atomic swap
+            try { dbMtimeMs = fs.statSync(DB_PATH).mtimeMs; } catch {}
+            // Pick up the other server's accounts we just read, so this process's
+            // cache reflects them without waiting for the next loadDatabase() poll.
+            for (const u of Object.keys(onDisk)) {
+                if (!users.includes(u) && !dirtyUsers.has(u)) global.db[u] = onDisk[u];
+            }
+        } finally {
+            await _releaseLockAsync();
         }
     } catch (e) {
         for (const u of users) dirtyUsers.add(u);   // write failed -- retry next flush
@@ -177,18 +335,64 @@ global.saveDatabase = (user) => {
 // write. A deploy's pm2 restart therefore never drops the last few seconds.
 global.flushDatabaseNow = () => {
     if (flushTimer !== null) { clearTimeout(flushTimer); flushTimer = null; }
+    if (!global.db) return;
+    if (!SHARED_MODE) {
+        // Single-writer fast path (mirrors flushDatabase): global.db is
+        // authoritative, so write it straight out with no read-merge and no
+        // lock. Still tmp+rename for atomicity against a crash mid-write.
+        try {
+            const newCount = Object.keys(global.db).length;
+            if (_looksLikeCorruption(newCount)) {
+                console.error(`[database] flushDatabaseNow: refusing to write, count ${newCount} vs known max ${maxKnownUserCount}`);
+                return;
+            }
+            _trackUserCount(newCount);
+            const tmp = `${DB_PATH}.tmp.${process.pid}`;
+            fs.writeFileSync(tmp, JSON.stringify(global.db));
+            fs.renameSync(tmp, DB_PATH);
+            dirtyUsers.clear();
+        } catch (e) { /* best effort on shutdown */ }
+        return;
+    }
+    // Same lock as flushDatabase (see LOCK_PATH above) -- both map servers
+    // call flushDatabaseNow on SIGTERM, and a deploy restarts both at once,
+    // so without this the two shutdown flushes race exactly like the
+    // periodic ones: whichever reads-merges-writes second, based on a
+    // pre-write snapshot, silently discards the other's just-committed data.
+    // Reproduced locally: two processes each flushing 40 distinct users at
+    // shutdown collapsed to ONE side's 40 on repeated runs before this lock
+    // was added -- the closest local repro to the production incident.
+    if (!_acquireLockSync()) return;   // best effort on shutdown; leave dirtyUsers for a future run
     try {
         // Same merge-onto-current-disk-state approach as the async flush (see
         // flushDatabase): only overwrite the accounts THIS process touched, so
         // a deploy restart on one map server can't stomp the other's writes.
         const { data: onDisk } = _readDbFromDisk();
+        if (process.env.DB_DEBUG) console.error(`[DEBUG pid=${process.pid}] flushDatabaseNow: read onDisk with ${Object.keys(onDisk).length} users, patching ${dirtyUsers.size} of my own`);
         for (const u of dirtyUsers) {
             if (global.db[u] === undefined) delete onDisk[u];
             else onDisk[u] = global.db[u];
         }
-        fs.writeFileSync(DB_PATH, JSON.stringify(onDisk));
+        const newCount = Object.keys(onDisk).length;
+        if (process.env.DB_DEBUG) console.error(`[DEBUG pid=${process.pid}] flushDatabaseNow: writing ${newCount} users`);
+        if (_looksLikeCorruption(newCount)) {
+            console.error(`[database] flushDatabaseNow: refusing to write, merged count ${newCount} vs known max ${maxKnownUserCount}`);
+            return;   // leave dirtyUsers set so a future flush can retry with fresh data
+        }
+        _trackUserCount(newCount);
+        // Same tmp+rename atomic swap as the async flush -- a direct
+        // writeFileSync(DB_PATH, ...) here is NOT atomic across processes:
+        // two concurrent direct writes can interleave (one process's
+        // open+truncate landing between the other's write and its own),
+        // corrupting the file with trailing garbage from whichever write was
+        // longer -- reproduced locally under concurrent shutdown before this
+        // was fixed, independently of the lock above (defense in depth).
+        const tmp = `${DB_PATH}.tmp.${process.pid}`;
+        fs.writeFileSync(tmp, JSON.stringify(onDisk));
+        fs.renameSync(tmp, DB_PATH);
         dirtyUsers.clear();
     } catch (e) { /* best effort on shutdown */ }
+    finally { _releaseLockSync(); }
 };
 
 global.hashPassword = (p) => crypto.createHash('sha256').update(p).digest('hex');

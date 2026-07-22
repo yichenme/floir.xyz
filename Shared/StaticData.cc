@@ -3,7 +3,15 @@
 #include <cmath>
 
 uint32_t const MAX_LEVEL = 999;
-uint32_t const TPS = 30;
+// 20 TPS (50ms tick budget) is the server's real single-threaded ceiling: at
+// MOB_TARGET=2048 the per-tick simulation (terrain collision dominant) runs
+// ~30-56ms under load, so a 33ms budget (TPS=30) was chronically overrun,
+// starving socket I/O and producing the multi-second input lag / freezes.
+// Velocity integration is TPS-independent (Motion.cc scales by BASE_TPS/TPS,
+// BASE_TPS=20), so movement speeds are unchanged; the client interpolates
+// between updates, so 20 updates/s stays visually smooth. See DEPLOY.md perf
+// incidents -- 20 TPS was the documented design value all along.
+uint32_t const TPS = 20;
 
 //these two are based on the base game's 20 TPS
 float const PLAYER_ACCELERATION = 5.0f;

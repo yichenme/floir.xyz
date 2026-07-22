@@ -51,7 +51,12 @@ void Socket::connect(std::string const url) {
     EM_ASM({
         // Derive the WS endpoint from the page origin so the same build works
         // locally and behind an https/nginx proxy. The compiled url is ignored.
-        let string = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+        // Also carry over the page's own path: Ant Hell is reverse-proxied at
+        // /anthell/ on the primary domain (see nginx config) rather than a
+        // separate port, so nginx needs the request's path to know which
+        // backend's websocket to route the upgrade to -- location.host alone
+        // would always hit the default location block (Garden).
+        let string = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + location.pathname;
         function connect() {
             let socket = Module.socket = new WebSocket(string);
             socket.binaryType = "arraybuffer";

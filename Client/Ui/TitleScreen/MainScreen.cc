@@ -22,17 +22,16 @@ using namespace Ui;
 
 // Each map runs as its own server process (see Shared/Tilemap.hh -- it's
 // compiled-in constants, not a runtime-loaded asset, so one process can only
-// ever serve one map). Switching maps means loading the page from that
-// process's own port, which naturally reconnects the socket (Socket::connect
-// always dials location.host, not a compiled-in URL). Always plain http:
-// (not location.protocol) -- these are raw Node listeners with no TLS of
-// their own (only the primary domain's 443 is nginx/certbot-terminated), so
-// carrying https: over to another map's port made the navigation itself
-// fail outright (players couldn't reach the other map at all).
-static void _goto_map_port(uint16_t port) {
-    EM_ASM({
-        window.location.href = 'http://' + location.hostname + ':' + $0;
-    }, port);
+// ever serve one map). Garden is nginx's default location (/); Ant Hell is
+// reverse-proxied at /anthell/ on the SAME origin (see nginx config on the
+// production box), rather than exposed on its own port, so switching maps is
+// just a same-origin path navigation. Socket::connect derives the websocket
+// URL from location.pathname, so loading /anthell/ naturally reconnects to
+// the right backend. Trailing slash matters: it must match nginx's
+// `location /anthell/ { ... }` prefix exactly, or the request falls through
+// to Garden's default location instead.
+static void _goto_map_path(char const *path) {
+    EM_ASM({ window.location.href = UTF8ToString($0); }, path);
 }
 
 Element *Ui::make_title_input_box() {
@@ -64,13 +63,13 @@ Element *Ui::make_title_input_box() {
                 new Ui::HContainer({
                     new Ui::Button(150, 40,
                         new Ui::StaticText(20, "Garden"),
-                        [](Element *elt, uint8_t e){ if (e == Ui::kClick && SERVER_PORT != 3000) _goto_map_port(3000); },
+                        [](Element *elt, uint8_t e){ if (e == Ui::kClick && SERVER_PORT != 3000) _goto_map_path("/"); },
                         [](){ return SERVER_PORT == 3000; },
                         { .fill = 0xff3fa34d, .line_width = 5, .round_radius = 5 }
                     ),
                     new Ui::Button(150, 40,
                         new Ui::StaticText(20, "Ant Hell"),
-                        [](Element *elt, uint8_t e){ if (e == Ui::kClick && SERVER_PORT != 3001) _goto_map_port(3001); },
+                        [](Element *elt, uint8_t e){ if (e == Ui::kClick && SERVER_PORT != 3001) _goto_map_path("/anthell/"); },
                         [](){ return SERVER_PORT == 3001; },
                         { .fill = 0xff3fa34d, .line_width = 5, .round_radius = 5 }
                     )
