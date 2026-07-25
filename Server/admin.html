@@ -108,6 +108,16 @@
     var creds = null, target = null;
     var zones = [];
 
+    // The panel is served at "/mgmt-<tok>" on Garden but "/anthell/mgmt-<tok>"
+    // on Ant Hell (via the nginx path proxy). Absolute URLs like "/mgmt-.../api"
+    // or "/map-overview.png" always resolve to the ROOT = Garden, so the Ant
+    // Hell panel used to show Garden's map and its spawn/live actions hit
+    // Garden's simulation. Derive the panel's own base path + the map root from
+    // the current location so every request lands on the SAME map server the
+    // panel was loaded from.
+    var PANEL_BASE = location.pathname.replace(/\/+$/, '');     // /anthell/mgmt-... | /mgmt-...
+    var MAP_ROOT = PANEL_BASE.replace(/\/[^/]*$/, '');          // /anthell | '' (root)
+
     // Retired/removed petal IDs (kept numbered for account compatibility, but
     // never giveable). Mirrors RETIRED_PETALS in Server/Account/database.js.
     // Index 0 (None) is also hidden. kTringer (29) folded into Stinger.
@@ -121,7 +131,7 @@
 
     async function api(payload){
         const body = Object.assign({ user: creds.user, password: creds.pass }, payload);
-        const r = await fetch('/mgmt-2cead2784ab288121749639c/api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const r = await fetch(PANEL_BASE + '/api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         return r.json();
     }
 
@@ -155,7 +165,7 @@
     var mapImg = new Image();
     async function loadZones(){
         try {
-            const r = await fetch('/mgmt-2cead2784ab288121749639c/zones.json');
+            const r = await fetch(PANEL_BASE + '/zones.json');
             zones = await r.json();
             if (zones.length) {
                 ARENA_W = Math.max.apply(null, zones.map(function(z){ return z.right; }));
@@ -163,7 +173,7 @@
             }
         } catch (e) { zones = []; }
         mapImg.onload = drawMap;
-        mapImg.src = '/map-overview.png';   // ETag/no-cache revalidation is server-side (Wasm.cc)
+        mapImg.src = MAP_ROOT + '/map-overview.png';   // ETag/no-cache revalidation is server-side (Wasm.cc)
     }
 
     // Live overlay: polled from the running simulation (action:'live') so
