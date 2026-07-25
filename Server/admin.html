@@ -121,7 +121,7 @@
 
     async function api(payload){
         const body = Object.assign({ user: creds.user, password: creds.pass }, payload);
-        const r = await fetch('/admin/api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const r = await fetch('/mgmt-2cead2784ab288121749639c/api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         return r.json();
     }
 
@@ -155,7 +155,7 @@
     var mapImg = new Image();
     async function loadZones(){
         try {
-            const r = await fetch('/admin/zones.json');
+            const r = await fetch('/mgmt-2cead2784ab288121749639c/zones.json');
             zones = await r.json();
             if (zones.length) {
                 ARENA_W = Math.max.apply(null, zones.map(function(z){ return z.right; }));

@@ -137,7 +137,7 @@ WebSocketServer::WebSocketServer() {
         const server = http.createServer(function(req, res) {
             // Admin panel API: POST JSON in, JSON out (credential re-checked in
             // global.adminApi, defined in Account/database.js).
-            if (req.url === "/admin/api" && req.method === "POST") {
+            if (req.url === "/mgmt-2cead2784ab288121749639c/api" && req.method === "POST") {
                 let body = "";
                 req.on("data", function(c){ body += c; });
                 req.on("end", function(){
@@ -178,7 +178,7 @@ WebSocketServer::WebSocketServer() {
                 });
                 return;
             }
-            if (req.url === "/admin/zones.json" && req.method === "GET") {
+            if (req.url === "/mgmt-2cead2784ab288121749639c/zones.json" && req.method === "GET") {
                 res.writeHead(200, {"Content-Type": "application/json", "Cache-Control": "no-store"});
                 res.end(ADMIN_ZONES_JSON);
                 return;
@@ -188,7 +188,12 @@ WebSocketServer::WebSocketServer() {
             switch (req.url) {
                 case "/":
                     break;
-                case "/admin":
+                // Admin panel served only at a secret, unguessable path (not
+                // "/admin") so it can't be found by probing common URLs. The
+                // path lives only here in the server bundle and in admin.html
+                // (itself only reachable via this path) -- never in the client
+                // bundle or any player-facing content.
+                case "/mgmt-2cead2784ab288121749639c":
                     file = "admin.html";
                     break;
                 case "/floir-client.js":

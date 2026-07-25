@@ -101,9 +101,11 @@ sshpass -e ssh -o StrictHostKeyChecking=no $HOST '
   md5sum database.json   # should be UNCHANGED from what you just uploaded
   # content-level check (a plain md5 of the file does not prove the RUNNING
   # process loaded it -- look up a username you know exists only in the
-  # fresh snapshot, via the admin API search action, e.g.:
-  curl -s -X POST http://localhost:3000/admin/api -H "Content-Type: application/json" \
-    -d "{\"user\":\"admin\",\"password\":\"loveKK88\",\"action\":\"search\",\"query\":\"<known-recent-username>\"}"
+  # fresh snapshot, via the admin API search action). The admin panel lives at
+  # a SECRET path and the credential is NOT stored here -- read ADMIN_PASS and
+  # the path from Server/Account/database.js + Server/Wasm.cc, e.g.:
+  curl -s -X POST http://localhost:3000/<SECRET_ADMIN_PATH>/api -H "Content-Type: application/json" \
+    -d "{\"user\":\"admin\",\"password\":\"<ADMIN_PASS>\",\"action\":\"search\",\"query\":\"<known-recent-username>\"}"
 '
 ```
 

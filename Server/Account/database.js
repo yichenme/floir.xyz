@@ -528,7 +528,7 @@ global.dbSetTalents = (user, healthRank, reloadRank) => {
 // --- Admin panel (served at /admin via Server/Wasm.cc) -----------------------
 // Single hardcoded admin credential; every request re-sends it (over HTTPS).
 const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'loveYY66$$';
+const ADMIN_PASS = 'GNDgkYa4mTp2Go8b8FKuLGgO';
 
 // Shared with Server/Wasm.cc: the admin mob-spawn action reaches straight into
 // the live C++ simulation (this DB layer can't touch it), so its handler
